@@ -1,2 +1,2 @@
-# yanterm
+# YaTerm
 Yet another terminal
