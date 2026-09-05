@@ -3,31 +3,42 @@ package ui
 import (
     "fmt"
     "fyne.io/fyne/v2"
-    //"fyne.io/fyne/v2/app"
-    //"fyne.io/fyne/v2/widget"
     "fyne.io/fyne/v2/container"
-    "github.com/fyne-io/terminal"
 )
 
 type TabControl struct {
     container.DocTabs
+    panes map[*container.TabItem]*Pane
+    app fyne.App
 }
 
-func NewTabControl(app fyne.App, _ fyne.Window) fyne.CanvasObject {
+func NewTabControl(app fyne.App, win fyne.Window) fyne.CanvasObject {
     i := 0
     tabControl := &TabControl{}
     tabControl.ExtendBaseWidget(tabControl)
+    tabControl.panes = make(map[*container.TabItem]*Pane)
+    tabControl.app = app
 
     tabControl.CreateTab = func() *container.TabItem {
         i++
-        term := terminal.New()
-        tab := container.NewTabItem(fmt.Sprintf("Tab %d", i), term)
+        pane := NewPane(app, win, tabControl)
+        tab := container.NewTabItem(fmt.Sprintf("Tab %d", i), pane.GetContainer())
+
+        tabControl.panes[tab] = pane
+        pane.OnClose = func () {
+            fyne.Do(func() {
+                delete(tabControl.panes, tab)
+                tabControl.Remove(tab)
+
+                if len(tabControl.Items) == 0 {
+                    app.Quit()
+                }
+            })
+        }
 
         go func() {
-            _ = term.RunLocalShell()
             fyne.Do(func() {
-                tabControl.Remove(tab)
-                tabControl.OnClosed(tab)
+                pane.Focus()
             })
         }()
 
@@ -35,10 +46,22 @@ func NewTabControl(app fyne.App, _ fyne.Window) fyne.CanvasObject {
     }
 
     tabControl.OnClosed = func(tab *container.TabItem) {
-        term := tab.Content.(*terminal.Terminal)
-        term.Exit()
+        p, found := tabControl.panes[tab]
+
+        if found {
+            p.Close()
+        }
+
         if len(tabControl.Items) == 0 {
             app.Quit()
+        }
+    }
+
+    tabControl.OnSelected = func(tab *container.TabItem) {
+        p, found := tabControl.panes[tab]
+
+        if found {
+            p.Focus()
         }
     }
 
