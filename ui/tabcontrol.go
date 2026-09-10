@@ -31,7 +31,7 @@ func NewTabControl(app fyne.App, win fyne.Window) fyne.CanvasObject {
                 tabControl.Remove(tab)
 
                 if len(tabControl.Items) == 0 {
-                    app.Quit()
+                    win.Close()
                 }
             })
         }
@@ -53,7 +53,7 @@ func NewTabControl(app fyne.App, win fyne.Window) fyne.CanvasObject {
         }
 
         if len(tabControl.Items) == 0 {
-            app.Quit()
+            win.Close()
         }
     }
 

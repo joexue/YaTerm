@@ -4,6 +4,8 @@ import (
 	_ "embed"
     "fyne.io/fyne/v2"
     "fyne.io/fyne/v2/app"
+    "fyne.io/fyne/v2/theme"
+    "image/color"
     "yaterm/ui"
 )
 
@@ -15,9 +17,20 @@ var yatermIconRes = &fyne.StaticResource{
 	StaticContent: yatermIcon,
 }
 
+type YatermTheme struct {
+	fyne.Theme
+
+	variant fyne.ThemeVariant
+}
+
+func (f *YatermTheme) Color(name fyne.ThemeColorName, _ fyne.ThemeVariant) color.Color {
+	return f.Theme.Color(name, f.variant)
+}
+
 func main() {
     a := app.New()
     a.SetIcon(yatermIconRes)
+    a.Settings().SetTheme(&YatermTheme{Theme: theme.DefaultTheme(), variant: theme.VariantDark})
 
     w := a.NewWindow("YaTerm")
 
