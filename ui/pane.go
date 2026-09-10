@@ -3,7 +3,8 @@ package ui
 import (
     "fyne.io/fyne/v2"
     "fyne.io/fyne/v2/container"
-    "github.com/fyne-io/terminal"
+    //"github.com/fyne-io/terminal"
+    "yaterm/terminal"
 )
 
 const (
