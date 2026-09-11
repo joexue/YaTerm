@@ -3,7 +3,7 @@ package ui
 import (
     "fyne.io/fyne/v2"
     "fyne.io/fyne/v2/container"
-    //"github.com/fyne-io/terminal"
+    "fyne.io/fyne/v2/widget"
     "yaterm/terminal"
 )
 
@@ -14,6 +14,8 @@ const (
 )
 
 type Pane struct {
+	widget.BaseWidget
+
     container fyne.CanvasObject
     splitDirection int
     term *terminal.Terminal
@@ -36,6 +38,8 @@ func NewPane(_ fyne.App, _ fyne.Window, _ *TabControl) *Pane {
         trailing: nil,
     }
 
+	t.ExtendBaseWidget(t)
+
     go func() {
         _ = t.RunLocalShell()
 		if f := p.OnClose; f != nil {
@@ -44,10 +48,6 @@ func NewPane(_ fyne.App, _ fyne.Window, _ *TabControl) *Pane {
     }()
 
     return p
-}
-
-func (p *Pane) GetContainer() fyne.CanvasObject {
-    return p.container
 }
 
 // Called by TabControl
@@ -62,4 +62,8 @@ func (p *Pane) Focus() {
 	if c := fyne.CurrentApp().Driver().CanvasForObject(p.term); c != nil {
 		c.Focus(p.term)
 	}
+}
+
+func (p *Pane) CreateRenderer() fyne.WidgetRenderer {
+    return widget.NewSimpleRenderer(p.container)
 }
