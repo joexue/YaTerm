@@ -1,6 +1,7 @@
 package ui
 
 import (
+    "fmt"
     "fyne.io/fyne/v2"
     "fyne.io/fyne/v2/container"
     "fyne.io/fyne/v2/widget"
@@ -10,7 +11,7 @@ import (
 const (
     None = iota
     Horizontal
-    Virtical
+    Vertical
 )
 
 type Pane struct {
@@ -27,8 +28,9 @@ type Pane struct {
     OnClose func()
 }
 
-func NewPane(_ fyne.App, _ fyne.Window, _ *TabControl) *Pane {
+func NewPane() *Pane {
     t := terminal.New()
+
     c := container.NewMax(t)
     p := &Pane {
         container: c,
@@ -38,11 +40,15 @@ func NewPane(_ fyne.App, _ fyne.Window, _ *TabControl) *Pane {
         trailing: nil,
     }
 
-	t.ExtendBaseWidget(t)
+	p.ExtendBaseWidget(p)
+
+    t.OnSplit = func(direction int) {
+        p.Split(direction)
+    }
 
     go func() {
         _ = t.RunLocalShell()
-		if f := p.OnClose; f != nil {
+        if f := p.OnClose; f != nil {
             p.OnClose()
         }
     }()
@@ -62,6 +68,24 @@ func (p *Pane) Focus() {
 	if c := fyne.CurrentApp().Driver().CanvasForObject(p.term); c != nil {
 		c.Focus(p.term)
 	}
+}
+
+func (p *Pane) Split(direction int) {
+    fmt.Println(direction)
+    if direction == None {
+        return
+    }
+    /*
+    p.splitDirection = direction
+
+    p.leading = NewPane()
+    p.trailing = NewPane()
+
+    if direction == Horizontal {
+    } else if direction == Vertical {
+
+    }
+    */
 }
 
 func (p *Pane) CreateRenderer() fyne.WidgetRenderer {
