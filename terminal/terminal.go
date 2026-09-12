@@ -5,9 +5,9 @@ import (
     "fyne.io/fyne/v2"
     "fyne.io/fyne/v2/driver/desktop"
     "fyne.io/fyne/v2/widget"
-    "fyne.io/fyne/v2/lang"
+    //"fyne.io/fyne/v2/lang"
     "github.com/fyne-io/terminal"
-    "yaterm/assert"
+    //"yaterm/assert"
 )
 
 type Terminal struct {
@@ -15,7 +15,10 @@ type Terminal struct {
 
     popUpMenu *widget.PopUpMenu
     //popMenu *fyne.MenuItem
-    OnSplit func(int)
+    //OnSplit func(int)
+    OnTappedSecondary func(pe *fyne.PointEvent);
+    OnFocusGained func()
+    OnFocusLost func()
 }
 
 func New() *Terminal {
@@ -26,6 +29,7 @@ func New() *Terminal {
 }
 
 func (t *Terminal) TappedSecondary(pe *fyne.PointEvent) {
+/*
 	if c := fyne.CurrentApp().Driver().CanvasForObject(t); c != nil {
         hsplitItem := fyne.NewMenuItemWithIcon(lang.L("Horionzontal Split"), assert.HSplitIconRes, func() {
             if t.OnSplit != nil {
@@ -42,13 +46,41 @@ func (t *Terminal) TappedSecondary(pe *fyne.PointEvent) {
 	    popUpMenu := widget.NewPopUpMenu(fyne.NewMenu("", menuItems...), c)
 	    popUpMenu.ShowAtPosition(pe.Position)
 	}
+*/
+    if t.OnTappedSecondary != nil {
+        t.OnTappedSecondary(pe)
+    }
+}
+
+// FocusGained is called by the canvas when this terminal becomes focused.
+// It forwards to the embedded terminal (so cursor blink etc. keep working)
+// and then notifies whoever is listening, e.g. the owning Pane.
+func (t *Terminal) FocusGained() {
+    t.Terminal.FocusGained()
+
+    if t.OnFocusGained != nil {
+        t.OnFocusGained()
+    }
+}
+
+// FocusLost is called by the canvas when this terminal loses focus.
+func (t *Terminal) FocusLost() {
+    t.Terminal.FocusLost()
+
+    if t.OnFocusLost != nil {
+        t.OnFocusLost()
+    }
 }
 
 func (t *Terminal) MouseDown(ev *desktop.MouseEvent) {
-    if ev.Button == desktop.MouseButtonSecondary {
-        if c := fyne.CurrentApp().Driver().CanvasForObject(t); c != nil {
+    if c := fyne.CurrentApp().Driver().CanvasForObject(t); c != nil {
             c.Focus(t)
-        }
+    }
+
+    if ev.Button == desktop.MouseButtonSecondary {
+        //if c := fyne.CurrentApp().Driver().CanvasForObject(t); c != nil {
+        //    c.Focus(t)
+        //}
         return
     }
 
