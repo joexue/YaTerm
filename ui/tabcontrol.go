@@ -19,17 +19,15 @@ func NewTabControl(app fyne.App, win fyne.Window) fyne.CanvasObject {
 
     tabControl.CreateTab = func() *container.TabItem {
         i++
-        pane := NewPane(nil, nil, nil, true)
+        pane := NewPane(nil, nil, true)
         tab := container.NewTabItem(fmt.Sprintf("Tab %d", i), pane)
 
         pane.OnClose = func () {
-            fyne.Do(func() {
-                tabControl.Remove(tab)
+            tabControl.Remove(tab)
 
-                if len(tabControl.Items) == 0 {
-                    win.Close()
-                }
-            })
+            if len(tabControl.Items) == 0 {
+                win.Close()
+            }
         }
 
         go func() {

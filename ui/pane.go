@@ -19,9 +19,11 @@ const (
     Vertical
 )
 
+var id int = 0
 type Pane struct {
 	widget.BaseWidget
 
+    id int
     container *fyne.Container
     splitDirection int
     term *terminal.Terminal
@@ -31,27 +33,80 @@ type Pane struct {
 
     root *Pane
     parent *Pane
+    lastFocus *Pane
 
 	border *canvas.Rectangle
     focused bool
 
     // Callback for TabControl or parent pane
     OnClose func()
-
-    // Callbacks for TabControl or parent pane, e.g. to highlight the
-    // active tab or track the active leaf pane in a split layout.
-    OnFocusGained func()
-    OnFocusLost func()
 }
 
-func NewPane(parent *Pane, root *Pane, term *terminal.Terminal, run bool) *Pane {
+func MergeOrClosePane(pane *Pane, term *terminal.Terminal) {
+    if pane.term == term {
+        if f := pane.OnClose; f != nil {
+            pane.OnClose()
+        }
+        return
+    }
+
+    var p *Pane = nil
+    if pane.leading != nil && pane.leading.term == term {
+        p = pane.trailing
+    }
+
+    if pane.trailing != nil && pane.trailing.term == term {
+        p = pane.leading
+    }
+
+    if p != nil {
+        pane.term = p.term
+        pane.leading = nil
+        pane.trailing = nil
+
+        fmt.Printf("remvoe p:%d take:%d term:%p \n", p.id, pane.id, pane.term)
+        pane.term.OnTappedSecondary = func(pe *fyne.PointEvent) {
+            pane.TappedSecondary(pe)
+        }
+
+        pane.term.OnFocusGained = func() {
+            pane.FocusGained()
+        }
+
+        pane.term.OnFocusLost = func() {
+            fmt.Printf("lost xxxx %d term:%p\n", pane.id, pane.term)
+            pane.FocusLost()
+        }
+
+        pane.container.RemoveAll()
+        pane.container.Refresh()
+        pane.container.Add(pane.border)
+        pane.container.Add(container.NewClip(container.NewPadded(pane.term)))
+        pane.container.Refresh()
+
+        //fyne.Do(func() {
+            //pane.Focus()
+        //})
+        return
+    }
+
+    if pane.leading != nil {
+        MergeOrClosePane(pane.leading, term)
+    }
+
+    if pane.trailing != nil {
+        MergeOrClosePane(pane.trailing, term)
+    }
+}
+
+func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
     if term == nil {
         term = terminal.New()
     }
 
 	border := canvas.NewRectangle(color.Transparent)
 	border.StrokeWidth = theme.Padding() / 2 //theme.DefaultTheme().Size(theme.SizeNameInputBorder) * 2
-	border.StrokeColor = theme.DefaultTheme().Color(theme.ColorNameInputBorder, theme.VariantDark)
+	border.StrokeColor = color.Transparent //theme.DefaultTheme().Color(theme.ColorNameInputBorder, theme.VariantDark)
 	border.CornerRadius = 0//theme.DefaultTheme().Size(theme.SizeNameInputRadius)
 
     // The terminal's TextGrid renders with Scroll = ScrollNone, which means
@@ -64,15 +119,23 @@ func NewPane(parent *Pane, root *Pane, term *terminal.Terminal, run bool) *Pane 
     // to the pane's actual bounds.
     c := container.NewStack(border, container.NewClip(container.NewPadded(term)))
     p := &Pane {
+        id: id,
         container: c,
         splitDirection: None,
         term: term,
         leading: nil,
         trailing: nil,
         parent: parent,
-        root: root,
 
         border: border,
+    }
+    id++
+
+    if p.parent == nil {
+        p.lastFocus = p
+        p.root = p
+    } else {
+        p.root = p.parent.root
     }
 
 	p.ExtendBaseWidget(p)
@@ -84,19 +147,25 @@ func NewPane(parent *Pane, root *Pane, term *terminal.Terminal, run bool) *Pane 
     term.OnTappedSecondary = func(pe *fyne.PointEvent) {
         p.TappedSecondary(pe)
     }
+
     term.OnFocusGained = func() {
         p.FocusGained()
     }
+
     term.OnFocusLost = func() {
+        fmt.Printf("lost xxxx0 %d term:%p\n", p.id, p.term)
         p.FocusLost()
     }
 
     if run {
         go func() {
             _ = term.RunLocalShell()
-            if f := p.OnClose; f != nil {
-                p.OnClose()
-            }
+            //if f := p.OnClose; f != nil {
+            //    p.OnClose()
+            //}
+            fyne.Do(func() {
+                MergeOrClosePane(p.root, term)
+            })
         }()
     }
 
@@ -111,9 +180,17 @@ func (p *Pane) Close() {
 
 // Called by TabControl
 func (p *Pane) Focus() {
+    var focusPane *Pane
+
+    if p.term != nil {
+        focusPane = p
+    } else {
+        focusPane = p.root.lastFocus
+    }
+
     //TODO: find the fouced pane in the pane tree
-	if c := fyne.CurrentApp().Driver().CanvasForObject(p.term); c != nil {
-		c.Focus(p.term)
+	if c := fyne.CurrentApp().Driver().CanvasForObject(focusPane.term); c != nil {
+		c.Focus(focusPane.term)
 	}
 }
 
@@ -121,27 +198,22 @@ func (p *Pane) Focus() {
 // terminal becomes the focused object on the canvas. It highlights the
 // pane's border and notifies OnFocusGained, if set.
 func (p *Pane) FocusGained() {
+    p.root.lastFocus = p
     p.focused = true
+
     if p.parent != nil {
         p.border.StrokeColor = theme.DefaultTheme().Color(theme.ColorNamePrimary, theme.VariantDark)
         p.border.Refresh()
-    }
-
-    if p.OnFocusGained != nil {
-        p.OnFocusGained()
     }
 }
 
 // FocusLost is called (via the terminal's OnFocusLost) when this pane's
 // terminal is no longer the focused object on the canvas.
 func (p *Pane) FocusLost() {
+    fmt.Println("lost id: ", p.id)
     p.focused = false
-    p.border.StrokeColor = theme.DefaultTheme().Color(theme.ColorNameInputBorder, theme.VariantDark)
+    p.border.StrokeColor = color.Transparent //theme.DefaultTheme().Color(theme.ColorNameInputBorder, theme.VariantDark)
     p.border.Refresh()
-
-    if p.OnFocusLost != nil {
-        p.OnFocusLost()
-    }
 }
 
 // Focused reports whether this pane's terminal currently has focus.
@@ -150,11 +222,25 @@ func (p *Pane) Focused() bool {
 }
 
 func (p *Pane) Split(direction int) {
-    fmt.Println(direction)
     p.splitDirection = direction
 
-    p.leading = NewPane(p, p.root, p.term, false)
-    p.trailing = NewPane(p, p.root, nil, true)
+    p.leading = NewPane(p, p.term, false)
+
+    p.leading.term.OnTappedSecondary = func(pe *fyne.PointEvent) {
+        p.leading.TappedSecondary(pe)
+    }
+
+    p.leading.term.OnFocusGained = func() {
+        p.leading.FocusGained()
+    }
+
+    p.leading.term.OnFocusLost = func() {
+        p.leading.FocusLost()
+    }
+
+    p.term = nil
+
+    p.trailing = NewPane(p, nil, true)
 
     p.container.RemoveAll()
     if direction == Horizontal {
@@ -170,6 +256,8 @@ func (p *Pane) Split(direction int) {
     // freshly cleared space.
     p.Refresh()
 
+    p.root.lastFocus = p.trailing
+
     fyne.Do(func() {
         p.trailing.Focus()
     })
@@ -182,11 +270,9 @@ func (p *Pane) CreateRenderer() fyne.WidgetRenderer {
 func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 	if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
         hsplitItem := fyne.NewMenuItemWithIcon(lang.L("Horizontal Split"), assert.HSplitIconRes, func() {
-            fmt.Println("split Horizontal")
             p.Split(Horizontal)
         })
         vsplitItem := fyne.NewMenuItemWithIcon(lang.L("Vertical Split"), assert.VSplitIconRes, func() {
-            fmt.Println("split Vertical")
             p.Split(Vertical)
         })
 
