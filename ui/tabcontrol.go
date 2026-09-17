@@ -22,7 +22,7 @@ func NewTabControl(app fyne.App, win fyne.Window) fyne.CanvasObject {
 		pane := NewPane(nil, nil, true)
 		tab := container.NewTabItem(fmt.Sprintf("Tab %d", i), pane)
 
-		pane.OnClose = func() {
+		pane.OnTearDown = func() {
 			tabControl.Remove(tab)
 
 			if len(tabControl.Items) == 0 {
@@ -32,7 +32,7 @@ func NewTabControl(app fyne.App, win fyne.Window) fyne.CanvasObject {
 
 		go func() {
 			fyne.Do(func() {
-				pane.Focus()
+				pane.TryFocus()
 			})
 		}()
 
@@ -40,7 +40,7 @@ func NewTabControl(app fyne.App, win fyne.Window) fyne.CanvasObject {
 	}
 
 	tabControl.OnClosed = func(tab *container.TabItem) {
-		tab.Content.(*Pane).Close()
+		tab.Content.(*Pane).TearDown()
 
 		if len(tabControl.Items) == 0 {
 			win.Close()
@@ -48,7 +48,7 @@ func NewTabControl(app fyne.App, win fyne.Window) fyne.CanvasObject {
 	}
 
 	tabControl.OnSelected = func(tab *container.TabItem) {
-		tab.Content.(*Pane).Focus()
+		tab.Content.(*Pane).TryFocus()
 	}
 
 	tabControl.Append(tabControl.CreateTab())
