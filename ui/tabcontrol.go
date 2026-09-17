@@ -1,57 +1,57 @@
 package ui
 
 import (
-    "fmt"
-    "fyne.io/fyne/v2"
-    "fyne.io/fyne/v2/container"
+	"fmt"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 )
 
 type TabControl struct {
-    container.DocTabs
-    app fyne.App
+	container.DocTabs
+	app fyne.App
 }
 
 func NewTabControl(app fyne.App, win fyne.Window) fyne.CanvasObject {
-    i := 0
-    tabControl := &TabControl{}
-    tabControl.ExtendBaseWidget(tabControl)
-    tabControl.app = app
+	i := 0
+	tabControl := &TabControl{}
+	tabControl.ExtendBaseWidget(tabControl)
+	tabControl.app = app
 
-    tabControl.CreateTab = func() *container.TabItem {
-        i++
-        pane := NewPane(nil, nil, true)
-        tab := container.NewTabItem(fmt.Sprintf("Tab %d", i), pane)
+	tabControl.CreateTab = func() *container.TabItem {
+		i++
+		pane := NewPane(nil, nil, true)
+		tab := container.NewTabItem(fmt.Sprintf("Tab %d", i), pane)
 
-        pane.OnClose = func () {
-            tabControl.Remove(tab)
+		pane.OnClose = func() {
+			tabControl.Remove(tab)
 
-            if len(tabControl.Items) == 0 {
-                win.Close()
-            }
-        }
+			if len(tabControl.Items) == 0 {
+				win.Close()
+			}
+		}
 
-        go func() {
-            fyne.Do(func() {
-                pane.Focus()
-            })
-        }()
+		go func() {
+			fyne.Do(func() {
+				pane.Focus()
+			})
+		}()
 
-        return tab
-    }
+		return tab
+	}
 
-    tabControl.OnClosed = func(tab *container.TabItem) {
-        tab.Content.(*Pane).Close()
+	tabControl.OnClosed = func(tab *container.TabItem) {
+		tab.Content.(*Pane).Close()
 
-        if len(tabControl.Items) == 0 {
-            win.Close()
-        }
-    }
+		if len(tabControl.Items) == 0 {
+			win.Close()
+		}
+	}
 
-    tabControl.OnSelected = func(tab *container.TabItem) {
-        tab.Content.(*Pane).Focus()
-    }
+	tabControl.OnSelected = func(tab *container.TabItem) {
+		tab.Content.(*Pane).Focus()
+	}
 
-    tabControl.Append(tabControl.CreateTab())
+	tabControl.Append(tabControl.CreateTab())
 
-    return tabControl
+	return tabControl
 }

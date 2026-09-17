@@ -2,12 +2,12 @@ package main
 
 import (
 	_ "embed"
-    "fyne.io/fyne/v2"
-    "fyne.io/fyne/v2/app"
-    "fyne.io/fyne/v2/theme"
-    "image/color"
-    "yaterm/assert"
-    "yaterm/ui"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/theme"
+	"image/color"
+	"yaterm/assert"
+	"yaterm/ui"
 )
 
 type YatermTheme struct {
@@ -21,16 +21,16 @@ func (f *YatermTheme) Color(name fyne.ThemeColorName, _ fyne.ThemeVariant) color
 }
 
 func main() {
-    a := app.New()
-    a.SetIcon(assert.YatermIconRes)
-    a.Settings().SetTheme(&YatermTheme{Theme: theme.DefaultTheme(), variant: theme.VariantDark})
+	a := app.New()
+	a.SetIcon(assert.YatermIconRes)
+	a.Settings().SetTheme(&YatermTheme{Theme: theme.DefaultTheme(), variant: theme.VariantDark})
 
-    w := a.NewWindow("YaTerm")
+	w := a.NewWindow("YaTerm")
 
-    w.Resize(fyne.NewSize(800, 600))
+	w.Resize(fyne.NewSize(800, 600))
 
-    t := ui.NewTabControl(a, w)
+	t := ui.NewTabControl(a, w)
 
-    w.SetContent(t)
-    w.ShowAndRun()
+	w.SetContent(t)
+	w.ShowAndRun()
 }
