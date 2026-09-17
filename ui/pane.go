@@ -1,7 +1,7 @@
 package ui
 
 import (
-	//"fmt"
+	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
@@ -17,6 +17,7 @@ const (
 	SplitNone = iota
 	SplitHorizontal
 	SplitVertical
+	SplitMerging
 )
 
 var id int = 0
@@ -58,7 +59,7 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 	p := &Pane{
 		id:        id,
 		term:      term,
-		leaf:      false,
+		leaf:      true,
 		split:     SplitNone,
 		first:     nil,
 		second:    nil,
@@ -82,12 +83,19 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 	if run {
 		go func() {
 			_ = term.RunLocalShell()
-			fyne.Do(func() {
-				//MergeOrClosePane(p.root, term)
-			})
+			p.TryClose()
 		}()
 	}
 
+	/*
+		go func() {
+			fyne.Do(func() {
+				if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
+					c.Focus(p)
+				}
+			})
+		}()
+	*/
 	return p
 }
 
@@ -148,29 +156,35 @@ func MergeOrClosePane(pane *Pane, term *terminal.Terminal) {
 
 // Called by TabControl
 func (p *Pane) TearDown() {
-	t := p.term
-	t.Exit()
+	if p.leaf {
+		t := p.term
+		t.Exit()
+	} else {
+		p.first.TearDown()
+		p.second.TearDown()
+	}
 }
 
 // Called by TabControl
 func (p *Pane) TryFocus() {
-	/*
-		    var focusPane *Pane
+	fyne.Do(func() {
+		focusPane := p.root.lastFocus
 
-		    if p.term != nil {
-		        focusPane = p
-		    } else {
-		        focusPane = p.root.lastFocus
-		    }
-		    //TODO: find the fouced pane in the pane tree
-			if c := fyne.CurrentApp().Driver().CanvasForObject(focusPane.term); c != nil {
-				c.Focus(focusPane.term)
-			}
-	*/
+		if c := fyne.CurrentApp().Driver().CanvasForObject(focusPane); c != nil {
+			c.Focus(focusPane)
+		}
+	})
+}
+
+func (p *Pane) TryClose() {
+	fyne.Do(func() {
+		p.Close()
+	})
 }
 
 func (p *Pane) Split(direction int) {
 	p.split = direction
+	p.leaf = false
 
 	p.first = NewPane(p, p.term, false)
 	p.term = nil
@@ -188,11 +202,56 @@ func (p *Pane) Split(direction int) {
 
 	p.root.lastFocus = p.second
 
-	/*
-		fyne.Do(func() {
-			p.second.Focus()
-		})
-	*/
+	fyne.Do(func() {
+		p.second.TryFocus()
+	})
+}
+
+func (p *Pane) Close() {
+	fmt.Println("closing pane : ", p.id)
+	if p.split == SplitMerging {
+		return
+	}
+
+	if p == p.root {
+		if f := p.OnTearDown; f != nil {
+			f()
+		}
+		return
+	}
+
+	pa := p.parent
+	var take *Pane
+	if pa.first == p {
+		take = pa.second
+	} else {
+		take = pa.first
+	}
+
+	pa.container.RemoveAll()
+	if take.leaf {
+		pa.leaf = true
+		pa.split = SplitNone
+		pa.first = nil
+		pa.second = nil
+		pa.term = take.term
+		pa.container.Add(take.container.Objects[0])
+		pa.container.Add(take.container.Objects[1])
+		pa.container.Add(take.container.Objects[2])
+	} else {
+		pa.leaf = false
+		pa.split = take.split
+		pa.first = take.first
+		pa.second = take.second
+		pa.term = nil
+		if pa.split == SplitHorizontal {
+			pa.container.Add(container.NewHSplit(take.first, take.second))
+		} else {
+			pa.container.Add(container.NewVSplit(take.first, take.second))
+		}
+	}
+
+	p.split = SplitMerging
 }
 
 func (p *Pane) CreateRenderer() fyne.WidgetRenderer {
@@ -212,7 +271,20 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 			p.Split(SplitVertical)
 		})
 
-		menuItems := []*fyne.MenuItem{hsplitItem, vsplitItem}
+		separatorItem := fyne.NewMenuItemSeparator()
+
+		closePaneIterm := fyne.NewMenuItemWithIcon(lang.L("Close Pane"), assert.VSplitIconRes, func() {
+			p.TryClose()
+			p.term.Exit()
+		})
+		closeTabIterm := fyne.NewMenuItemWithIcon(lang.L("Close Tab"), assert.VSplitIconRes, func() {
+			p.root.TearDown()
+			if f := p.root.OnTearDown; f != nil {
+				f()
+			}
+		})
+
+		menuItems := []*fyne.MenuItem{hsplitItem, vsplitItem, separatorItem, closePaneIterm, closeTabIterm}
 		popUpMenu := widget.NewPopUpMenu(fyne.NewMenu("", menuItems...), c)
 		popUpMenu.ShowAtRelativePosition(pe.Position, p)
 	}
@@ -220,11 +292,13 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 
 func (p *Pane) FocusGained() {
 	p.root.lastFocus = p
-
+	fmt.Println("Focus: ", p.id)
 	if p.parent != nil {
 		p.border.StrokeColor = theme.Color(theme.ColorNamePrimary)
 		p.border.Refresh()
 	}
+
+	p.term.FocusGained()
 }
 
 // FocusLost is called (via the terminal's OnFocusLost) when this pane's
@@ -232,6 +306,9 @@ func (p *Pane) FocusGained() {
 func (p *Pane) FocusLost() {
 	p.border.StrokeColor = color.Transparent
 	p.border.Refresh()
+	if p.term != nil {
+		p.term.FocusLost()
+	}
 }
 
 func (p *Pane) TypedRune(r rune) {
