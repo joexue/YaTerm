@@ -69,10 +69,6 @@ func MergeOrClosePane(pane *Pane, term *terminal.Terminal) {
             pane.TappedSecondary(pe)
         }
 
-        pane.term.OnFocusGained = func() {
-            pane.FocusGained()
-        }
-
         pane.term.OnFocusLost = func() {
             fmt.Printf("lost xxxx %d term:%p\n", pane.id, pane.term)
             pane.FocusLost()
@@ -100,6 +96,7 @@ func MergeOrClosePane(pane *Pane, term *terminal.Terminal) {
 }
 
 func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
+    id++
     if term == nil {
         term = terminal.New()
     }
@@ -126,10 +123,10 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
         leading: nil,
         trailing: nil,
         parent: parent,
-
         border: border,
     }
-    id++
+
+    p.container.Add(NewEventGlass(p))
 
     if p.parent == nil {
         p.lastFocus = p
@@ -143,19 +140,6 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
     //t.OnSplit = func(direction int) {
     //    p.Split(direction)
     //}
-
-    term.OnTappedSecondary = func(pe *fyne.PointEvent) {
-        p.TappedSecondary(pe)
-    }
-
-    term.OnFocusGained = func() {
-        p.FocusGained()
-    }
-
-    term.OnFocusLost = func() {
-        fmt.Printf("lost xxxx0 %d term:%p\n", p.id, p.term)
-        p.FocusLost()
-    }
 
     if run {
         go func() {
@@ -180,6 +164,7 @@ func (p *Pane) Close() {
 
 // Called by TabControl
 func (p *Pane) Focus() {
+/*
     var focusPane *Pane
 
     if p.term != nil {
@@ -187,39 +172,13 @@ func (p *Pane) Focus() {
     } else {
         focusPane = p.root.lastFocus
     }
-
     //TODO: find the fouced pane in the pane tree
 	if c := fyne.CurrentApp().Driver().CanvasForObject(focusPane.term); c != nil {
 		c.Focus(focusPane.term)
 	}
+    */
 }
 
-// FocusGained is called (via the terminal's OnFocusGained) when this pane's
-// terminal becomes the focused object on the canvas. It highlights the
-// pane's border and notifies OnFocusGained, if set.
-func (p *Pane) FocusGained() {
-    p.root.lastFocus = p
-    p.focused = true
-
-    if p.parent != nil {
-        p.border.StrokeColor = theme.DefaultTheme().Color(theme.ColorNamePrimary, theme.VariantDark)
-        p.border.Refresh()
-    }
-}
-
-// FocusLost is called (via the terminal's OnFocusLost) when this pane's
-// terminal is no longer the focused object on the canvas.
-func (p *Pane) FocusLost() {
-    fmt.Println("lost id: ", p.id)
-    p.focused = false
-    p.border.StrokeColor = color.Transparent //theme.DefaultTheme().Color(theme.ColorNameInputBorder, theme.VariantDark)
-    p.border.Refresh()
-}
-
-// Focused reports whether this pane's terminal currently has focus.
-func (p *Pane) Focused() bool {
-    return p.focused
-}
 
 func (p *Pane) Split(direction int) {
     p.splitDirection = direction
@@ -267,6 +226,10 @@ func (p *Pane) CreateRenderer() fyne.WidgetRenderer {
     return widget.NewSimpleRenderer(p.container)
 }
 
+
+func (p *Pane) Tapped(pe *fyne.PointEvent) {
+}
+
 func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 	if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
         hsplitItem := fyne.NewMenuItemWithIcon(lang.L("Horizontal Split"), assert.HSplitIconRes, func() {
@@ -280,4 +243,32 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 	    popUpMenu := widget.NewPopUpMenu(fyne.NewMenu("", menuItems...), c)
 	    popUpMenu.ShowAtRelativePosition(pe.Position, p)
     }
+}
+
+func (p *Pane) FocusGained() {
+    fmt.Println("gain id: ", p.id)
+    p.root.lastFocus = p
+    p.focused = true
+
+    if p.parent != nil {
+        p.border.StrokeColor = theme.DefaultTheme().Color(theme.ColorNamePrimary, theme.VariantDark)
+        p.border.Refresh()
+    }
+}
+
+// FocusLost is called (via the terminal's OnFocusLost) when this pane's
+// terminal is no longer the focused object on the canvas.
+func (p *Pane) FocusLost() {
+    fmt.Println("lost id: ", p.id)
+    p.focused = false
+    p.border.StrokeColor = color.Transparent //theme.DefaultTheme().Color(theme.ColorNameInputBorder, theme.VariantDark)
+    p.border.Refresh()
+}
+
+func (p *Pane) TypedRune(r rune) {
+    p.term.TypedRune(r)
+}
+
+func (p *Pane) TypedKey(ke *fyne.KeyEvent) {
+    p.term.TypedKey(ke)
 }
