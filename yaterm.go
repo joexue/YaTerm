@@ -4,9 +4,9 @@ import (
 	_ "embed"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/theme"
 	"image/color"
 	"yaterm/assert"
+	"yaterm/theme"
 	"yaterm/ui"
 )
 
@@ -23,7 +23,7 @@ func (f *YatermTheme) Color(name fyne.ThemeColorName, _ fyne.ThemeVariant) color
 func main() {
 	a := app.New()
 	a.SetIcon(assert.YatermIconRes)
-	a.Settings().SetTheme(&YatermTheme{Theme: theme.DefaultTheme(), variant: theme.VariantDark})
+	a.Settings().SetTheme(theme.New())
 
 	w := a.NewWindow("YaTerm")
 
