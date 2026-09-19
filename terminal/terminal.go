@@ -7,6 +7,7 @@ import (
 
 type Terminal struct {
 	terminal.Terminal
+	OnExit func()
 }
 
 func New() *Terminal {
