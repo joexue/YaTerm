@@ -53,7 +53,6 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 	b.StrokeWidth = 1
 	b.StrokeColor = color.Transparent
 
-	//c := container.NewStack(b, container.NewClip(container.NewPadded(term)))
 	p := &Pane{
 		id:     id,
 		term:   term,
@@ -66,9 +65,6 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 
 	ev := NewEventGlass(p)
 	p.event = ev
-
-	// Both event glass and term use padding to let them align
-	//p.container.Add(container.NewPadded(NewEventGlass(p)))
 
 	if p.parent == nil {
 		p.lastFocus = p
@@ -98,6 +94,7 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 func (p *Pane) TearDown() {
 	if p.split == SplitNone {
 		t := p.term
+		t.OnExit = nil
 		t.Exit()
 	} else {
 		p.first.TearDown()
@@ -199,7 +196,6 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 		separatorItem := fyne.NewMenuItemSeparator()
 
 		closePaneIterm := fyne.NewMenuItemWithIcon(lang.L("Close Pane"), assert.VSplitIconRes, func() {
-			//p.TryClose()
 			p.term.Exit()
 		})
 		closeTabIterm := fyne.NewMenuItemWithIcon(lang.L("Close Tab"), assert.VSplitIconRes, func() {
@@ -226,8 +222,6 @@ func (p *Pane) FocusGained() {
 	p.term.FocusGained()
 }
 
-// FocusLost is called (via the terminal's OnFocusLost) when this pane's
-// terminal is no longer the focused object on the canvas.
 func (p *Pane) FocusLost() {
 	p.border.StrokeColor = color.Transparent
 	p.border.Refresh()

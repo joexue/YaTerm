@@ -25,6 +25,14 @@ type EventReceiver interface {
 	TypedKey(*fyne.KeyEvent)
 }
 
+var (
+	_ fyne.CanvasObject      = (*EventGlass)(nil)
+	_ fyne.Focusable         = (*EventGlass)(nil)
+	_ fyne.Tabbable          = (*EventGlass)(nil)
+	_ fyne.Tappable          = (*EventGlass)(nil)
+	_ fyne.SecondaryTappable = (*EventGlass)(nil)
+)
+
 // Event Glass is a transparent glass covers on the top of all objects and capture all interested event and pass them to receiver
 type EventGlass struct {
 	widget.BaseWidget
@@ -73,4 +81,8 @@ func (e *EventGlass) TypedRune(r rune) {
 
 func (e *EventGlass) TypedKey(ke *fyne.KeyEvent) {
 	e.receiver.TypedKey(ke)
+}
+
+func (e *EventGlass) AcceptsTab() bool {
+	return true
 }
