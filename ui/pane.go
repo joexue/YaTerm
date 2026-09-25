@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/lang"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"image/color"
@@ -186,19 +185,19 @@ func (p *Pane) Tapped(pe *fyne.PointEvent) {
 
 func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 	if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
-		hsplitItem := fyne.NewMenuItemWithIcon(lang.L("Horizontal Split"), assert.HSplitIconRes, func() {
+		hsplitItem := fyne.NewMenuItemWithIcon("Horizontal Split", theme.NewThemedResource(assert.HSplitIconRes), func() {
 			p.Split(SplitHorizontal, 0.5)
 		})
-		vsplitItem := fyne.NewMenuItemWithIcon(lang.L("Vertical Split"), assert.VSplitIconRes, func() {
+		vsplitItem := fyne.NewMenuItemWithIcon("Vertical Split", theme.NewThemedResource(assert.VSplitIconRes), func() {
 			p.Split(SplitVertical, 0.5)
 		})
 
 		separatorItem := fyne.NewMenuItemSeparator()
 
-		closePaneIterm := fyne.NewMenuItemWithIcon(lang.L("Close Pane"), assert.VSplitIconRes, func() {
+		closePaneIterm := fyne.NewMenuItemWithIcon("Close Pane", theme.Icon(theme.IconNameWindowClose), func() {
 			p.term.Exit()
 		})
-		closeTabIterm := fyne.NewMenuItemWithIcon(lang.L("Close Tab"), assert.VSplitIconRes, func() {
+		closeTabIterm := fyne.NewMenuItemWithIcon("Close Tab", theme.Icon(theme.IconNameWindowClose), func() {
 			p.root.TearDown()
 			if f := p.root.OnTearDown; f != nil {
 				f()

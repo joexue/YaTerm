@@ -25,6 +25,6 @@ var HSplitIconRes = &fyne.StaticResource{
 var vsplitIcon []byte
 
 var VSplitIconRes = &fyne.StaticResource{
-	StaticName:    "hsplit.svg",
+	StaticName:    "vsplit.svg",
 	StaticContent: vsplitIcon,
 }

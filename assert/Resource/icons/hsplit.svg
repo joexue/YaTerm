@@ -1,5 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="black" width="24px" height="24px">
-<path d="M0 0h24v24H0z" fill="none"/>
-<path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/>
-<path d="M 12 4 V 18" stroke-width="2"/>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns="http://www.w3.org/2000/svg"
+   width="24"
+   height="24"
+   viewBox="0 0 24 24">
+  <!-- Outer line border cutout from your example -->
+  <path
+     d="M 20,4 V 20 H 4 V 4 H 20 M 19.914286,3 H 4.0857143 C 2.9857143,3 3,2.9857143 3,4.0857143 V 19.914286 C 3,21.014286 2.9857143,21 4.0857143,21 H 19.914286 C 21.014286,21 21,21.014286 21,19.914286 V 4.0857143 C 21,2.9857143 21.014286,3 19.914286,3 Z" />
+  <!-- Center vertical split line cutout -->
+  <path
+     d="M 11.5,4 V 20 H 12.5 V 4 Z" />
 </svg>
