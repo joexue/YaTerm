@@ -8,6 +8,8 @@ github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 h1:w+iIsaOQNcT7O
 github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78/go.mod h1:LmzpDX56iTiv29bbRTIsUNlaFfuhWRQBWjQdVyAevI8=
 github.com/BurntSushi/toml v1.6.0 h1:dRaEfpa2VI55EwlIW72hMRHdWouJeRF7TPYhI+AUQjk=
 github.com/BurntSushi/toml v1.6.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
+github.com/FyshOS/fancyfs v0.0.1 h1:kgvm7VvwOMLkYTqSflplp62SlMVWQ2uAoHw9CXwXHYg=
+github.com/FyshOS/fancyfs v0.0.1/go.mod h1:S5SHVz/5R72iCXOxCqdcyTPSlg3JxNd0gaHyGBSrY8A=
 github.com/anthonynsimon/bild v0.14.0 h1:IFRkmKdNdqmexXHfEU7rPlAmdUZ8BDZEGtGHDnGWync=
 github.com/anthonynsimon/bild v0.14.0/go.mod h1:hcvEAyBjTW69qkKJTfpcDQ83sSZHxwOunsseDfeQhUs=
 github.com/clipperhouse/uax29/v2 v2.2.0 h1:ChwIKnQN3kcZteTXMgb1wztSgaU+ZemkgWdohwgs8tY=

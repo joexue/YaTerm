@@ -4,44 +4,45 @@ import (
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 )
 
-type TabControl struct {
-	container.DocTabs
-	app fyne.App
+var i int = 0
+var tabControl *Tabs
+var win fyne.Window
+
+func NewTabItem() *container.TabItem {
+	i++
+	pane := NewPane(nil, nil, true)
+	tab := container.NewTabItem(fmt.Sprintf("Tab %d", i), pane)
+
+	pane.OnTearDown = func() {
+		tabControl.Remove(tab)
+
+		if len(tabControl.Items) == 0 {
+			win.Close()
+		}
+	}
+
+	go func() {
+		fyne.Do(func() {
+			pane.TryFocus()
+		})
+	}()
+
+	return tab
 }
 
-func NewTabControl(app fyne.App, win fyne.Window) fyne.CanvasObject {
-	i := 0
-	tabControl := &TabControl{}
-	tabControl.ExtendBaseWidget(tabControl)
-	tabControl.app = app
+func NewTabControl(_ fyne.App, w fyne.Window) fyne.CanvasObject {
+	win = w
 
-	tabControl.CreateTab = func() *container.TabItem {
-		i++
-		pane := NewPane(nil, nil, true)
-		tab := container.NewTabItem(fmt.Sprintf("Tab %d", i), pane)
+	t := NewTabItem()
+	tabControl = NewTabs(t)
 
-		pane.OnTearDown = func() {
-			tabControl.Remove(tab)
-
-			if len(tabControl.Items) == 0 {
-				win.Close()
-			}
-		}
-
-		go func() {
-			fyne.Do(func() {
-				pane.TryFocus()
-			})
-		}()
-
-		return tab
-	}
+	tabControl.CreateTab = NewTabItem
 
 	tabControl.OnClosed = func(tab *container.TabItem) {
 		tab.Content.(*Pane).TearDown()
-
 		if len(tabControl.Items) == 0 {
 			win.Close()
 		}
@@ -51,7 +52,9 @@ func NewTabControl(app fyne.App, win fyne.Window) fyne.CanvasObject {
 		tab.Content.(*Pane).TryFocus()
 	}
 
-	tabControl.Append(tabControl.CreateTab())
+	tabControl.OnSettings = func() {
+		dialog.ShowInformation("Settings", "Settings dialog goes here.", w)
+	}
 
 	return tabControl
 }

@@ -9,6 +9,7 @@ require (
 	github.com/ActiveState/termtest/conpty v0.5.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
+	github.com/FyshOS/fancyfs v0.0.1 // indirect
 	github.com/anthonynsimon/bild v0.14.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.2.0 // indirect
 	github.com/creack/pty v1.1.21 // indirect
