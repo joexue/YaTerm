@@ -4,6 +4,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/theme"
 	"image/color"
+	"yaterm/assert"
 )
 
 type YatermTheme struct {
@@ -23,6 +24,20 @@ func (f *YatermTheme) Size(name fyne.ThemeSizeName) float32 {
 	}
 
 	return f.Theme.Size(name)
+}
+
+func (t *YatermTheme) Font(s fyne.TextStyle) fyne.Resource {
+	if !s.Monospace {
+		return t.Theme.Font(s)
+	}
+
+	if s.Bold {
+		return assert.ResourceJetBrainsMonoBoldTtf
+	} else if s.Italic {
+		return assert.ResourceJetBrainsMonoItalicTtf
+	}
+
+	return assert.ResourceJetBrainsMonoRegularTtf
 }
 
 func NewYatermTheme() *YatermTheme {

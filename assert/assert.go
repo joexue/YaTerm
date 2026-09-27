@@ -2,7 +2,7 @@ package assert
 
 import (
 	_ "embed"
-    "fyne.io/fyne/v2"
+	"fyne.io/fyne/v2"
 )
 
 //go:embed Resource/icons/yaterm.png
@@ -27,4 +27,25 @@ var vsplitIcon []byte
 var VSplitIconRes = &fyne.StaticResource{
 	StaticName:    "vsplit.svg",
 	StaticContent: vsplitIcon,
+}
+
+//go:embed fonts/JetBrainsMono-Regular.ttf
+var resourceJetBrainsMonoRegular []byte
+var ResourceJetBrainsMonoRegularTtf = &fyne.StaticResource{
+	StaticName:    "fonts/JetBrainsMono-Regular.ttf",
+	StaticContent: resourceJetBrainsMonoRegular,
+}
+
+//go:embed fonts/JetBrainsMono-Bold.ttf
+var resourceJetBrainsMonoBold []byte
+var ResourceJetBrainsMonoBoldTtf = &fyne.StaticResource{
+	StaticName:    "fonts/JetBrainsMono-Bold.ttf",
+	StaticContent: resourceJetBrainsMonoBold,
+}
+
+//go:embed fonts/JetBrainsMono-Italic.ttf
+var resourceJetBrainsMonoItalic []byte
+var ResourceJetBrainsMonoItalicTtf = &fyne.StaticResource{
+	StaticName:    "fonts/JetBrainsMono-Italic.ttf",
+	StaticContent: resourceJetBrainsMonoItalic,
 }
