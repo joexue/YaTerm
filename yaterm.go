@@ -23,7 +23,7 @@ func (f *YatermTheme) Color(name fyne.ThemeColorName, _ fyne.ThemeVariant) color
 func main() {
 	a := app.New()
 	a.SetIcon(assert.YatermIconRes)
-	a.Settings().SetTheme(theme.New())
+	a.Settings().SetTheme(theme.NewYatermTheme())
 
 	w := a.NewWindow("YaTerm")
 

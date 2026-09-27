@@ -25,6 +25,6 @@ func (f *YatermTheme) Size(name fyne.ThemeSizeName) float32 {
 	return f.Theme.Size(name)
 }
 
-func New() *YatermTheme {
+func NewYatermTheme() *YatermTheme {
 	return &YatermTheme{Theme: theme.DarkTheme(), variant: theme.VariantDark}
 }
