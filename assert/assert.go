@@ -29,6 +29,14 @@ var VSplitIconRes = &fyne.StaticResource{
 	StaticContent: vsplitIcon,
 }
 
+//go:embed Resource/icons/markdown.svg
+var markdownIcon []byte
+
+var MarkdownIconRes = &fyne.StaticResource{
+	StaticName:    "markdown.svg",
+	StaticContent: markdownIcon,
+}
+
 //go:embed fonts/JetBrainsMono-Regular.ttf
 var resourceJetBrainsMonoRegular []byte
 var ResourceJetBrainsMonoRegularTtf = &fyne.StaticResource{

@@ -53,7 +53,7 @@ func NewTabControl(_ fyne.App, w fyne.Window) fyne.CanvasObject {
 	}
 
 	tabControl.OnSettings = func() {
-		dialog.ShowInformation("Settings", "Settings dialog goes here.", w)
+		dialog.ShowInformation("Infos", "https://github.com/joexue/yaterm", w)
 	}
 
 	return tabControl

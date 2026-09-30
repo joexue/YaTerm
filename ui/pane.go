@@ -210,10 +210,10 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 			}
 		})
 
-		showMarkDownIterm := fyne.NewMenuItemWithIcon("Show as Markdown", theme.Icon(theme.IconNameWindowClose), func() {
+		showMarkDownIterm := fyne.NewMenuItemWithIcon("Show as Markdown", theme.NewThemedResource(assert.MarkdownIconRes), func() {
 		})
 
-		typeAgentItem := fyne.NewMenuItemWithIcon("Type Agent", theme.Icon(theme.IconNameWindowClose), func() {
+		typeAgentItem := fyne.NewMenuItemWithIcon("Type Agent", theme.Icon(theme.IconNameAccount), func() {
 		})
 
 		menuItems := []*fyne.MenuItem{hsplitItem, vsplitItem, separatorItem, closePaneIterm, closeTabIterm, separatorItem, showMarkDownIterm, typeAgentItem}
@@ -224,7 +224,7 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 
 func (p *Pane) FocusGained() {
 	p.root.lastFocus = p
-	fmt.Println("Focus: ", p.id, p.Size())
+	fmt.Println("Focus: ", p.id, p.Size(), p.screen.Size())
 	if p.parent != nil {
 		p.border.StrokeColor = theme.Color(theme.ColorNamePrimary)
 		p.border.Refresh()
@@ -273,7 +273,7 @@ func (r *paneRenderer) Layout(size fyne.Size) {
 		r.pane.border.Resize(size)
 		r.pane.border.Move(fyne.NewPos(0, 0))
 
-		r.pane.screen.Resize(size.Subtract(pad))
+		r.pane.screen.Resize(size.Subtract(pad).Subtract(pad))
 		r.pane.screen.Move(offset)
 
 	case SplitHorizontal:
