@@ -20,7 +20,6 @@ const (
 var PaneBorderWidth = float32(1)
 var PanePadding = (PaneBorderWidth * 2)
 
-var _ EventReceiver = (*Pane)(nil)
 var id int = 0
 
 type Pane struct {
@@ -40,8 +39,8 @@ type Pane struct {
 	lastFocus *Pane
 
 	border *canvas.Rectangle
-	event  *EventGlass
 
+	screen *Screen
 	// Callback from creater, called when the whole pane tree is finished
 	OnTearDown func()
 }
@@ -63,10 +62,8 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 		second: nil,
 		parent: parent,
 		border: b,
+		screen: NewScreen(),
 	}
-
-	ev := NewEventGlass(p)
-	p.event = ev
 
 	if p.parent == nil {
 		p.lastFocus = p
@@ -78,26 +75,30 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 	p.ExtendBaseWidget(p)
 
 	term.OnExit = p.TryClose
-	if run {
-		go func() {
-			_ = term.RunLocalShell()
-			// here, the p may change, so we cannot call p.TryClose
-			if f := term.OnExit; f != nil {
-				f()
-			}
-		}()
-	}
+	/*
+		if run {
+			go func() {
+				_ = term.RunLocalShell()
+				// here, the p may change, so we cannot call p.TryClose
+				if f := term.OnExit; f != nil {
+					f()
+				}
+			}()
+		}
+	*/
 
 	id++
+
+	p.screen.Project('A', 0, 0, color.White, color.Black)
 	return p
 }
 
 // Called by TabControl
 func (p *Pane) TearDown() {
 	if p.split == SplitNone {
-		t := p.term
-		t.OnExit = nil
-		t.Exit()
+		//t := p.term
+		//t.OnExit = nil
+		//t.Exit()
 	} else {
 		p.first.TearDown()
 		p.second.TearDown()
@@ -183,7 +184,9 @@ func (p *Pane) CreateRenderer() fyne.WidgetRenderer {
 }
 
 func (p *Pane) Tapped(pe *fyne.PointEvent) {
-	// Do nothing for now
+	if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
+		c.Focus(p)
+	}
 }
 
 func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
@@ -198,7 +201,7 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 		separatorItem := fyne.NewMenuItemSeparator()
 
 		closePaneIterm := fyne.NewMenuItemWithIcon("Close Pane", theme.Icon(theme.IconNameWindowClose), func() {
-			p.term.Exit()
+			//p.term.Exit()
 		})
 		closeTabIterm := fyne.NewMenuItemWithIcon("Close Tab", theme.Icon(theme.IconNameWindowClose), func() {
 			p.root.TearDown()
@@ -207,7 +210,13 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 			}
 		})
 
-		menuItems := []*fyne.MenuItem{hsplitItem, vsplitItem, separatorItem, closePaneIterm, closeTabIterm}
+		showMarkDownIterm := fyne.NewMenuItemWithIcon("Show as Markdown", theme.Icon(theme.IconNameWindowClose), func() {
+		})
+
+		typeAgentItem := fyne.NewMenuItemWithIcon("Type Agent", theme.Icon(theme.IconNameWindowClose), func() {
+		})
+
+		menuItems := []*fyne.MenuItem{hsplitItem, vsplitItem, separatorItem, closePaneIterm, closeTabIterm, separatorItem, showMarkDownIterm, typeAgentItem}
 		popUpMenu := widget.NewPopUpMenu(fyne.NewMenu("", menuItems...), c)
 		popUpMenu.ShowAtRelativePosition(pe.Position, p)
 	}
@@ -221,23 +230,27 @@ func (p *Pane) FocusGained() {
 		p.border.Refresh()
 	}
 
-	p.term.FocusGained()
+	//p.term.FocusGained()
 }
 
 func (p *Pane) FocusLost() {
 	p.border.StrokeColor = color.Transparent
 	p.border.Refresh()
-	if p.term != nil {
-		p.term.FocusLost()
-	}
+	//if p.term != nil {
+	//	p.term.FocusLost()
+	//}
 }
 
 func (p *Pane) TypedRune(r rune) {
-	p.term.TypedRune(r)
+	//p.term.TypedRune(r)
 }
 
 func (p *Pane) TypedKey(ke *fyne.KeyEvent) {
-	p.term.TypedKey(ke)
+	//p.term.TypedKey(ke)
+}
+
+func (p *Pane) AcceptsTab() bool {
+	return true
 }
 
 var _ fyne.WidgetRenderer = (*paneRenderer)(nil)
@@ -260,11 +273,8 @@ func (r *paneRenderer) Layout(size fyne.Size) {
 		r.pane.border.Resize(size)
 		r.pane.border.Move(fyne.NewPos(0, 0))
 
-		r.pane.term.Resize(size.Subtract(pad))
-		r.pane.term.Move(offset)
-
-		r.pane.event.Resize(size.Subtract(pad))
-		r.pane.event.Move(offset);
+		r.pane.screen.Resize(size.Subtract(pad))
+		r.pane.screen.Move(offset)
 
 	case SplitHorizontal:
 		w1 := (w - SplitDefaultThickness) * r.pane.ratio
@@ -307,7 +317,7 @@ func (r *paneRenderer) MinSize() fyne.Size {
 
 func (r *paneRenderer) Objects() []fyne.CanvasObject {
 	if r.pane.split == SplitNone {
-		return []fyne.CanvasObject{r.pane.border, r.pane.term, r.pane.event}
+		return []fyne.CanvasObject{r.pane.border, r.pane.screen}
 	} else {
 		return []fyne.CanvasObject{r.pane.first, r.pane.divider, r.pane.second}
 	}
@@ -317,8 +327,7 @@ func (r *paneRenderer) Refresh() {
 	switch r.pane.split {
 	case SplitNone:
 		r.pane.border.Refresh()
-		r.pane.term.Refresh()
-		r.pane.event.Refresh()
+		//r.pane.term.Refresh()
 	case SplitHorizontal, SplitVertical:
 		r.pane.divider.Refresh()
 		r.pane.first.Refresh()
