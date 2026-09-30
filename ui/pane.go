@@ -17,6 +17,9 @@ const (
 	SplitVertical
 )
 
+var PaneBorderWidth = float32(1)
+var PanePadding = (PaneBorderWidth * 2)
+
 var _ EventReceiver = (*Pane)(nil)
 var id int = 0
 
@@ -49,7 +52,7 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 	}
 
 	b := canvas.NewRectangle(color.Transparent)
-	b.StrokeWidth = 1
+	b.StrokeWidth = PaneBorderWidth
 	b.StrokeColor = color.Transparent
 
 	p := &Pane{
@@ -251,20 +254,17 @@ func (r *paneRenderer) Layout(size fyne.Size) {
 	h := size.Height
 	switch r.pane.split {
 	case SplitNone:
-		newSize := size.SubtractWidthHeight(r.pane.border.StrokeWidth, r.pane.border.StrokeWidth)
-		newPos := fyne.NewPos(r.pane.border.StrokeWidth, r.pane.border.StrokeWidth)
-
-		pad := fyne.NewSize(2, 2)
-		offset := fyne.NewPos(2, 0)
+		pad := fyne.NewSize(PanePadding, PanePadding)
+		offset := fyne.NewPos(PanePadding, PanePadding)
 
 		r.pane.border.Resize(size)
 		r.pane.border.Move(fyne.NewPos(0, 0))
 
-		r.pane.term.Resize(newSize.Subtract(pad))
-		r.pane.term.Move(newPos.Add(offset))
+		r.pane.term.Resize(size.Subtract(pad))
+		r.pane.term.Move(offset)
 
-		r.pane.event.Resize(newSize.Subtract(pad))
-		r.pane.event.Move(newPos.Add(offset))
+		r.pane.event.Resize(size.Subtract(pad))
+		r.pane.event.Move(offset);
 
 	case SplitHorizontal:
 		w1 := (w - SplitDefaultThickness) * r.pane.ratio
