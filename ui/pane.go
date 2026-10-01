@@ -191,8 +191,8 @@ func (p *Pane) SetRatio(ratio float32) {
 func (p *Pane) Resize(size fyne.Size) {
 	if p.term != nil {
 		maxPos := fyne.NewPos(size.Width-2*PanePadding, size.Height-2*PanePadding)
-		w, h := p.screen.CursorLocationForPosition(maxPos)
-		p.term.Resize(w, h)
+		r, c := p.screen.CursorLocationForPosition(maxPos)
+		p.term.Resize(r, c, size.Width-2*PanePadding, size.Height-2*PanePadding)
 	}
 	p.BaseWidget.Resize(size)
 }

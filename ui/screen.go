@@ -43,5 +43,8 @@ func (s *Screen) Project(r rune, row, col int, fg, bg color.Color) {
 		Style: cellStyle,
 	}
 
-	s.SetCell(row, col, cell)
+	fyne.Do(func() {
+		s.SetCell(row, col, cell)
+		s.Refresh()
+	})
 }
