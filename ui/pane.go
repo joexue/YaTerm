@@ -11,6 +11,15 @@ import (
 	"yaterm/terminal"
 )
 
+var (
+	_ fyne.CanvasObject      = (*Pane)(nil)
+	_ fyne.Widget            = (*Pane)(nil)
+	_ fyne.Focusable         = (*Pane)(nil)
+	_ fyne.Tabbable          = (*Pane)(nil)
+	_ fyne.Tappable          = (*Pane)(nil)
+	_ fyne.SecondaryTappable = (*Pane)(nil)
+)
+
 const (
 	SplitNone = iota
 	SplitHorizontal
@@ -191,6 +200,10 @@ func (p *Pane) Tapped(pe *fyne.PointEvent) {
 
 func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 	if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
+		c.Focus(p)
+	}
+
+	if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
 		hsplitItem := fyne.NewMenuItemWithIcon("Horizontal Split", theme.NewThemedResource(assert.HSplitIconRes), func() {
 			p.Split(SplitHorizontal, 0.5)
 		})
@@ -211,6 +224,7 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 		})
 
 		showMarkDownIterm := fyne.NewMenuItemWithIcon("Show as Markdown", theme.NewThemedResource(assert.MarkdownIconRes), func() {
+			NewMarkdownTab(make([]rune, 1, 1))
 		})
 
 		typeAgentItem := fyne.NewMenuItemWithIcon("Type Agent", theme.Icon(theme.IconNameAccount), func() {
