@@ -54,9 +54,13 @@ type Pane struct {
 	OnTearDown func()
 }
 
-func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
+func NewPane(parent *Pane, term *terminal.Terminal, screen *Screen, run bool) *Pane {
 	if term == nil {
 		term = terminal.New()
+	}
+
+	if screen == nil {
+		screen = NewScreen()
 	}
 
 	b := canvas.NewRectangle(color.Transparent)
@@ -71,7 +75,7 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 		second: nil,
 		parent: parent,
 		border: b,
-		screen: NewScreen(),
+		screen: screen,
 	}
 
 	if p.parent == nil {
@@ -133,8 +137,8 @@ func (p *Pane) TryClose() {
 
 func (p *Pane) Split(direction int, ratio float32) {
 	p.split = direction
-	p.first = NewPane(p, p.term, false)
-	p.second = NewPane(p, nil, true)
+	p.first = NewPane(p, p.term, p.screen, false)
+	p.second = NewPane(p, nil, nil, true)
 	p.term = nil
 
 	p.divider = NewDivider(p)
@@ -182,6 +186,15 @@ func (p *Pane) Close() {
 func (p *Pane) SetRatio(ratio float32) {
 	p.ratio = ratio
 	p.Refresh()
+}
+
+func (p *Pane) Resize(size fyne.Size) {
+	if p.term != nil {
+		maxPos := fyne.NewPos(size.Width-2*PanePadding, size.Height-2*PanePadding)
+		w, h := p.screen.CursorLocationForPosition(maxPos)
+		p.term.Resize(w, h)
+	}
+	p.BaseWidget.Resize(size)
 }
 
 func (p *Pane) CreateRenderer() fyne.WidgetRenderer {
@@ -239,7 +252,8 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 
 func (p *Pane) FocusGained() {
 	p.root.lastFocus = p
-	fmt.Println("Focus: ", p.id, p.Size(), p.screen.Size())
+	w, h := p.term.Size()
+	fmt.Println("Focus: ", p.id, p.Size(), w, h)
 	if p.parent != nil {
 		p.border.StrokeColor = theme.Color(theme.ColorNamePrimary)
 		p.border.Refresh()
