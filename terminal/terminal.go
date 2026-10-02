@@ -1,14 +1,23 @@
 package terminal
 
 import (
+	"fmt"
+	"image/color"
 	"yaterm/pty"
 )
 
+const bufLen = 32768
+
 type Terminal struct {
 	row, col int
-	pty *pty.Pty
+	pty      *pty.Pty
 
-	OnExit func()
+	cursorX int
+	cursorY int
+
+	fg, bg    color.Color
+	OnExit    func()
+	OnProject func(rune, int, int, color.Color, color.Color)
 }
 
 func New() *Terminal {
@@ -22,6 +31,7 @@ func New() *Terminal {
 func (t *Terminal) Resize(row, col int, width, height float32) {
 	t.row = row
 	t.col = col
+	fmt.Println("xxxxxxxxxxxxxxxxx resize", row, col)
 	if t.pty != nil {
 		t.pty.Resize(row, col, width, height)
 	}
@@ -29,4 +39,29 @@ func (t *Terminal) Resize(row, col int, width, height float32) {
 
 func (t *Terminal) Size() (int, int) {
 	return t.row, t.col
+}
+
+func (t *Terminal) RunCmd(cmd string) {
+	err := t.pty.RunCmd(cmd)
+
+	if err != nil {
+	} else {
+		buf := make([]byte, bufLen)
+		for {
+			num, err := t.pty.Read(buf)
+			if err != nil {
+				break
+			}
+
+			fmt.Println("xxxxxxxxxxxxxxx", num, err)
+			t.ProcessOutput(buf[:num], num)
+		}
+
+	}
+
+	if f := t.OnExit; f != nil {
+		f()
+	}
+
+	return
 }

@@ -15,6 +15,8 @@ type Screen struct {
 func NewScreen() *Screen {
 	s := &Screen{}
 
+	s.Scroll = fyne.ScrollNone
+
 	s.ExtendBaseWidget(s)
 
 	s.SetText("")

@@ -20,7 +20,7 @@ type Pty struct {
 }
 
 func New() *Pty {
-	return &Pty {}
+	return &Pty{}
 }
 
 func (p *Pty) Resize(row, col int, width, height float32) {
@@ -31,8 +31,8 @@ func (p *Pty) Resize(row, col int, width, height float32) {
 	_ = pty.Setsize(p.pty.(*os.File), &pty.Winsize{
 		Rows: uint16(row),
 		Cols: uint16(col),
-		X: uint16(width),
-		Y: uint16(height),
+		X:    uint16(width),
+		Y:    uint16(height),
 	})
 }
 

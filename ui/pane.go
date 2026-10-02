@@ -88,21 +88,16 @@ func NewPane(parent *Pane, term *terminal.Terminal, screen *Screen, run bool) *P
 	p.ExtendBaseWidget(p)
 
 	term.OnExit = p.TryClose
-	/*
-		if run {
-			go func() {
-				_ = term.RunLocalShell()
-				// here, the p may change, so we cannot call p.TryClose
-				if f := term.OnExit; f != nil {
-					f()
-				}
-			}()
-		}
-	*/
+	term.OnProject = p.screen.Project
+	if run {
+		go func() {
+			term.RunCmd("xxx")
+			fmt.Println("xxxxxxxxx exit", p.id)
+		}()
+	}
 
 	id++
 
-	p.screen.Project('A', 0, 0, color.White, color.Black)
 	return p
 }
 
