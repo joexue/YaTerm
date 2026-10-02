@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
+	"time"
 
 	"github.com/creack/pty"
 )
@@ -19,6 +20,8 @@ type Pty struct {
 	out io.Reader
 	pty io.Closer
 	cmd *exec.Cmd
+
+	width, height float32
 }
 
 func New() *Pty {
@@ -26,10 +29,16 @@ func New() *Pty {
 }
 
 func (p *Pty) Resize(row, col int, width, height float32) {
-	if p.pty == nil {
+	p.row, p.col = row, col
+	p.width, p.height = width, height
+
+	if p.width == width && p.height == height {
 		return
 	}
 
+	if p.pty == nil {
+		return
+	}
 	_ = pty.Setsize(p.pty.(*os.File), &pty.Winsize{
 		Rows: uint16(row),
 		Cols: uint16(col),
@@ -39,6 +48,15 @@ func (p *Pty) Resize(row, col int, width, height float32) {
 }
 
 func (p *Pty) RunCmd(_ string) error {
+	ticker := time.NewTicker(time.Second)
+	for range ticker.C {
+		if p.col > 0 && p.row > 0 {
+			break
+		}
+	}
+
+	ticker.Stop()
+
 	shell := os.Getenv("SHELL")
 	if shell == "" {
 		shell = "bash"
@@ -56,6 +74,13 @@ func (p *Pty) RunCmd(_ string) error {
 		p.in = f
 		p.out = f
 		p.pty = f
+
+		_ = pty.Setsize(p.pty.(*os.File), &pty.Winsize{
+			Rows: uint16(p.row),
+			Cols: uint16(p.col),
+			X:    uint16(p.width),
+			Y:    uint16(p.height),
+		})
 	}
 	return err
 }
