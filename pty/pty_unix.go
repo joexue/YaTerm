@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"syscall"
 
 	"github.com/creack/pty"
 )
@@ -17,6 +18,7 @@ type Pty struct {
 	in  io.Writer
 	out io.Reader
 	pty io.Closer
+	cmd *exec.Cmd
 }
 
 func New() *Pty {
@@ -45,10 +47,10 @@ func (p *Pty) RunCmd(_ string) error {
 	env := os.Environ()
 	env = append(env, "TERM=xterm-256color")
 	env = append(env, "COLORTERM=truecolor")
-	c := exec.Command(shell)
+	p.cmd = exec.Command(shell)
 
 	// Start the command with a pty.
-	f, err := pty.Start(c)
+	f, err := pty.Start(p.cmd)
 
 	if err == nil {
 		p.in = f
@@ -67,5 +69,7 @@ func (p *Pty) Write(bytes []byte) (int, error) {
 }
 
 func (p *Pty) Close() {
+	syscall.Kill(-p.cmd.Process.Pid, syscall.SIGKILL)
+	_ = p.cmd.Wait()
 	p.pty.Close()
 }

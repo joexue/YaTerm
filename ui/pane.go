@@ -222,8 +222,9 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 		separatorItem := fyne.NewMenuItemSeparator()
 
 		closePaneIterm := fyne.NewMenuItemWithIcon("Close Pane", theme.Icon(theme.IconNameWindowClose), func() {
+			p.term.OnExit = nil
+			p.term.Exit()
 			p.TryClose()
-			//p.term.Exit()
 		})
 		closeTabIterm := fyne.NewMenuItemWithIcon("Close Tab", theme.Icon(theme.IconNameWindowClose), func() {
 			p.root.TearDown()

@@ -65,3 +65,7 @@ func (t *Terminal) RunCmd(cmd string) {
 
 	return
 }
+
+func (t *Terminal) Exit() {
+	t.pty.Close()
+}
