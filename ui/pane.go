@@ -36,6 +36,7 @@ type Pane struct {
 
 	id   int
 	term *terminal.Terminal
+	size fyne.Size
 
 	split   int
 	ratio   float32
@@ -184,6 +185,11 @@ func (p *Pane) SetRatio(ratio float32) {
 }
 
 func (p *Pane) Resize(size fyne.Size) {
+	if size.Width <= 0 || size.Height <= 0 || size == p.size {
+		return
+	}
+
+	p.size = size
 	if p.term != nil {
 		maxPos := fyne.NewPos(size.Width-2*PanePadding, size.Height-2*PanePadding)
 		r, c := p.screen.CursorLocationForPosition(maxPos)
