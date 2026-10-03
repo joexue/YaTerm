@@ -16,7 +16,6 @@ const (
 
 const (
 	GROUND = iota
-	ESC
 	CSI
 	OSC
 	APC
@@ -41,7 +40,7 @@ func (t *Terminal) parseEscape(r rune) {
 func (t *Terminal) parseEscState(r rune) {
 	switch r {
 	case '[':
-		t.state = ESC
+		t.state = CSI
 	case '\\':
 		if t.state == OSC {
 			/*
@@ -112,11 +111,8 @@ func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 		}
 
 		switch t.state {
-		case ESC:
-			t.parseEscape(r)
-			//t.parseEscState(r)
-			continue
 		case CSI:
+			t.ProcessCsi(r)
 			continue
 		case OSC:
 			continue
