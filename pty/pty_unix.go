@@ -48,7 +48,7 @@ func (p *Pty) Resize(row, col int, width, height float32) {
 }
 
 func (p *Pty) RunCmd(_ string) error {
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(time.Millisecond * 100)
 	for range ticker.C {
 		if p.col > 0 && p.row > 0 {
 			break
