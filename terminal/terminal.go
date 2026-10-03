@@ -15,6 +15,12 @@ type Terminal struct {
 	cursorX int
 	cursorY int
 
+	savedRow int
+	savedCol int
+
+	state  int
+	escape bool
+
 	fg, bg    color.Color
 	OnExit    func()
 	OnProject func(rune, int, int, color.Color, color.Color)
