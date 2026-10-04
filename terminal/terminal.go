@@ -21,7 +21,11 @@ type Terminal struct {
 	state  int
 	escape bool
 
-	fg, bg    color.Color
+	csiCode string
+
+	fg, bg                                           color.Color
+	bold, italic, underline, strikethrough, blinking bool
+
 	OnExit    func()
 	OnProject func(rune, int, int, color.Color, color.Color)
 }
