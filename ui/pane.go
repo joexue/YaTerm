@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"image/color"
+	"unicode/utf8"
 	"yaterm/assert"
 	"yaterm/terminal"
 )
@@ -260,24 +261,24 @@ func (p *Pane) FocusGained() {
 		p.border.StrokeColor = theme.Color(theme.ColorNamePrimary)
 		p.border.Refresh()
 	}
-
-	//p.term.FocusGained()
 }
 
 func (p *Pane) FocusLost() {
 	p.border.StrokeColor = color.Transparent
 	p.border.Refresh()
-	//if p.term != nil {
-	//	p.term.FocusLost()
-	//}
 }
 
 func (p *Pane) TypedRune(r rune) {
-	//p.term.TypedRune(r)
+	b := make([]byte, utf8.UTFMax)
+	size := utf8.EncodeRune(b, r)
+	_, _ = p.term.Write(b[:size])
 }
 
 func (p *Pane) TypedKey(ke *fyne.KeyEvent) {
-	//p.term.TypedKey(ke)
+	switch ke.Name {
+	case fyne.KeyReturn:
+		_, _ = p.term.Write([]byte{'\r'})
+	}
 }
 
 func (p *Pane) AcceptsTab() bool {

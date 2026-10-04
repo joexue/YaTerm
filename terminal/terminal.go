@@ -80,3 +80,7 @@ func (t *Terminal) RunCmd(cmd string) {
 func (t *Terminal) Exit() {
 	t.pty.Close()
 }
+
+func (t *Terminal) Write(bytes []byte) (int, error) {
+	return t.pty.Write(bytes)
+}
