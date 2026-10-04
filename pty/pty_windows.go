@@ -76,7 +76,7 @@ func (p *Pty) RunCmd(_ string) error {
 		return err
 	}
 
-	_, err = process.Wait()
+	//_, err = process.Wait()
 
 	p.process = process
 	p.in = cpty.InPipe()
