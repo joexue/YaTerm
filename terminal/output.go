@@ -19,6 +19,7 @@ const (
 	stateDCS
 	stateAPC
 	stateDEC
+	stateTEST
 )
 
 // ref: https://wezterm.org/escape-sequences.html#c1-control-codes
@@ -71,9 +72,14 @@ func (t *Terminal) parseEscState(r rune) {
 
 	// "(0" Translate characters j-x to line drawing glyphs
 	// "(B" Disables stateDEC Line Drawing character translation
+	// "(A" Alternative character
 	case '(':
 		t.state = stateDEC
-		t.decState = decStateCONTROL
+		t.decState = decStateCONTROL0
+
+	case ')':
+		t.state = stateDEC
+		t.decState = decStateCONTROL1
 
 	// Operating System Command Sequences
 	case ']':
@@ -81,11 +87,14 @@ func (t *Terminal) parseEscState(r rune) {
 
 	// "#8" Fills the display with E characters for diagnostic/test purposes (for vttest)
 	case '#':
+		t.state = stateTEST
 
 	case '_':
 		t.state = stateAPC
 
-	case ')':
+	// Just reset the sate to ground if we don't recognize it, may not right or never happen?
+	default:
+		t.state = stateGROUND
 	}
 }
 
@@ -144,6 +153,10 @@ func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 
 		case stateDEC:
 			t.ProcessDec(r)
+			continue
+
+		case stateTEST:
+			t.ProcessTest(r)
 			continue
 		}
 
