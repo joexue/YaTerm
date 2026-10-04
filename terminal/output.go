@@ -10,67 +10,82 @@ const (
 	asciiBell      = 7
 	asciiBackspace = 8
 	asciiEscape    = 27
-
-	tabWidth = 8
 )
 
 const (
-	GROUND = iota
-	CSI
-	OSC
-	APC
-	DSC
-	VT100
+	stateGROUND = iota
+	stateCSI
+	stateOSC
+	stateDCS
+	stateAPC
+	stateDEC
 )
 
-func (t *Terminal) parseEscape(r rune) {
-	//t.stateCode += string(r)
-	if (r < '0' || r > '9') && r != ';' && r != '=' && r != '?' && r != '>' {
-		/*
-			code := t.state.code
-			fyne.Do(func() {
-				t.handleEscape(code)
-			})
-			t.state.code = ""
-		*/
-		t.state = GROUND
-	}
-}
-
+// ref: https://wezterm.org/escape-sequences.html#c1-control-codes
 func (t *Terminal) parseEscState(r rune) {
 	switch r {
+	// Moves the cursor down one line in the same column. If the cursor is at the bottom margin, the page scrolls up
+	case 'D':
+
+	// Moves the cursor to the left margin on the next line. If the cursor is at the bottom margin, scroll the page up
+	case 'E':
+
+	// Sets a horizontal tab stop at the column where the cursor is
+	case 'H':
+
+	// Move the cursor up one line. If the cursor is at the top margin, scroll the region down
+	case 'M':
+
+	case 'P':
+		t.state = stateDCS
+
 	case '[':
-		t.state = CSI
+		t.state = stateCSI
+
+	// No direct effect; ST is used to delimit the end of stateOSC style escape sequences
 	case '\\':
-		if t.state == OSC {
-			/*
-				code := t.state.code
-				fyne.Do(func() {
-					t.handleOSC(code)
-				})
-			*/
+		if t.state == stateOSC {
+			t.ProcessOsc(r)
+		} else {
+			t.state = stateGROUND
 		}
-		//t.state.code = ""
-		t.state = GROUND
-	case ']':
-		t.state = OSC
-	case '(', ')':
-		t.state = VT100
+
+	// Resets tab stops, margins, modes, graphic rendition, palette, activates primary screen, erases the display and moves cursor to home position
+	case 'c':
+
+	// Records cursor position
 	case '7':
 		t.savedRow = t.cursorY
 		t.savedCol = t.cursorX
+
+	// Moves cursor to location it had when stateDECSC was used
 	case '8':
 		t.cursorX = t.savedRow
 		t.cursorY = t.savedCol
-	case 'D':
-		//t.scrollDown()
-	case 'M':
-		//t.scrollUp()
-	case 'P':
-		t.state = DSC
+
+	// Enable Application Keypad Mode
+	case '=':
+
+	// Set Normal Keypad Mode
+	case '>':
+
+	// "(0" Translate characters j-x to line drawing glyphs
+	// "(B" Disables stateDEC Line Drawing character translation
+	case '(':
+		t.state = stateDEC
+		t.decState = decStateCONTROL
+
+	// Operating System Command Sequences
+	case ']':
+		t.state = stateOSC
+
+	// "#8" Fills the display with E characters for diagnostic/test purposes (for vttest)
+	case '#':
+
 	case '_':
-		t.state = APC
-	case '=', '>':
+		t.state = stateAPC
+
+	case ')':
 	}
 }
 
@@ -111,21 +126,27 @@ func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 		}
 
 		switch t.state {
-		case CSI:
+		case stateCSI:
 			t.ProcessCsi(r)
 			continue
-		case OSC:
+
+		case stateOSC:
 			t.ProcessOsc(r)
 			continue
-		case APC:
+
+		case stateAPC:
+			t.ProcessApc(r)
 			continue
-		case VT100:
+
+		case stateDCS:
+			t.ProcessDcs(r)
+			continue
+
+		case stateDEC:
+			t.ProcessDec(r)
 			continue
 		}
 
-		if f := t.OnProject; f != nil {
-			f(r, t.cursorY, t.cursorX, t.fg, t.bg)
-			t.cursorX += size
-		}
+		t.ProcessGround(r)
 	}
 }

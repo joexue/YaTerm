@@ -1,19 +1,15 @@
 package terminal
 
 func (t *Terminal) ProcessOsc(r rune) {
-	if r == asciiBell || r == asciiNull {
+	if r == asciiBell || r == asciiNull || r == '\\' {
 		t.handleOSC()
-		t.state = GROUND
+		t.state = stateGROUND
 	} else {
-		t.oscCode += string(r)
+		t.controlSequence += string(r)
 	}
 }
 
 func (t *Terminal) handleOSC() {
-	/*
-		runes := []rune(t.oscCode)
-		t.oscCode = ""
-	*/
 }
 
 func (t *Terminal) handleOSCMode(mode string, code string) {

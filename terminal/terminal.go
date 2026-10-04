@@ -9,20 +9,17 @@ import (
 const bufLen = 32768
 
 type Terminal struct {
+	pty *pty.Pty
+
 	row, col int
-	pty      *pty.Pty
 
-	cursorX int
-	cursorY int
+	cursorX, cursorY   int
+	savedRow, savedCol int
 
-	savedRow int
-	savedCol int
-
-	state  int
-	escape bool
-
-	csiCode string
-	oscCode string
+	state           int
+	decState        int
+	escape          bool
+	controlSequence string
 
 	fg, bg                                           color.Color
 	bold, italic, underline, strikethrough, blinking bool

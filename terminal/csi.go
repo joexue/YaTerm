@@ -1,10 +1,10 @@
 package terminal
 
 func (t *Terminal) ProcessCsi(r rune) {
-	t.csiCode += string(r)
+	t.controlSequence += string(r)
 	if (r < '0' || r > '9') && r != ';' && r != '=' && r != '?' && r != '>' {
 		t.handleCsi()
-		t.state = GROUND
+		t.state = stateGROUND
 	}
 }
 
@@ -49,8 +49,8 @@ func (t *Terminal) handleColorMode(message string) {
 }
 
 func (t *Terminal) handleCsi() {
-	runes := []rune(t.csiCode)
-	t.csiCode = ""
+	runes := []rune(t.controlSequence)
+	t.controlSequence = ""
 
 	if len(runes) < 2 {
 		return
