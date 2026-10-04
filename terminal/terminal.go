@@ -24,8 +24,9 @@ type Terminal struct {
 	fg, bg                                           color.Color
 	bold, italic, underline, strikethrough, blinking bool
 
-	OnExit    func()
-	OnProject func(rune, int, int, color.Color, color.Color)
+	OnExit       func()
+	OnCursorMove func(int, int)
+	OnProject    func(rune, int, int, color.Color, color.Color)
 }
 
 func New() *Terminal {

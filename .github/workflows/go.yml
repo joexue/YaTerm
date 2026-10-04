@@ -5,9 +5,9 @@ name: Go
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "mainstop" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "mainstop" ]
 
 jobs:
 
@@ -20,6 +20,9 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: '1.25.0'
+
+    - name: Install dependencies
+      run: go get .
 
     - name: Build
       run: go build -v ./...

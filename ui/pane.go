@@ -50,6 +50,7 @@ type Pane struct {
 	lastFocus *Pane
 
 	border *canvas.Rectangle
+	cursor *canvas.Rectangle
 
 	screen *Screen
 	// Callback from creater, called when the whole pane tree is finished
@@ -78,6 +79,7 @@ func NewPane(parent *Pane, term *terminal.Terminal, screen *Screen, run bool) *P
 		parent: parent,
 		border: b,
 		screen: screen,
+		cursor: canvas.NewRectangle(theme.Color(theme.ColorNamePrimary)),
 	}
 
 	if p.parent == nil {
@@ -91,6 +93,7 @@ func NewPane(parent *Pane, term *terminal.Terminal, screen *Screen, run bool) *P
 
 	term.OnExit = p.TryClose
 	term.OnProject = p.screen.Project
+	term.OnCursorMove = p.CursorMove
 	if run {
 		go func() {
 			term.RunCmd("xxx")
@@ -195,8 +198,17 @@ func (p *Pane) Resize(size fyne.Size) {
 		maxPos := fyne.NewPos(size.Width-2*PanePadding, size.Height-2*PanePadding)
 		r, c := p.screen.CursorLocationForPosition(maxPos)
 		p.term.Resize(r, c, size.Width-2*PanePadding, size.Height-2*PanePadding)
+		p.cursor.Resize(fyne.NewSize(maxPos.X/float32(c), maxPos.Y/float32(r)))
 	}
+
 	p.BaseWidget.Resize(size)
+}
+
+func (p *Pane) CursorMove(row, col int) {
+	pos := p.screen.PositionForCursorLocation(row, col)
+	p.cursor.Move(pos.AddXY(PanePadding, PanePadding))
+	p.cursor.Refresh()
+	p.Refresh()
 }
 
 func (p *Pane) CreateRenderer() fyne.WidgetRenderer {
@@ -349,7 +361,7 @@ func (r *paneRenderer) MinSize() fyne.Size {
 
 func (r *paneRenderer) Objects() []fyne.CanvasObject {
 	if r.pane.split == SplitNone {
-		return []fyne.CanvasObject{r.pane.border, r.pane.screen}
+		return []fyne.CanvasObject{r.pane.border, r.pane.screen, r.pane.cursor}
 	} else {
 		return []fyne.CanvasObject{r.pane.first, r.pane.divider, r.pane.second}
 	}
@@ -359,7 +371,6 @@ func (r *paneRenderer) Refresh() {
 	switch r.pane.split {
 	case SplitNone:
 		r.pane.border.Refresh()
-		//r.pane.term.Refresh()
 	case SplitHorizontal, SplitVertical:
 		r.pane.divider.Refresh()
 		r.pane.first.Refresh()
