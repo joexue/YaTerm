@@ -22,6 +22,7 @@ type Terminal struct {
 	escape bool
 
 	csiCode string
+	oscCode string
 
 	fg, bg                                           color.Color
 	bold, italic, underline, strikethrough, blinking bool

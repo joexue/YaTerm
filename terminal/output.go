@@ -6,11 +6,11 @@ import (
 )
 
 const (
+	asciiNull      = 0
 	asciiBell      = 7
 	asciiBackspace = 8
 	asciiEscape    = 27
 
-	noEscape = 5000
 	tabWidth = 8
 )
 
@@ -115,6 +115,7 @@ func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 			t.ProcessCsi(r)
 			continue
 		case OSC:
+			t.ProcessOsc(r)
 			continue
 		case APC:
 			continue
