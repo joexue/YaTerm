@@ -206,9 +206,10 @@ func (p *Pane) Resize(size fyne.Size) {
 
 func (p *Pane) CursorMove(row, col int) {
 	pos := p.screen.PositionForCursorLocation(row, col)
-	p.cursor.Move(pos.AddXY(PanePadding, PanePadding))
-	p.cursor.Refresh()
-	p.Refresh()
+	fyne.Do(func() {
+		p.cursor.Move(pos.AddXY(PanePadding, PanePadding))
+		p.cursor.Refresh()
+	})
 }
 
 func (p *Pane) CreateRenderer() fyne.WidgetRenderer {
