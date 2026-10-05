@@ -10,11 +10,9 @@ func (t *Terminal) ProcessTest(r rune) {
 }
 
 func (t *Terminal) testAlign() {
-	if f := t.OnProject; f != nil {
-		for i := 0; i < t.row; i++ {
-			for j := 0; j < t.col; j++ {
-				f('E', i, j, t.fg, t.bg)
-			}
+	for i := 0; i < t.row; i++ {
+		for j := 0; j < t.col; j++ {
+			t.Screen.Project('E', i, j, t.fg, t.bg)
 		}
 	}
 

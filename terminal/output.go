@@ -1,7 +1,6 @@
 package terminal
 
 import (
-	//"fmt"
 	"unicode/utf8"
 )
 
@@ -126,8 +125,6 @@ func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 			}
 		}
 
-		//fmt.Println("xxxxx state:", t.state, r, string(r))
-
 		if r == asciiEscape {
 			t.escape = true
 			continue
@@ -166,5 +163,6 @@ func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 		}
 
 		t.ProcessGround(r)
+		t.Screen.Flush()
 	}
 }

@@ -50,9 +50,9 @@ type Pane struct {
 	lastFocus *Pane
 
 	border *canvas.Rectangle
-	cursor *canvas.Rectangle
 
 	screen *Screen
+
 	// Callback from creater, called when the whole pane tree is finished
 	OnTearDown func()
 }
@@ -79,7 +79,6 @@ func NewPane(parent *Pane, term *terminal.Terminal, screen *Screen, run bool) *P
 		parent: parent,
 		border: b,
 		screen: screen,
-		cursor: canvas.NewRectangle(theme.Color(theme.ColorNamePrimary)),
 	}
 
 	if p.parent == nil {
@@ -92,8 +91,7 @@ func NewPane(parent *Pane, term *terminal.Terminal, screen *Screen, run bool) *P
 	p.ExtendBaseWidget(p)
 
 	term.OnExit = p.TryClose
-	term.OnProject = p.screen.Project
-	term.OnCursorMove = p.CursorMove
+	term.Screen = p.screen
 	if run {
 		go func() {
 			term.RunCmd("xxx")
@@ -198,26 +196,9 @@ func (p *Pane) Resize(size fyne.Size) {
 		maxPos := fyne.NewPos(size.Width-2*PanePadding, size.Height-2*PanePadding)
 		r, c := p.screen.CursorLocationForPosition(maxPos)
 		p.term.Resize(r, c, size.Width-2*PanePadding, size.Height-2*PanePadding)
-		p.cursor.Resize(fyne.NewSize(maxPos.X/float32(c), maxPos.Y/float32(r)))
 	}
 
 	p.BaseWidget.Resize(size)
-}
-
-func (p *Pane) CursorMove(row, col int) {
-	pos := p.screen.PositionForCursorLocation(row, col)
-	fyne.Do(func() {
-		p.cursor.Move(pos.AddXY(PanePadding, PanePadding))
-		p.cursor.Refresh()
-	})
-}
-
-func (p *Pane) CreateRenderer() fyne.WidgetRenderer {
-	r := &paneRenderer{
-		pane: p,
-	}
-
-	return r
 }
 
 func (p *Pane) Tapped(pe *fyne.PointEvent) {
@@ -298,6 +279,14 @@ func (p *Pane) AcceptsTab() bool {
 	return true
 }
 
+func (p *Pane) CreateRenderer() fyne.WidgetRenderer {
+	r := &paneRenderer{
+		pane: p,
+	}
+
+	return r
+}
+
 var _ fyne.WidgetRenderer = (*paneRenderer)(nil)
 
 type paneRenderer struct {
@@ -362,7 +351,7 @@ func (r *paneRenderer) MinSize() fyne.Size {
 
 func (r *paneRenderer) Objects() []fyne.CanvasObject {
 	if r.pane.split == SplitNone {
-		return []fyne.CanvasObject{r.pane.border, r.pane.screen, r.pane.cursor}
+		return []fyne.CanvasObject{r.pane.border, r.pane.screen}
 	} else {
 		return []fyne.CanvasObject{r.pane.first, r.pane.divider, r.pane.second}
 	}

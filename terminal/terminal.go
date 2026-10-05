@@ -8,6 +8,13 @@ import (
 
 const bufLen = 32768
 
+type Screen interface {
+	Project(rune, int, int, color.Color, color.Color)
+	Flush()
+	ScrollUp()
+	MoveCursor(int, int)
+}
+
 type Terminal struct {
 	pty *pty.Pty
 
@@ -24,9 +31,9 @@ type Terminal struct {
 	fg, bg                                           color.Color
 	bold, italic, underline, strikethrough, blinking bool
 
-	OnExit       func()
-	OnCursorMove func(int, int)
-	OnProject    func(rune, int, int, color.Color, color.Color)
+	Screen Screen
+
+	OnExit func()
 }
 
 func New() *Terminal {
@@ -40,7 +47,6 @@ func New() *Terminal {
 func (t *Terminal) Resize(row, col int, width, height float32) {
 	t.row = row
 	t.col = col
-	fmt.Println("xxxxxxxxxxxxxxxxx resize", row, col)
 	if t.pty != nil {
 		t.pty.Resize(row, col, width, height)
 	}
