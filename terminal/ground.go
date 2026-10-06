@@ -10,7 +10,7 @@ func (t *Terminal) OutputChar(r rune) {
 		t.lineFeed()
 	}
 
-	t.Screen.Project(r, t.cursorY, t.cursorX, t.fg, t.bg)
+	t.Screen.Project(r, t.cursorY, t.cursorX, t.fg, t.bg, t.style)
 	if t.cursorX >= t.col-1 {
 		t.wrapPending = true
 	} else {

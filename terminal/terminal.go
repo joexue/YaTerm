@@ -9,10 +9,16 @@ import (
 const bufLen = 32768
 
 type Screen interface {
-	Project(rune, int, int, color.Color, color.Color)
+	Project(rune, int, int, color.Color, color.Color, Style)
 	Flush()
 	ScrollUp()
 	MoveCursor(int, int)
+}
+
+// Style is the text style set by SGR "CSI ... m"
+type Style struct {
+	Bold, Faint, Italic, Underline, Blinking bool
+	Inverse, Hidden, Strikethrough           bool
 }
 
 type Terminal struct {
@@ -29,8 +35,8 @@ type Terminal struct {
 	escape          bool
 	controlSequence string
 
-	fg, bg                                           color.Color
-	bold, italic, underline, strikethrough, blinking bool
+	fg, bg color.Color
+	style  Style
 
 	Screen Screen
 

@@ -7,50 +7,10 @@ import (
 
 func (t *Terminal) ProcessCsi(r rune) {
 	t.controlSequence += string(r)
-	if (r < '0' || r > '9') && r != ';' && r != '=' && r != '?' && r != '>' {
+	if (r < '0' || r > '9') && r != ';' && r != ':' && r != '=' && r != '?' && r != '>' {
 		t.handleCsi()
 		t.state = stateGROUND
 	}
-}
-
-func (t *Terminal) handleColorMode(message string) {
-	if message == "" || message == "0" {
-		t.bg = nil
-		t.fg = nil
-		t.bold = false
-		t.italic = false
-		t.underline = false
-		t.strikethrough = false
-		t.blinking = false
-		return
-	}
-
-	if message[0] == '>' || message[0] == '?' {
-		return
-	}
-	/*
-	   modes := strings.Split(message, ";")
-
-	   	for i := 0; i < len(modes); i++ {
-	   		mode := modes[i]
-	   		if mode == "" {
-	   			continue
-	   		}
-
-	   		if (mode == "38" || mode == "48") && i+1 < len(modes) {
-	   			nextMode := modes[i+1]
-	   			if nextMode == "5" && i+2 < len(modes) {
-	   				t.handleColorModeMap(mode, modes[i+2])
-	   				i += 2
-	   			} else if nextMode == "2" && i+4 < len(modes) {
-	   				t.handleColorModeRGB(mode, modes[i+2], modes[i+3], modes[i+4])
-	   				i += 4
-	   			}
-	   		} else {
-	   			t.handleColorMode(mode)
-	   		}
-	   	}
-	*/
 }
 
 func (t *Terminal) handleCsi() {
@@ -201,6 +161,6 @@ func (t *Terminal) eraseCells(row, from, to int) {
 	}
 
 	for col := from; col < to; col++ {
-		t.Screen.Project(' ', row, col, nil, t.bg)
+		t.Screen.Project(' ', row, col, nil, t.bg, Style{})
 	}
 }

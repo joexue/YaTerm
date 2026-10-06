@@ -39,30 +39,61 @@ func NewScreen() *Screen {
 	return s
 }
 
-func (s *Screen) Project(r rune, row, col int, fg, bg color.Color) {
+func (s *Screen) Project(r rune, row, col int, fg, bg color.Color, style terminal.Style) {
 	textStyle := fyne.TextStyle{
 		Monospace: true,
 
-		Bold:          false,
-		Italic:        false,
-		Underline:     false,
-		Strikethrough: false,
-	}
-
-	cellStyle := &widget.CustomTextGridStyle{
-		FGColor:   fg,
-		BGColor:   bg,
-		TextStyle: textStyle,
-	}
-
-	cell := widget.TextGridCell{
-		Rune:  r,
-		Style: cellStyle,
+		Bold:          style.Bold,
+		Italic:        style.Italic,
+		Underline:     style.Underline,
+		Strikethrough: style.Strikethrough,
 	}
 
 	fyne.Do(func() {
+		// Inverse, faint and hidden need real colors, so fill in the theme
+		// defaults here on the UI thread where the theme is safe to read.
+		if style.Inverse || style.Faint || style.Hidden {
+			if fg == nil {
+				fg = theme.Color(theme.ColorNameForeground)
+			}
+			if bg == nil {
+				bg = theme.Color(theme.ColorNameBackground)
+			}
+			if style.Inverse {
+				fg, bg = bg, fg
+			}
+			if style.Faint {
+				fg = blend(fg, bg)
+			}
+			if style.Hidden {
+				fg = bg
+			}
+		}
+
+		cell := widget.TextGridCell{
+			Rune: r,
+			Style: &widget.CustomTextGridStyle{
+				FGColor:   fg,
+				BGColor:   bg,
+				TextStyle: textStyle,
+			},
+		}
+
 		s.textGrid.SetCell(row, col, cell)
 	})
+}
+
+// blend mixes a and b half and half, used to draw faint text
+func blend(a, b color.Color) color.Color {
+	ar, ag, ab, aa := a.RGBA()
+	br, bg, bb, ba := b.RGBA()
+
+	return color.RGBA64{
+		R: uint16((ar + br) / 2),
+		G: uint16((ag + bg) / 2),
+		B: uint16((ab + bb) / 2),
+		A: uint16((aa + ba) / 2),
+	}
 }
 
 func (s *Screen) Resize(size fyne.Size) {

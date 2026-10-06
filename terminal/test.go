@@ -12,7 +12,7 @@ func (t *Terminal) ProcessTest(r rune) {
 func (t *Terminal) testAlign() {
 	for i := 0; i < t.row; i++ {
 		for j := 0; j < t.col; j++ {
-			t.Screen.Project('E', i, j, t.fg, t.bg)
+			t.Screen.Project('E', i, j, t.fg, t.bg, t.style)
 		}
 	}
 
