@@ -272,6 +272,10 @@ func (p *Pane) TypedKey(ke *fyne.KeyEvent) {
 	switch ke.Name {
 	case fyne.KeyReturn:
 		_, _ = p.term.Write([]byte{'\r'})
+
+	// DEL, as xterm sends. ConPTY on Windows reads 0x08 as Ctrl+Backspace.
+	case fyne.KeyBackspace:
+		_, _ = p.term.Write([]byte{0x7f})
 	}
 }
 
