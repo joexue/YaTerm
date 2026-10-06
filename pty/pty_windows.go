@@ -27,12 +27,12 @@ func New() *Pty {
 }
 
 func (p *Pty) Resize(row, col int, width, height float32) {
-	p.row, p.col = row, col
-	p.width, p.height = width, height
-
-	if p.width == width && p.height == height {
+	if p.row == row && p.col == col && p.width == width && p.height == height {
 		return
 	}
+
+	p.row, p.col = row, col
+	p.width, p.height = width, height
 
 	if p.pty == nil {
 		return

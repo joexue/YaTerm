@@ -22,6 +22,7 @@ type Terminal struct {
 
 	cursorX, cursorY   int
 	savedRow, savedCol int
+	wrapPending        bool
 
 	state           int
 	decState        int

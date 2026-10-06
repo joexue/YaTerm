@@ -10,6 +10,8 @@ func (t *Terminal) ProcessOsc(r rune) {
 }
 
 func (t *Terminal) handleOSC() {
+	// The buffer is shared with CSI, so leftover title text would corrupt the next sequence
+	t.controlSequence = ""
 }
 
 func (t *Terminal) handleOSCMode(mode string, code string) {

@@ -1,18 +1,61 @@
 package terminal
 
 func (t *Terminal) OutputChar(r rune) {
-	t.Screen.Project(r, t.cursorY, t.cursorX, t.fg, t.bg)
-	t.cursorX += 1 // to fix for eastern characters
-	if t.cursorX >= t.col {
+	// The cursor stays on the last column after writing there, and only wraps
+	// when the next character comes. Otherwise a "\r\n" right after a full
+	// line (which ConPTY sends) would leave an extra blank line.
+	if t.wrapPending {
+		t.wrapPending = false
 		t.cursorX = 0
-		t.cursorY += 1
-		if t.cursorY == t.row {
-			t.Screen.ScrollUp()
-			t.cursorY = t.row - 1
-		}
+		t.lineFeed()
+	}
+
+	t.Screen.Project(r, t.cursorY, t.cursorX, t.fg, t.bg)
+	if t.cursorX >= t.col-1 {
+		t.wrapPending = true
+	} else {
+		t.cursorX += 1 // to fix for eastern characters
 	}
 
 	t.Screen.MoveCursor(t.cursorY, t.cursorX)
+}
+
+// lineFeed moves the cursor down one line, scrolling at the bottom
+func (t *Terminal) lineFeed() {
+	t.cursorY += 1
+	if t.row > 0 && t.cursorY >= t.row {
+		t.Screen.ScrollUp()
+		t.cursorY = t.row - 1
+	}
+}
+
+// moveCursor moves the cursor to row, col clamped to the screen
+func (t *Terminal) moveCursor(row, col int) {
+	if row >= t.row {
+		row = t.row - 1
+	}
+	if row < 0 {
+		row = 0
+	}
+	if col >= t.col {
+		col = t.col - 1
+	}
+	if col < 0 {
+		col = 0
+	}
+
+	t.cursorY, t.cursorX = row, col
+	t.wrapPending = false
+	t.Screen.MoveCursor(t.cursorY, t.cursorX)
+}
+
+func (t *Terminal) saveCursor() {
+	t.savedRow = t.cursorY
+	t.savedCol = t.cursorX
+}
+
+func (t *Terminal) restoreCursor() {
+	t.moveCursor(t.savedRow, t.savedCol)
 }
 
 func (t *Terminal) ProcessGround(r rune) {
@@ -22,38 +65,23 @@ func (t *Terminal) ProcessGround(r rune) {
 		return
 
 	case asciiBackspace:
-		if t.cursorX == 0 {
-			return
-		} else {
-			t.cursorX -= 1
-			t.Screen.MoveCursor(t.cursorY, t.cursorX)
-		}
+		t.moveCursor(t.cursorY, t.cursorX-1)
 		return
 
 	case asciiTab:
-		// Advance to the next tab stop (every 8 columns), stopping at the last column.
-		w := 8 - t.cursorX%8
-		if rest := t.col - 1 - t.cursorX; w > rest {
-			w = rest
-		}
-		for i := 0; i < w; i++ {
-			t.OutputChar(' ')
-		}
+		// Move to the next tab stop (every 8 columns), stopping at the last column.
+		t.moveCursor(t.cursorY, (t.cursorX/8+1)*8)
 		return
 
 	case asciiLineFeed, asciiVertTab, asciiFormFeed:
-		t.cursorY = t.cursorY + 1
-		t.cursorX = 0
-		if t.cursorY == t.row {
-			t.Screen.ScrollUp()
-			t.cursorY = t.row - 1
-		}
+		// Line feed keeps the column, the tty or ConPTY sends "\r\n" for a new line
+		t.wrapPending = false
+		t.lineFeed()
 		t.Screen.MoveCursor(t.cursorY, t.cursorX)
 		return
 
 	case asciiReturn:
-		t.cursorX = 0
-		t.Screen.MoveCursor(t.cursorY, t.cursorX)
+		t.moveCursor(t.cursorY, 0)
 		return
 	}
 

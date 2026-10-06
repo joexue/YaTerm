@@ -60,13 +60,11 @@ func (t *Terminal) parseEscState(r rune) {
 
 	// Records cursor position
 	case '7':
-		t.savedRow = t.cursorY
-		t.savedCol = t.cursorX
+		t.saveCursor()
 
 	// Moves cursor to location it had when stateDECSC was used
 	case '8':
-		t.cursorX = t.savedRow
-		t.cursorY = t.savedCol
+		t.restoreCursor()
 
 	// Enable Application Keypad Mode
 	case '=':
