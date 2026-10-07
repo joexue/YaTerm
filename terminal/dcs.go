@@ -1,4 +1,5 @@
 package terminal
 
-func (t *Terminal) ProcessDcs(r rune) {
+func (t *Terminal) processDcs(r rune) {
+	t.state = stateGROUND
 }

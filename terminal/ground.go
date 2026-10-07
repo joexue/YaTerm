@@ -1,6 +1,6 @@
 package terminal
 
-func (t *Terminal) OutputChar(r rune) {
+func (t *Terminal) outputChar(r rune) {
 	// The cursor stays on the last column after writing there, and only wraps
 	// when the next character comes. Otherwise a "\r\n" right after a full
 	// line (which ConPTY sends) would leave an extra blank line.
@@ -10,21 +10,21 @@ func (t *Terminal) OutputChar(r rune) {
 		t.lineFeed()
 	}
 
-	t.Screen.Project(r, t.cursorY, t.cursorX, t.fg, t.bg, t.style)
+	t.screen.Project(r, t.cursorY, t.cursorX, t.fg, t.bg, t.style)
 	if t.cursorX >= t.col-1 {
 		t.wrapPending = true
 	} else {
 		t.cursorX += 1 // to fix for eastern characters
 	}
 
-	t.Screen.MoveCursor(t.cursorY, t.cursorX)
+	t.screen.MoveCursor(t.cursorY, t.cursorX)
 }
 
 // lineFeed moves the cursor down one line, scrolling at the bottom
 func (t *Terminal) lineFeed() {
 	t.cursorY += 1
 	if t.row > 0 && t.cursorY >= t.row {
-		t.Screen.ScrollUp()
+		t.screen.ScrollUp()
 		t.cursorY = t.row - 1
 	}
 }
@@ -46,7 +46,7 @@ func (t *Terminal) moveCursor(row, col int) {
 
 	t.cursorY, t.cursorX = row, col
 	t.wrapPending = false
-	t.Screen.MoveCursor(t.cursorY, t.cursorX)
+	t.screen.MoveCursor(t.cursorY, t.cursorX)
 }
 
 func (t *Terminal) saveCursor() {
@@ -58,7 +58,7 @@ func (t *Terminal) restoreCursor() {
 	t.moveCursor(t.savedRow, t.savedCol)
 }
 
-func (t *Terminal) ProcessGround(r rune) {
+func (t *Terminal) processGround(r rune) {
 	switch r {
 	// Ignore for now
 	case asciiBell:
@@ -77,7 +77,7 @@ func (t *Terminal) ProcessGround(r rune) {
 		// Line feed keeps the column, the tty or ConPTY sends "\r\n" for a new line
 		t.wrapPending = false
 		t.lineFeed()
-		t.Screen.MoveCursor(t.cursorY, t.cursorX)
+		t.screen.MoveCursor(t.cursorY, t.cursorX)
 		return
 
 	case asciiReturn:
@@ -85,5 +85,5 @@ func (t *Terminal) ProcessGround(r rune) {
 		return
 	}
 
-	t.OutputChar(r)
+	t.outputChar(r)
 }

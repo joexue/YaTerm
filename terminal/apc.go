@@ -1,4 +1,4 @@
 package terminal
 
-func (t *Terminal) ProcessApc(r rune) {
+func (t *Terminal) processApc(r rune) {
 }

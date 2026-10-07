@@ -91,7 +91,8 @@ func NewPane(parent *Pane, term *terminal.Terminal, screen *Screen, run bool) *P
 	p.ExtendBaseWidget(p)
 
 	term.OnExit = p.TryClose
-	term.Screen = p.screen
+	term.SetScreen(p.screen)
+	//term.screen = p.screen
 	if run {
 		go func() {
 			term.RunCmd("xxx")

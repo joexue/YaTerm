@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func (t *Terminal) ProcessCsi(r rune) {
+func (t *Terminal) processCsi(r rune) {
 	t.controlSequence += string(r)
 	if (r < '0' || r > '9') && r != ';' && r != ':' && r != '=' && r != '?' && r != '>' {
 		t.handleCsi()
@@ -68,7 +68,7 @@ func (t *Terminal) handleCsi() {
 		t.saveCursor()
 	case 'S':
 		for i := 0; i < param(params, 0, 1); i++ {
-			t.Screen.ScrollUp()
+			t.screen.ScrollUp()
 		}
 	case 'u':
 		t.restoreCursor()
@@ -161,6 +161,6 @@ func (t *Terminal) eraseCells(row, from, to int) {
 	}
 
 	for col := from; col < to; col++ {
-		t.Screen.Project(' ', row, col, nil, t.bg, Style{})
+		t.screen.Project(' ', row, col, nil, t.bg, Style{})
 	}
 }

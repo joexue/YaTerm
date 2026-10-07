@@ -6,7 +6,7 @@ const (
 	decStateCONTENT
 )
 
-func (t *Terminal) ProcessDec(r rune) {
+func (t *Terminal) processDec(r rune) {
 	if t.decState == decStateCONTROL0 {
 		if r == '0' {
 			t.decState = decStateCONTENT

@@ -1,6 +1,6 @@
 package terminal
 
-func (t *Terminal) ProcessOsc(r rune) {
+func (t *Terminal) processOsc(r rune) {
 	if r == asciiBell || r == asciiNull || r == '\\' {
 		t.handleOSC()
 		t.state = stateGROUND

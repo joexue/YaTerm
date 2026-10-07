@@ -38,7 +38,7 @@ type Terminal struct {
 	fg, bg color.Color
 	style  Style
 
-	Screen Screen
+	screen Screen
 
 	OnExit func()
 }
@@ -94,4 +94,8 @@ func (t *Terminal) Exit() {
 
 func (t *Terminal) Write(bytes []byte) (int, error) {
 	return t.pty.Write(bytes)
+}
+
+func (t *Terminal) SetScreen(s Screen) {
+	t.screen = s
 }

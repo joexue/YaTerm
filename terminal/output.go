@@ -50,7 +50,7 @@ func (t *Terminal) parseEscState(r rune) {
 	// No direct effect; ST is used to delimit the end of stateOSC style escape sequences
 	case '\\':
 		if t.state == stateOSC {
-			t.ProcessOsc(r)
+			t.processOsc(r)
 		} else {
 			t.state = stateGROUND
 		}
@@ -136,31 +136,32 @@ func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 
 		switch t.state {
 		case stateCSI:
-			t.ProcessCsi(r)
+			t.processCsi(r)
 			continue
 
 		case stateOSC:
-			t.ProcessOsc(r)
+			t.processOsc(r)
 			continue
 
 		case stateAPC:
-			t.ProcessApc(r)
+			t.processApc(r)
 			continue
 
 		case stateDCS:
-			t.ProcessDcs(r)
+			t.processDcs(r)
 			continue
 
 		case stateDEC:
-			t.ProcessDec(r)
+			t.processDec(r)
 			continue
 
 		case stateTEST:
-			t.ProcessTest(r)
+			t.processTest(r)
 			continue
 		}
 
-		t.ProcessGround(r)
-		t.Screen.Flush()
+		t.processGround(r)
 	}
+
+	t.screen.Flush()
 }
