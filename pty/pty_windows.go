@@ -18,22 +18,19 @@ type Pty struct {
 	pty *conpty.ConPty
 	cmd *exec.Cmd
 
-	process       *os.Process
-	width, height float32
+	process *os.Process
 }
 
 func New() *Pty {
 	return &Pty{}
 }
 
-func (p *Pty) Resize(row, col int, width, height float32) {
-	if p.row == row && p.col == col && p.width == width && p.height == height {
+func (p *Pty) Resize(row, col int) {
+	if p.row == row && p.col == col {
 		return
 	}
 
 	p.row, p.col = row, col
-	p.width, p.height = width, height
-
 	if p.pty == nil {
 		return
 	}

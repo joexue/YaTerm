@@ -51,11 +51,11 @@ func New() *Terminal {
 	return t
 }
 
-func (t *Terminal) Resize(row, col int, width, height float32) {
+func (t *Terminal) Resize(row, col int) {
 	t.row = row
 	t.col = col
 	if t.pty != nil {
-		t.pty.Resize(row, col, width, height)
+		t.pty.Resize(row, col)
 	}
 }
 

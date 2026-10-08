@@ -20,21 +20,18 @@ type Pty struct {
 	out io.Reader
 	pty io.Closer
 	cmd *exec.Cmd
-
-	width, height float32
 }
 
 func New() *Pty {
 	return &Pty{}
 }
 
-func (p *Pty) Resize(row, col int, width, height float32) {
-	if p.row == row && p.col == col && p.width == width && p.height == height {
+func (p *Pty) Resize(row, col int) {
+	if p.row == row && p.col == col {
 		return
 	}
 
 	p.row, p.col = row, col
-	p.width, p.height = width, height
 
 	if p.pty == nil {
 		return
@@ -42,8 +39,8 @@ func (p *Pty) Resize(row, col int, width, height float32) {
 	_ = pty.Setsize(p.pty.(*os.File), &pty.Winsize{
 		Rows: uint16(row),
 		Cols: uint16(col),
-		X:    uint16(width),
-		Y:    uint16(height),
+		X:    uint16(0),
+		Y:    uint16(0),
 	})
 }
 
@@ -78,8 +75,8 @@ func (p *Pty) RunCmd(_ string) error {
 		_ = pty.Setsize(p.pty.(*os.File), &pty.Winsize{
 			Rows: uint16(p.row),
 			Cols: uint16(p.col),
-			X:    uint16(p.width),
-			Y:    uint16(p.height),
+			X:    uint16(0),
+			Y:    uint16(0),
 		})
 	}
 	return err
