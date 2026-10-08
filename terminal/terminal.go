@@ -3,6 +3,7 @@ package terminal
 import (
 	"fmt"
 	"image/color"
+	"sync"
 	"yaterm/pty"
 )
 
@@ -15,6 +16,14 @@ type Screen interface {
 	MoveCursor(int, int)
 }
 
+type Pty interface {
+	Resize(int, int)
+	RunCmd(string) error
+	Read(bytes []byte) (int, error)
+	Write(bytes []byte) (int, error)
+	Close()
+}
+
 // Style is the text style set by SGR "CSI ... m"
 type Style struct {
 	Bold, Faint, Italic, Underline, Blinking bool
@@ -22,7 +31,10 @@ type Style struct {
 }
 
 type Terminal struct {
-	pty *pty.Pty
+	pty    Pty
+	screen Screen
+
+	mu sync.Mutex
 
 	row, col int
 
@@ -38,8 +50,6 @@ type Terminal struct {
 	fg, bg color.Color
 	style  Style
 
-	screen Screen
-
 	OnExit func()
 }
 
@@ -52,8 +62,7 @@ func New() *Terminal {
 }
 
 func (t *Terminal) Resize(row, col int) {
-	t.row = row
-	t.col = col
+	t.row, t.col = row, col
 	if t.pty != nil {
 		t.pty.Resize(row, col)
 	}
@@ -70,7 +79,7 @@ func (t *Terminal) RunCmd(cmd string) {
 	} else {
 		buf := make([]byte, bufLen)
 		for {
-			num, err := t.pty.Read(buf)
+			num, err := t.Read(buf)
 			if err != nil {
 				break
 			}
@@ -93,7 +102,13 @@ func (t *Terminal) Exit() {
 }
 
 func (t *Terminal) Write(bytes []byte) (int, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	return t.pty.Write(bytes)
+}
+
+func (t *Terminal) Read(bytes []byte) (int, error) {
+	return t.pty.Read(bytes)
 }
 
 func (t *Terminal) SetScreen(s Screen) {
