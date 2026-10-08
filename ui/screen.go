@@ -3,7 +3,9 @@ package ui
 import (
 	"image/color"
 	"math"
-	"strings"
+	"slices"
+	"sync"
+	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -26,17 +28,24 @@ type cell struct {
 	style  fyne.TextStyle
 }
 
-func (c cell) sameAttr(o cell) bool {
-	return c.fg == o.fg && c.bg == o.bg && c.style == o.style
+// sameText tells if two cells can be drawn by the same text object, the
+// background is merged separately so it does not split a text run.
+func (c cell) sameText(o cell) bool {
+	return c.fg == o.fg && c.style == o.style
 }
 
-// screenLine draws one row. Cells with the same attributes are merged into
-// one run, drawn by a single background rectangle and a single text object.
-// The objects are pooled and reused between redraws.
+// screenLine draws one row. Neighbor cells with the same background share one
+// rectangle, and those with the same text color and style share one text object.
+// The objects are pooled and reused between redraws, and only the ones whose
+// content changed are refreshed so the others keep their rendered texture.
 type screenLine struct {
 	box   *fyne.Container
 	rects []*canvas.Rectangle
 	texts []*canvas.Text
+
+	// Reused between redraws to avoid allocating
+	next []fyne.CanvasObject
+	buf  []byte
 }
 
 func newScreenLine() *screenLine {
@@ -62,14 +71,20 @@ type Screen struct {
 
 	cursor *canvas.Rectangle
 
-	// Only touched on the UI thread, the terminal goroutine goes through fyne.Do
-	lines [][]cell
-	rows  []*screenLine
-	dirty []bool
-
-	objects []fyne.CanvasObject
-
+	// mu guards the cell buffer, written directly by the terminal goroutine
+	// and read on the UI thread when a flush renders it.
+	mu       sync.Mutex
+	lines    [][]cell
+	dirty    []bool
 	row, col int
+	scrolled int // ScrollUp calls not yet applied to rows
+	flushing bool
+	curRow   int
+	curCol   int
+
+	// UI thread only
+	rows     []*screenLine
+	objects  []fyne.CanvasObject
 	cellSize fyne.Size
 
 	size fyne.Size
@@ -78,7 +93,7 @@ type Screen struct {
 func NewScreen() *Screen {
 	s := &Screen{
 		cursor:   canvas.NewRectangle(theme.Color(theme.ColorNamePrimary)),
-		cellSize: measureCell(),
+		cellSize: measureCell(1),
 	}
 
 	s.objects = []fyne.CanvasObject{s.cursor}
@@ -88,11 +103,31 @@ func NewScreen() *Screen {
 }
 
 // measureCell keeps the font's real advance width so a merged run of text
-// lines up with the cell grid, the height is rounded so rows stack without seams.
-func measureCell() fyne.Size {
+// lines up with the cell grid. The height is rounded to whole device pixels,
+// not Fyne units, so rows stack without seams on a scaled (e.g. 125%) display.
+func measureCell(scale float32) fyne.Size {
 	size := fyne.MeasureText("M", theme.TextSize(), fyne.TextStyle{Monospace: true})
-	size.Height = float32(math.Round(float64(size.Height)))
+	size.Height = float32(math.Round(float64(size.Height*scale))) / scale
 	return size
+}
+
+// scale returns the scale of the canvas the screen is on. Before the screen is
+// first drawn it has no canvas yet, so fall back to the window's canvas.
+func (s *Screen) scale() float32 {
+	app := fyne.CurrentApp()
+	if app == nil {
+		return 1
+	}
+
+	if c := app.Driver().CanvasForObject(s); c != nil {
+		return c.Scale()
+	}
+
+	if windows := app.Driver().AllWindows(); len(windows) > 0 {
+		return windows[0].Canvas().Scale()
+	}
+
+	return 1
 }
 
 func (s *Screen) Project(r rune, row, col int, fg, bg color.Color, style terminal.Style) {
@@ -126,15 +161,16 @@ func (s *Screen) Project(r rune, row, col int, fg, bg color.Color, style termina
 
 	c := cell{r: r, fg: fg, bg: bg, style: textStyle}
 
-	fyne.Do(func() {
-		// The terminal may still use the old size right after a resize
-		if row < 0 || row >= s.row || col < 0 || col >= s.col {
-			return
-		}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-		s.lines[row][col] = c
-		s.dirty[row] = true
-	})
+	// The terminal may still use the old size right after a resize
+	if row < 0 || row >= s.row || col < 0 || col >= s.col {
+		return
+	}
+
+	s.lines[row][col] = c
+	s.dirty[row] = true
 }
 
 func (s *Screen) Resize(size fyne.Size) {
@@ -144,16 +180,23 @@ func (s *Screen) Resize(size fyne.Size) {
 
 	s.size = size
 	// Keep row/col consistent with what Pane hands to the terminal.
-	s.row, s.col = s.CursorLocationForPosition(fyne.NewPos(size.Width, size.Height))
+	row, col := s.CursorLocationForPosition(fyne.NewPos(size.Width, size.Height))
+
+	s.mu.Lock()
+	s.row, s.col = row, col
 	s.resizeBuffer()
+	s.mu.Unlock()
 
 	s.cursor.Resize(s.cellSize)
 	s.BaseWidget.Resize(size)
+
+	s.mu.Lock()
 	s.render()
+	s.mu.Unlock()
 }
 
 // resizeBuffer fits the cell buffer and the row objects to s.row x s.col,
-// keeping the content that is still on screen.
+// keeping the content that is still on screen. Called with mu held.
 func (s *Screen) resizeBuffer() {
 	lines := make([][]cell, s.row)
 	for i := range lines {
@@ -169,10 +212,12 @@ func (s *Screen) resizeBuffer() {
 	}
 	s.rows = s.rows[:s.row]
 
+	// Everything is redrawn, so pending scrolls no longer matter
 	s.dirty = make([]bool, s.row)
 	for i := range s.dirty {
 		s.dirty[i] = true
 	}
+	s.scrolled = 0
 
 	// Rows first, the cursor is drawn on top
 	s.objects = make([]fyne.CanvasObject, 0, s.row+1)
@@ -182,7 +227,11 @@ func (s *Screen) resizeBuffer() {
 	s.objects = append(s.objects, s.cursor)
 }
 
+// CursorLocationForPosition also updates the cell size for the current scale,
+// Pane calls it to size the terminal right before resizing the screen.
 func (s *Screen) CursorLocationForPosition(pos fyne.Position) (int, int) {
+	s.cellSize = measureCell(s.scale())
+
 	row := int(pos.Y / s.cellSize.Height)
 	col := int(pos.X / s.cellSize.Width)
 	return max(row, 0), max(col, 0)
@@ -192,42 +241,68 @@ func (s *Screen) PositionForCursorLocation(row, col int) fyne.Position {
 	return fyne.NewPos(float32(col)*s.cellSize.Width, float32(row)*s.cellSize.Height)
 }
 
+// Flush asks the UI thread to draw what changed. If a flush is already queued
+// it is not queued again, the queued one draws the latest state, so heavy
+// output costs one fyne.Do per frame instead of one per read.
 func (s *Screen) Flush(row, col int) {
+	s.mu.Lock()
+	s.curRow, s.curCol = row, col
+	if s.flushing {
+		s.mu.Unlock()
+		return
+	}
+	s.flushing = true
+	s.mu.Unlock()
+
 	fyne.Do(func() {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+
+		s.flushing = false
 		s.render()
-		s.cursor.Move(s.PositionForCursorLocation(row, col))
+		s.cursor.Move(s.PositionForCursorLocation(s.curRow, s.curCol))
 	})
 }
 
 func (s *Screen) MoveCursor(row, col int) {
 }
 
-// ScrollUp is called from the terminal goroutine, so it goes through fyne.Do
-// to stay ordered with the cell updates queued by Project.
+// ScrollUp rotates the buffer right away, the row objects are rotated on the
+// next render so rows that are already drawn are just moved up.
 func (s *Screen) ScrollUp() {
-	fyne.Do(func() {
-		if s.row <= 0 {
-			return
-		}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-		last := s.row - 1
+	if s.row <= 0 {
+		return
+	}
 
-		// Rotate the top line to the bottom and blank it, the other rows keep
-		// their drawn objects and are just moved up.
-		top, topRow := s.lines[0], s.rows[0]
-		copy(s.lines, s.lines[1:])
-		copy(s.rows, s.rows[1:])
-		copy(s.dirty, s.dirty[1:])
-		clear(top)
-		s.lines[last], s.rows[last] = top, topRow
-		s.dirty[last] = true
+	last := s.row - 1
 
-		s.layoutRows()
-	})
+	// Rotate the top line to the bottom and blank it
+	top := s.lines[0]
+	copy(s.lines, s.lines[1:])
+	copy(s.dirty, s.dirty[1:])
+	clear(top)
+	s.lines[last] = top
+	s.dirty[last] = true
+	s.scrolled++
 }
 
-// render rebuilds the objects of the rows changed since the last render
+// render rebuilds the objects of the rows changed since the last render.
+// Called on the UI thread with mu held.
 func (s *Screen) render() {
+	if n := len(s.rows); n > 0 && s.scrolled > 0 {
+		// Each scroll moved the top row to the bottom, do the same to the
+		// row objects, the rows that came to the bottom are marked dirty.
+		k := s.scrolled % n
+		slices.Reverse(s.rows[:k])
+		slices.Reverse(s.rows[k:])
+		slices.Reverse(s.rows)
+		s.scrolled = 0
+		s.layoutRows()
+	}
+
 	for i, d := range s.dirty {
 		if d {
 			s.renderLine(i)
@@ -242,12 +317,35 @@ func (s *Screen) renderLine(i int) {
 	fgDefault := theme.Color(theme.ColorNameForeground)
 	textSize := theme.TextSize()
 
-	var (
-		rects []fyne.CanvasObject
-		texts []fyne.CanvasObject
-		sb    strings.Builder
-	)
+	objs := l.next[:0]
 
+	// Backgrounds, one rectangle for each stretch of the same color, so no
+	// seam shows where only the text color or style changes.
+	nRects := 0
+	for start := 0; start < len(cells); {
+		bg := cells[start].bg
+		end := start + 1
+		for end < len(cells) && cells[end].bg == bg {
+			end++
+		}
+
+		if bg != nil {
+			rect := l.rect(nRects)
+			nRects++
+			if rect.FillColor != bg {
+				rect.FillColor = bg
+				rect.Refresh()
+			}
+			// Move and Resize repaint only when the value changes
+			rect.Move(fyne.NewPos(float32(start)*w, 0))
+			rect.Resize(fyne.NewSize(float32(end-start)*w, h))
+			objs = append(objs, rect)
+		}
+
+		start = end
+	}
+
+	nTexts := 0
 	for start := 0; start < len(cells); {
 		c := cells[start]
 
@@ -255,23 +353,12 @@ func (s *Screen) renderLine(i int) {
 		// with a different width, so they get their own text to stay on the grid.
 		end := start + 1
 		if c.r < 0x80 {
-			for end < len(cells) && cells[end].r < 0x80 && cells[end].sameAttr(c) {
+			for end < len(cells) && cells[end].r < 0x80 && cells[end].sameText(c) {
 				end++
 			}
 		}
 
-		pos := fyne.NewPos(float32(start)*w, 0)
-		size := fyne.NewSize(float32(end-start)*w, h)
-
-		if c.bg != nil {
-			rect := l.rect(len(rects))
-			rect.FillColor = c.bg
-			rect.Move(pos)
-			rect.Resize(size)
-			rects = append(rects, rect)
-		}
-
-		sb.Reset()
+		buf := l.buf[:0]
 		blank := true
 		for _, cc := range cells[start:end] {
 			r := cc.r
@@ -281,8 +368,9 @@ func (s *Screen) renderLine(i int) {
 			if r != ' ' {
 				blank = false
 			}
-			sb.WriteRune(r)
+			buf = utf8.AppendRune(buf, r)
 		}
+		l.buf = buf
 
 		// Spaces only need drawing when a line goes through them
 		if !blank || c.style.Underline || c.style.Strikethrough {
@@ -291,22 +379,35 @@ func (s *Screen) renderLine(i int) {
 				fg = fgDefault
 			}
 
-			text := l.text(len(texts))
-			text.Text = sb.String()
-			text.Color = fg
-			text.TextStyle = c.style
-			text.TextSize = textSize
-			text.Move(pos)
-			text.Resize(size)
-			texts = append(texts, text)
+			text := l.text(nTexts)
+			nTexts++
+
+			// string(buf) in a comparison does not allocate, the new string
+			// is only made when the text really changed.
+			if text.Text != string(buf) || text.Color != fg || text.TextStyle != c.style || text.TextSize != textSize {
+				text.Text = string(buf)
+				text.Color = fg
+				text.TextStyle = c.style
+				text.TextSize = textSize
+				text.Refresh()
+			}
+			text.Move(fyne.NewPos(float32(start)*w, 0))
+			text.Resize(fyne.NewSize(float32(end-start)*w, h))
+			objs = append(objs, text)
 		}
 
 		start = end
 	}
 
-	// Backgrounds first so no text is covered by a later run's background
-	l.box.Objects = append(rects, texts...)
-	l.box.Refresh()
+	// Rects were appended before texts, so no text is covered by a later
+	// run's background. The container is only refreshed when its object list
+	// changed, not its children, which refresh themselves above when needed.
+	if !slices.Equal(objs, l.box.Objects) {
+		l.next, l.box.Objects = l.box.Objects, objs
+		canvas.Refresh(l.box)
+	} else {
+		l.next = objs
+	}
 }
 
 func (s *Screen) layoutRows() {
@@ -335,6 +436,9 @@ func (r *screenRenderer) Destroy() {
 }
 
 func (r *screenRenderer) Layout(size fyne.Size) {
+	r.screen.mu.Lock()
+	defer r.screen.mu.Unlock()
+
 	r.screen.layoutRows()
 }
 
@@ -351,10 +455,13 @@ func (r *screenRenderer) Objects() []fyne.CanvasObject {
 // Refresh redraws everything, e.g. after a theme change
 func (r *screenRenderer) Refresh() {
 	s := r.screen
-	s.cellSize = measureCell()
+	s.cellSize = measureCell(s.scale())
 	s.cursor.FillColor = theme.Color(theme.ColorNamePrimary)
 	s.cursor.Resize(s.cellSize)
 	s.cursor.Refresh()
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	for i := range s.dirty {
 		s.dirty[i] = true
