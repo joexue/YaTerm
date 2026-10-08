@@ -17,7 +17,14 @@ import (
 
 var (
 	_ fyne.Widget     = (*Screen)(nil)
+	_ fyne.Scrollable = (*Screen)(nil)
 	_ terminal.Screen = (*Screen)(nil)
+)
+
+// One mouse wheel notch is 25 units in Fyne (10 on macOS), scroll 3 lines a notch
+const (
+	scrollNotchUnits = 25
+	scrollNotchLines = 3
 )
 
 // cell is one character on the screen, colors are already resolved for
@@ -82,10 +89,17 @@ type Screen struct {
 	curRow   int
 	curCol   int
 
+	// Lines scrolled off the top, offset is how many lines the view is
+	// scrolled back into them, 0 shows the live screen.
+	hist      *history
+	offset    int
+	viewDirty bool
+
 	// UI thread only
-	rows     []*screenLine
-	objects  []fyne.CanvasObject
-	cellSize fyne.Size
+	rows      []*screenLine
+	objects   []fyne.CanvasObject
+	cellSize  fyne.Size
+	scrollAcc float32
 
 	size fyne.Size
 }
@@ -94,6 +108,7 @@ func NewScreen() *Screen {
 	s := &Screen{
 		cursor:   canvas.NewRectangle(theme.Color(theme.ColorNamePrimary)),
 		cellSize: measureCell(1),
+		hist:     newHistory(HistoryLines),
 	}
 
 	s.objects = []fyne.CanvasObject{s.cursor}
@@ -218,6 +233,7 @@ func (s *Screen) resizeBuffer() {
 		s.dirty[i] = true
 	}
 	s.scrolled = 0
+	s.offset = min(s.offset, s.hist.len())
 
 	// Rows first, the cursor is drawn on top
 	s.objects = make([]fyne.CanvasObject, 0, s.row+1)
@@ -260,8 +276,61 @@ func (s *Screen) Flush(row, col int) {
 
 		s.flushing = false
 		s.render()
-		s.cursor.Move(s.PositionForCursorLocation(s.curRow, s.curCol))
+		s.updateCursor()
 	})
+}
+
+// updateCursor places the cursor, it moves down with the view when scrolled
+// back and is hidden when it is below the view. Called with mu held.
+func (s *Screen) updateCursor() {
+	row := s.curRow + s.offset
+	if row >= s.row {
+		s.cursor.Hide()
+		return
+	}
+
+	s.cursor.Move(s.PositionForCursorLocation(row, s.curCol))
+	s.cursor.Show()
+}
+
+// Scrolled shows the history lines when the mouse wheel scrolls up
+func (s *Screen) Scrolled(ev *fyne.ScrollEvent) {
+	s.scrollAcc += ev.Scrolled.DY
+	// Multiply first so a whole notch is exact, 25/3 is not exact in float
+	n := int(s.scrollAcc * scrollNotchLines / scrollNotchUnits)
+	if n == 0 {
+		return
+	}
+	s.scrollAcc -= float32(n) * scrollNotchUnits / scrollNotchLines
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.scrollTo(s.offset + n)
+}
+
+// ScrollToBottom goes back to the live screen, e.g. when a key is typed
+func (s *Screen) ScrollToBottom() {
+	s.scrollAcc = 0
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.scrollTo(0)
+}
+
+// scrollTo moves the view offset lines back into the history. Called on the
+// UI thread with mu held.
+func (s *Screen) scrollTo(offset int) {
+	offset = max(0, min(offset, s.hist.len()))
+	if offset == s.offset {
+		return
+	}
+
+	s.offset = offset
+	s.viewDirty = true
+	s.render()
+	s.updateCursor()
 }
 
 func (s *Screen) MoveCursor(row, col int) {
@@ -279,19 +348,53 @@ func (s *Screen) ScrollUp() {
 
 	last := s.row - 1
 
-	// Rotate the top line to the bottom and blank it
+	// Move the top line into the history, reuse the line it drops if any
 	top := s.lines[0]
 	copy(s.lines, s.lines[1:])
 	copy(s.dirty, s.dirty[1:])
-	clear(top)
-	s.lines[last] = top
+	blank := s.hist.push(top)
+	if len(blank) == s.col {
+		clear(blank)
+	} else {
+		blank = make([]cell, s.col)
+	}
+	s.lines[last] = blank
 	s.dirty[last] = true
-	s.scrolled++
+
+	if s.offset > 0 {
+		// Keep the view still while new output comes in
+		s.offset = min(s.offset+1, s.hist.len())
+		s.viewDirty = true
+	} else {
+		s.scrolled++
+	}
+}
+
+// viewLine returns the line shown on row i of the view. Called with mu held.
+func (s *Screen) viewLine(i int) []cell {
+	n := s.hist.len()
+	idx := n - s.offset + i
+	if idx < n {
+		return s.hist.at(idx)
+	}
+	return s.lines[idx-n]
 }
 
 // render rebuilds the objects of the rows changed since the last render.
 // Called on the UI thread with mu held.
 func (s *Screen) render() {
+	if s.offset > 0 || s.viewDirty {
+		// The view is scrolled back or just moved, redraw every row. Rows that
+		// look the same are cheap, their objects are not refreshed.
+		s.scrolled = 0
+		s.viewDirty = false
+		for i := range s.rows {
+			s.renderLine(i, s.viewLine(i))
+			s.dirty[i] = false
+		}
+		return
+	}
+
 	if n := len(s.rows); n > 0 && s.scrolled > 0 {
 		// Each scroll moved the top row to the bottom, do the same to the
 		// row objects, the rows that came to the bottom are marked dirty.
@@ -305,14 +408,16 @@ func (s *Screen) render() {
 
 	for i, d := range s.dirty {
 		if d {
-			s.renderLine(i)
+			s.renderLine(i, s.lines[i])
 			s.dirty[i] = false
 		}
 	}
 }
 
-func (s *Screen) renderLine(i int) {
-	l, cells := s.rows[i], s.lines[i]
+func (s *Screen) renderLine(i int, cells []cell) {
+	l := s.rows[i]
+	// History lines keep the width they had, cut them to the screen
+	cells = cells[:min(len(cells), s.col)]
 	w, h := s.cellSize.Width, s.cellSize.Height
 	fgDefault := theme.Color(theme.ColorNameForeground)
 	textSize := theme.TextSize()

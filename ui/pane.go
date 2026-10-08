@@ -266,12 +266,14 @@ func (p *Pane) FocusLost() {
 }
 
 func (p *Pane) TypedRune(r rune) {
+	p.screen.ScrollToBottom()
 	b := make([]byte, utf8.UTFMax)
 	size := utf8.EncodeRune(b, r)
 	_, _ = p.term.Write(b[:size])
 }
 
 func (p *Pane) TypedKey(ke *fyne.KeyEvent) {
+	p.screen.ScrollToBottom()
 	switch ke.Name {
 	case fyne.KeyReturn:
 		_, _ = p.term.Write([]byte{'\r'})
