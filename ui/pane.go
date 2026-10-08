@@ -8,7 +8,6 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"image/color"
-	"unicode/utf8"
 	"yaterm/assert"
 	"yaterm/terminal"
 )
@@ -26,6 +25,7 @@ var (
 	_ fyne.CanvasObject      = (*Pane)(nil)
 	_ fyne.Widget            = (*Pane)(nil)
 	_ desktop.Keyable        = (*Pane)(nil)
+	_ fyne.Shortcutable      = (*Pane)(nil)
 	_ fyne.Tabbable          = (*Pane)(nil)
 	_ fyne.Tappable          = (*Pane)(nil)
 	_ fyne.SecondaryTappable = (*Pane)(nil)
@@ -61,6 +61,10 @@ type Pane struct {
 	root      *Pane
 	parent    *Pane
 	lastFocus *Pane
+
+	// Modifier keys held down, tracked by KeyDown/KeyUp as TypedKey has no modifiers
+	modKeys map[fyne.KeyName]bool
+	mods    fyne.KeyModifier
 
 	// Callback from creater, called when the whole pane tree is finished
 	OnTearDown func()
@@ -284,7 +288,7 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 
 /*
  * ================================
- *  Keyboard
+ *  Focusable
  * ================================
  */
 func (p *Pane) FocusGained() {
@@ -298,83 +302,12 @@ func (p *Pane) FocusGained() {
 }
 
 func (p *Pane) FocusLost() {
+	// Key ups go to the new focus, so forget the modifiers held here
+	clear(p.modKeys)
+	p.mods = 0
+
 	p.border.StrokeColor = color.Transparent
 	p.border.Refresh()
-}
-
-func (p *Pane) TypedRune(r rune) {
-	p.screen.ScrollToBottom()
-	b := make([]byte, utf8.UTFMax)
-	size := utf8.EncodeRune(b, r)
-	_, _ = p.term.Write(b[:size])
-}
-
-func (p *Pane) TypedKey(ke *fyne.KeyEvent) {
-	p.screen.ScrollToBottom()
-	switch ke.Name {
-	case fyne.KeyReturn:
-		_, _ = p.term.Write([]byte{'\r'})
-
-	/*
-		case fyne.KeyEnter:
-			if t.newLineMode {
-				_, _ = p.term.Write([]byte{'\r'})
-				return
-			} else {
-				_, _ = p.term.Write([]byte{'\n'})
-			}
-	*/
-
-	case fyne.KeyTab:
-		_, _ = p.term.Write([]byte{'\t'})
-
-	// DEL, as xterm sends. ConPTY on Windows reads 0x08 as Ctrl+Backspace.
-	case fyne.KeyBackspace:
-		_, _ = p.term.Write([]byte{0x7f})
-
-	case fyne.KeyEscape:
-		_, _ = p.term.Write([]byte{27})
-
-	case fyne.KeyDelete:
-		_, _ = p.term.Write([]byte{27, '[', '3', '~'})
-
-	case fyne.KeyUp:
-		_, _ = p.term.Write([]byte{27, '[', 'A'})
-
-	case fyne.KeyDown:
-		_, _ = p.term.Write([]byte{27, '[', 'B'})
-
-	case fyne.KeyLeft:
-		_, _ = p.term.Write([]byte{27, '[', 'D'})
-
-	case fyne.KeyRight:
-		_, _ = p.term.Write([]byte{27, '[', 'C'})
-
-	case fyne.KeyPageUp:
-		_, _ = p.term.Write([]byte{27, '[', '5', '~'})
-
-	case fyne.KeyPageDown:
-		_, _ = p.term.Write([]byte{27, '[', '6', '~'})
-
-	case fyne.KeyHome:
-		_, _ = p.term.Write([]byte{27, 'O', 'H'})
-
-	case fyne.KeyInsert:
-		_, _ = p.term.Write([]byte{27, '[', '2', '~'})
-
-	case fyne.KeyEnd:
-		_, _ = p.term.Write([]byte{27, 'O', 'F'})
-	}
-}
-
-func (p *Pane) KeyDown(*fyne.KeyEvent) {
-}
-
-func (p *Pane) KeyUp(*fyne.KeyEvent) {
-}
-
-func (p *Pane) AcceptsTab() bool {
-	return true
 }
 
 /*
