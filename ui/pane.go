@@ -13,6 +13,15 @@ import (
 	"yaterm/terminal"
 )
 
+/*
+ *   Keyboard ----> Pane ----> Terminal State <----> Pty <----> Program
+ *                                    |
+ *                                    |
+ *                                    |
+ *                                    V
+ *                                  Screen
+ */
+
 var (
 	_ fyne.CanvasObject      = (*Pane)(nil)
 	_ fyne.Widget            = (*Pane)(nil)
@@ -36,9 +45,12 @@ var id int = 0
 type Pane struct {
 	widget.BaseWidget
 
-	id   int
-	term *terminal.Terminal
-	size fyne.Size
+	id     int
+	size   fyne.Size
+	border *canvas.Rectangle
+
+	term   *terminal.Terminal
+	screen *Screen
 
 	split   int
 	ratio   float32
@@ -50,21 +62,18 @@ type Pane struct {
 	parent    *Pane
 	lastFocus *Pane
 
-	border *canvas.Rectangle
-
-	screen *Screen
-
 	// Callback from creater, called when the whole pane tree is finished
 	OnTearDown func()
 }
 
-func NewPane(parent *Pane, term *terminal.Terminal, screen *Screen, run bool) *Pane {
-	if term == nil {
-		term = terminal.New()
-	}
+func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
+	var screen *Screen
 
-	if screen == nil {
+	if term == nil {
 		screen = NewScreen()
+		term = terminal.New(screen)
+	} else {
+		screen = term.GetScreen().(*Screen)
 	}
 
 	b := canvas.NewRectangle(color.Transparent)
@@ -92,8 +101,6 @@ func NewPane(parent *Pane, term *terminal.Terminal, screen *Screen, run bool) *P
 	p.ExtendBaseWidget(p)
 
 	term.OnExit = p.TryClose
-	term.SetScreen(p.screen)
-	//term.screen = p.screen
 	if run {
 		go func() {
 			term.RunCmd("xxx")
@@ -122,9 +129,18 @@ func (p *Pane) TearDown() {
 func (p *Pane) TryFocus() {
 	fyne.Do(func() {
 		focusPane := p.root.lastFocus
+		for {
+			if focusPane.split == SplitNone {
+				break
+			} else {
+				focusPane = focusPane.first
+			}
+		}
 
-		if c := fyne.CurrentApp().Driver().CanvasForObject(focusPane); c != nil {
-			c.Focus(focusPane)
+		if focusPane.split == SplitNone {
+			if c := fyne.CurrentApp().Driver().CanvasForObject(focusPane); c != nil {
+				c.Focus(focusPane)
+			}
 		}
 	})
 }
@@ -148,18 +164,28 @@ func (p *Pane) Close() {
 	pa.split = take.split
 	pa.first = take.first
 	pa.second = take.second
-	//pa.term = take.term
+	pa.ratio = take.ratio
 
 	if pa.split == SplitNone {
+		// The screen must go with its terminal, pa still holds the screen of
+		// the pane it was split from, which is the closed one when the first
+		// pane is closed.
 		pa.term = take.term
-		//pa.term.SetScreen(take.screen)
+		pa.screen = take.screen
 		pa.term.OnExit = pa.TryClose
+
+		pa.root.lastFocus = pa
+		// pa keeps the same size, so force Resize to size the terminal to it
+		pa.size = fyne.Size{}
+		pa.Resize(pa.Size())
 	} else {
 		pa.first.parent = pa
 		pa.second.parent = pa
+		pa.root.lastFocus = pa.first
 	}
 
 	pa.root.Refresh()
+	pa.TryFocus()
 }
 
 func (p *Pane) TryClose() {
@@ -170,8 +196,8 @@ func (p *Pane) TryClose() {
 
 func (p *Pane) Split(direction int, ratio float32) {
 	p.split = direction
-	p.first = NewPane(p, p.term, p.screen, false)
-	p.second = NewPane(p, nil, nil, true)
+	p.first = NewPane(p, p.term, false)
+	p.second = NewPane(p, nil, true)
 	p.term = nil
 
 	p.divider = NewDivider(p)
@@ -351,6 +377,11 @@ func (p *Pane) AcceptsTab() bool {
 	return true
 }
 
+/*
+ * ================================
+ *  Renderer
+ * ================================
+ */
 func (p *Pane) CreateRenderer() fyne.WidgetRenderer {
 	r := &paneRenderer{
 		pane: p,
@@ -359,11 +390,6 @@ func (p *Pane) CreateRenderer() fyne.WidgetRenderer {
 	return r
 }
 
-/*
- * ================================
- *  Renderer
- * ================================
- */
 var _ fyne.WidgetRenderer = (*paneRenderer)(nil)
 
 type paneRenderer struct {
@@ -416,8 +442,8 @@ func (r *paneRenderer) Layout(size fyne.Size) {
 }
 
 func (r *paneRenderer) MinSize() fyne.Size {
-	w := r.pane.border.StrokeWidth * 2
-	return fyne.NewSize(w, w)
+	p := PanePadding * 2
+	return fyne.NewSize(p, p)
 }
 
 func (r *paneRenderer) Objects() []fyne.CanvasObject {
@@ -437,5 +463,4 @@ func (r *paneRenderer) Refresh() {
 		r.pane.first.Refresh()
 		r.pane.second.Refresh()
 	}
-	r.Layout(r.pane.Size())
 }

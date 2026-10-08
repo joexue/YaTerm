@@ -17,7 +17,7 @@ var win fyne.Window
 
 func NewTabItem() *container.TabItem {
 	tabId++
-	pane := NewPane(nil, nil, nil, true)
+	pane := NewPane(nil, nil, true)
 	tab := container.NewTabItem(fmt.Sprintf("Tab %d", tabId), pane)
 
 	pane.OnTearDown = func() {

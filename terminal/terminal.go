@@ -53,9 +53,10 @@ type Terminal struct {
 	OnExit func()
 }
 
-func New() *Terminal {
+func New(screen Screen) *Terminal {
 	t := &Terminal{
-		pty: pty.New(),
+		pty:    pty.New(),
+		screen: screen,
 	}
 
 	return t
@@ -111,6 +112,6 @@ func (t *Terminal) Read(bytes []byte) (int, error) {
 	return t.pty.Read(bytes)
 }
 
-func (t *Terminal) SetScreen(s Screen) {
-	t.screen = s
+func (t *Terminal) GetScreen() Screen {
+	return t.screen
 }
