@@ -10,7 +10,7 @@ const bufLen = 32768
 
 type Screen interface {
 	Project(rune, int, int, color.Color, color.Color, Style)
-	Flush()
+	Flush(int, int)
 	ScrollUp()
 	MoveCursor(int, int)
 }

@@ -49,51 +49,38 @@ func (s *Screen) Project(r rune, row, col int, fg, bg color.Color, style termina
 		Strikethrough: style.Strikethrough,
 	}
 
+	// Inverse, faint and hidden need real colors, so fill in the theme
+	// defaults here on the UI thread where the theme is safe to read.
+	if style.Inverse || style.Faint || style.Hidden {
+		if fg == nil {
+			fg = theme.Color(theme.ColorNameForeground)
+		}
+		if bg == nil {
+			bg = theme.Color(theme.ColorNameBackground)
+		}
+		if style.Inverse {
+			fg, bg = bg, fg
+		}
+		if style.Faint {
+			fg = blend(fg, bg)
+		}
+		if style.Hidden {
+			fg = bg
+		}
+	}
+
+	cell := widget.TextGridCell{
+		Rune: r,
+		Style: &widget.CustomTextGridStyle{
+			FGColor:   fg,
+			BGColor:   bg,
+			TextStyle: textStyle,
+		},
+	}
+
 	fyne.Do(func() {
-		// Inverse, faint and hidden need real colors, so fill in the theme
-		// defaults here on the UI thread where the theme is safe to read.
-		if style.Inverse || style.Faint || style.Hidden {
-			if fg == nil {
-				fg = theme.Color(theme.ColorNameForeground)
-			}
-			if bg == nil {
-				bg = theme.Color(theme.ColorNameBackground)
-			}
-			if style.Inverse {
-				fg, bg = bg, fg
-			}
-			if style.Faint {
-				fg = blend(fg, bg)
-			}
-			if style.Hidden {
-				fg = bg
-			}
-		}
-
-		cell := widget.TextGridCell{
-			Rune: r,
-			Style: &widget.CustomTextGridStyle{
-				FGColor:   fg,
-				BGColor:   bg,
-				TextStyle: textStyle,
-			},
-		}
-
 		s.textGrid.SetCell(row, col, cell)
 	})
-}
-
-// blend mixes a and b half and half, used to draw faint text
-func blend(a, b color.Color) color.Color {
-	ar, ag, ab, aa := a.RGBA()
-	br, bg, bb, ba := b.RGBA()
-
-	return color.RGBA64{
-		R: uint16((ar + br) / 2),
-		G: uint16((ag + bg) / 2),
-		B: uint16((ab + bb) / 2),
-		A: uint16((aa + ba) / 2),
-	}
 }
 
 func (s *Screen) Resize(size fyne.Size) {
@@ -115,20 +102,17 @@ func (s *Screen) CursorLocationForPosition(pos fyne.Position) (int, int) {
 	return s.textGrid.CursorLocationForPosition(pos)
 }
 
-func (s *Screen) Flush() {
+func (s *Screen) Flush(row, col int) {
 	fyne.Do(func() {
 		s.textGrid.Refresh()
-		s.cursor.Refresh()
+		pos := s.textGrid.PositionForCursorLocation(row, col)
+		s.cursor.Move(pos)
 	})
 }
 
 // MoveCursor and ScrollUp are called from the terminal goroutine, so they go
 // through fyne.Do to stay ordered with the cell updates queued by Project.
 func (s *Screen) MoveCursor(row, col int) {
-	fyne.Do(func() {
-		pos := s.textGrid.PositionForCursorLocation(row, col)
-		s.cursor.Move(pos)
-	})
 }
 
 func (s *Screen) ScrollUp() {
@@ -149,10 +133,6 @@ func (s *Screen) ScrollUp() {
 
 		s.textGrid.Rows = append(s.textGrid.Rows[1:rows], widget.TextGridRow{})
 	})
-}
-
-func (s *Screen) Rows() int {
-	return len(s.textGrid.Rows)
 }
 
 func (s *Screen) CreateRenderer() fyne.WidgetRenderer {
@@ -177,8 +157,10 @@ func (r *screenRenderer) Layout(size fyne.Size) {
 	r.screen.textGrid.Move(fyne.NewPos(0, 0))
 }
 
+// MinSize is one cell and does not follow the text grid, whose min size grows
+// with the content and would otherwise relayout the parent Pane on output.
 func (r *screenRenderer) MinSize() fyne.Size {
-	return r.screen.textGrid.MinSize()
+	return fyne.MeasureText("M", theme.TextSize(), fyne.TextStyle{Monospace: true})
 }
 
 func (r *screenRenderer) Objects() []fyne.CanvasObject {
@@ -189,3 +171,17 @@ func (r *screenRenderer) Refresh() {
 	r.screen.textGrid.Refresh()
 	r.screen.cursor.Refresh()
 }
+
+// blend mixes a and b half and half, used to draw faint text
+func blend(a, b color.Color) color.Color {
+	ar, ag, ab, aa := a.RGBA()
+	br, bg, bb, ba := b.RGBA()
+
+	return color.RGBA64{
+		R: uint16((ar + br) / 2),
+		G: uint16((ag + bg) / 2),
+		B: uint16((ab + bb) / 2),
+		A: uint16((aa + ba) / 2),
+	}
+}
+

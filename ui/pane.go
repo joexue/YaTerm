@@ -128,6 +128,39 @@ func (p *Pane) TryFocus() {
 	})
 }
 
+func (p *Pane) Close() {
+	if p == p.root {
+		if f := p.OnTearDown; f != nil {
+			f()
+		}
+		return
+	}
+
+	pa := p.parent
+	var take *Pane
+	if pa.first == p {
+		take = pa.second
+	} else {
+		take = pa.first
+	}
+
+	pa.split = take.split
+	pa.first = take.first
+	pa.second = take.second
+	//pa.term = take.term
+
+	if pa.split == SplitNone {
+		pa.term = take.term
+		//pa.term.SetScreen(take.screen)
+		pa.term.OnExit = pa.TryClose
+	} else {
+		pa.first.parent = pa
+		pa.second.parent = pa
+	}
+
+	pa.root.Refresh()
+}
+
 func (p *Pane) TryClose() {
 	fyne.Do(func() {
 		p.Close()
@@ -149,37 +182,6 @@ func (p *Pane) Split(direction int, ratio float32) {
 	fyne.Do(func() {
 		p.second.TryFocus()
 	})
-}
-
-func (p *Pane) Close() {
-	if p == p.root {
-		if f := p.OnTearDown; f != nil {
-			f()
-		}
-		return
-	}
-
-	pa := p.parent
-	var take *Pane
-	if pa.first == p {
-		take = pa.second
-	} else {
-		take = pa.first
-	}
-
-	pa.split = take.split
-	pa.first = take.first
-	pa.second = take.second
-	pa.term = take.term
-	if pa.split == SplitNone {
-		pa.term = take.term
-		pa.term.OnExit = pa.TryClose
-	} else {
-		pa.first.parent = pa
-		pa.second.parent = pa
-	}
-
-	pa.root.Refresh()
 }
 
 func (p *Pane) SetRatio(ratio float32) {
@@ -345,13 +347,7 @@ func (r *paneRenderer) Layout(size fyne.Size) {
 
 func (r *paneRenderer) MinSize() fyne.Size {
 	w := r.pane.border.StrokeWidth * 2
-	if r.pane.split == SplitNone {
-		return fyne.NewSize(w, w)
-	} else {
-		s1 := r.pane.first.MinSize()
-		s2 := r.pane.second.MinSize()
-		return s1.Add(s2)
-	}
+	return fyne.NewSize(w, w)
 }
 
 func (r *paneRenderer) Objects() []fyne.CanvasObject {

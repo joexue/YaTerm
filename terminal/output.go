@@ -163,5 +163,5 @@ func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 		t.processGround(r)
 	}
 
-	t.screen.Flush()
+	t.screen.Flush(t.cursorY, t.cursorX)
 }
