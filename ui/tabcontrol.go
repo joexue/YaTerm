@@ -20,6 +20,7 @@ func NewTabItem() *container.TabItem {
 	pane := NewPane(nil, nil, true)
 	tab := container.NewTabItem(fmt.Sprintf("Tab %d", tabId), pane)
 
+	// When pane is closed from pane internally (e.g. from popup menu)
 	pane.OnTearDown = func() {
 		tabControl.Remove(tab)
 

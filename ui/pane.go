@@ -31,13 +31,13 @@ var (
 )
 
 const (
-	SplitNone = iota
-	SplitHorizontal
-	SplitVertical
+	splitNone = iota
+	splitHorizontal
+	splitVertical
 )
 
-var PaneBorderWidth = float32(1)
-var PanePadding = (PaneBorderWidth * 2)
+var paneBorderWidth = float32(1)
+var panePadding = (paneBorderWidth * 2)
 
 var id int = 0
 
@@ -80,13 +80,13 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 	}
 
 	b := canvas.NewRectangle(color.Transparent)
-	b.StrokeWidth = PaneBorderWidth
+	b.StrokeWidth = paneBorderWidth
 	b.StrokeColor = color.Transparent
 
 	p := &Pane{
 		id:     id,
 		term:   term,
-		split:  SplitNone,
+		split:  splitNone,
 		first:  nil,
 		second: nil,
 		parent: parent,
@@ -118,10 +118,10 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 
 // Called by TabControl
 func (p *Pane) TearDown() {
-	if p.split == SplitNone {
-		//t := p.term
-		//t.OnExit = nil
-		//t.Exit()
+	if p.split == splitNone {
+		t := p.term
+		t.OnExit = nil
+		t.Exit()
 	} else {
 		p.first.TearDown()
 		p.second.TearDown()
@@ -133,14 +133,14 @@ func (p *Pane) TryFocus() {
 	fyne.Do(func() {
 		focusPane := p.root.lastFocus
 		for {
-			if focusPane.split == SplitNone {
+			if focusPane.split == splitNone {
 				break
 			} else {
 				focusPane = focusPane.first
 			}
 		}
 
-		if focusPane.split == SplitNone {
+		if focusPane.split == splitNone {
 			if c := fyne.CurrentApp().Driver().CanvasForObject(focusPane); c != nil {
 				c.Focus(focusPane)
 			}
@@ -169,7 +169,7 @@ func (p *Pane) Close() {
 	pa.second = take.second
 	pa.ratio = take.ratio
 
-	if pa.split == SplitNone {
+	if pa.split == splitNone {
 		// The screen must go with its terminal, pa still holds the screen of
 		// the pane it was split from, which is the closed one when the first
 		// pane is closed.
@@ -187,7 +187,7 @@ func (p *Pane) Close() {
 		pa.root.lastFocus = pa.first
 	}
 
-	pa.root.Refresh()
+	pa.Refresh()
 	pa.TryFocus()
 }
 
@@ -205,13 +205,11 @@ func (p *Pane) Split(direction int, ratio float32) {
 
 	p.divider = NewDivider(p)
 	p.ratio = ratio
-	p.Refresh()
-
 	p.root.lastFocus = p.second
 
-	fyne.Do(func() {
-		p.second.TryFocus()
-	})
+	p.Refresh()
+
+	p.second.TryFocus()
 }
 
 func (p *Pane) SetRatio(ratio float32) {
@@ -226,11 +224,12 @@ func (p *Pane) Resize(size fyne.Size) {
 
 	p.size = size
 	if p.term != nil {
-		maxPos := fyne.NewPos(size.Width-2*PanePadding, size.Height-2*PanePadding)
+		maxPos := fyne.NewPos(size.Width-2*panePadding, size.Height-2*panePadding)
 		r, c := p.screen.CursorLocationForPosition(maxPos)
 		p.term.Resize(r, c)
 	}
 
+	// Cann't skip it, This will triage the renderer to call Layout
 	p.BaseWidget.Resize(size)
 }
 
@@ -284,9 +283,9 @@ func (r *paneRenderer) Layout(size fyne.Size) {
 	w := size.Width
 	h := size.Height
 	switch r.pane.split {
-	case SplitNone:
-		pad := fyne.NewSize(PanePadding, PanePadding)
-		offset := fyne.NewPos(PanePadding, PanePadding)
+	case splitNone:
+		pad := fyne.NewSize(panePadding, panePadding)
+		offset := fyne.NewPos(panePadding, panePadding)
 
 		r.pane.border.Resize(size)
 		r.pane.border.Move(fyne.NewPos(0, 0))
@@ -294,7 +293,7 @@ func (r *paneRenderer) Layout(size fyne.Size) {
 		r.pane.screen.Resize(size.Subtract(pad).Subtract(pad))
 		r.pane.screen.Move(offset)
 
-	case SplitHorizontal:
+	case splitHorizontal:
 		w1 := (w - SplitDefaultThickness) * r.pane.ratio
 		w2 := w - SplitDefaultThickness - w1
 
@@ -307,7 +306,7 @@ func (r *paneRenderer) Layout(size fyne.Size) {
 		r.pane.second.Resize(fyne.NewSize(w2, h))
 		r.pane.second.Move(fyne.NewPos(w1+SplitDefaultThickness, 0))
 
-	case SplitVertical:
+	case splitVertical:
 		h1 := (h - SplitDefaultThickness) * r.pane.ratio
 		h2 := h - SplitDefaultThickness - h1
 
@@ -323,12 +322,12 @@ func (r *paneRenderer) Layout(size fyne.Size) {
 }
 
 func (r *paneRenderer) MinSize() fyne.Size {
-	p := PanePadding * 2
+	p := panePadding * 2
 	return fyne.NewSize(p, p)
 }
 
 func (r *paneRenderer) Objects() []fyne.CanvasObject {
-	if r.pane.split == SplitNone {
+	if r.pane.split == splitNone {
 		return []fyne.CanvasObject{r.pane.border, r.pane.screen}
 	} else {
 		return []fyne.CanvasObject{r.pane.first, r.pane.divider, r.pane.second}
@@ -336,12 +335,5 @@ func (r *paneRenderer) Objects() []fyne.CanvasObject {
 }
 
 func (r *paneRenderer) Refresh() {
-	switch r.pane.split {
-	case SplitNone:
-		r.pane.border.Refresh()
-	case SplitHorizontal, SplitVertical:
-		r.pane.divider.Refresh()
-		r.pane.first.Refresh()
-		r.pane.second.Refresh()
-	}
+	r.Layout(r.pane.Size())
 }

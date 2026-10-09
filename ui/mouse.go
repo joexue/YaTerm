@@ -20,10 +20,10 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 
 	if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
 		hsplitItem := fyne.NewMenuItemWithIcon("Horizontal Split", theme.NewThemedResource(assert.HSplitIconRes), func() {
-			p.Split(SplitHorizontal, 0.5)
+			p.Split(splitHorizontal, 0.5)
 		})
 		vsplitItem := fyne.NewMenuItemWithIcon("Vertical Split", theme.NewThemedResource(assert.VSplitIconRes), func() {
-			p.Split(SplitVertical, 0.5)
+			p.Split(splitVertical, 0.5)
 		})
 
 		separatorItem := fyne.NewMenuItemSeparator()
