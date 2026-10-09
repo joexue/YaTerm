@@ -48,8 +48,11 @@ type Pane struct {
 	size   fyne.Size
 	border *canvas.Rectangle
 
-	term   *terminal.Terminal
-	screen *Screen
+	// Rows and colums, the only source for terminal and screen
+	row, col int
+	cellSize fyne.Size
+	term     *terminal.Terminal
+	screen   *Screen
 
 	split   int
 	ratio   float32
@@ -84,14 +87,15 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 	b.StrokeColor = color.Transparent
 
 	p := &Pane{
-		id:     id,
-		term:   term,
-		split:  splitNone,
-		first:  nil,
-		second: nil,
-		parent: parent,
-		border: b,
-		screen: screen,
+		id:       id,
+		border:   b,
+		split:    splitNone,
+		first:    nil,
+		second:   nil,
+		parent:   parent,
+		term:     term,
+		screen:   screen,
+		cellSize: measureCell(),
 	}
 
 	if p.parent == nil {
@@ -223,10 +227,15 @@ func (p *Pane) Resize(size fyne.Size) {
 	}
 
 	p.size = size
+
+	cellSize := measureCell()
+	screenSize := fyne.NewSize(size.Width-2*panePadding, size.Height-2*panePadding)
+	row, col := int(screenSize.Height/cellSize.Height), int(screenSize.Width/cellSize.Width)
+	p.row, p.col = row, col
+
+	// The screen Resize() will be called by UI frame, just handle terminal here
 	if p.term != nil {
-		maxPos := fyne.NewPos(size.Width-2*panePadding, size.Height-2*panePadding)
-		r, c := p.screen.CursorLocationForPosition(maxPos)
-		p.term.Resize(r, c)
+		p.term.Resize(p.row, p.col)
 	}
 
 	// Cann't skip it, This will triage the renderer to call Layout

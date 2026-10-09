@@ -2,7 +2,6 @@ package ui
 
 import (
 	"image/color"
-	"math"
 	"slices"
 	"sync"
 	"unicode/utf8"
@@ -107,7 +106,7 @@ type Screen struct {
 func NewScreen() *Screen {
 	s := &Screen{
 		cursor:   canvas.NewRectangle(theme.Color(theme.ColorNamePrimary)),
-		cellSize: measureCell(1),
+		cellSize: measureCell(),
 		hist:     newHistory(HistoryLines),
 	}
 
@@ -115,34 +114,6 @@ func NewScreen() *Screen {
 	s.ExtendBaseWidget(s)
 
 	return s
-}
-
-// measureCell keeps the font's real advance width so a merged run of text
-// lines up with the cell grid. The height is rounded to whole device pixels,
-// not Fyne units, so rows stack without seams on a scaled (e.g. 125%) display.
-func measureCell(scale float32) fyne.Size {
-	size := fyne.MeasureText("M", theme.TextSize(), fyne.TextStyle{Monospace: true})
-	size.Height = float32(math.Round(float64(size.Height*scale))) / scale
-	return size
-}
-
-// scale returns the scale of the canvas the screen is on. Before the screen is
-// first drawn it has no canvas yet, so fall back to the window's canvas.
-func (s *Screen) scale() float32 {
-	app := fyne.CurrentApp()
-	if app == nil {
-		return 1
-	}
-
-	if c := app.Driver().CanvasForObject(s); c != nil {
-		return c.Scale()
-	}
-
-	if windows := app.Driver().AllWindows(); len(windows) > 0 {
-		return windows[0].Canvas().Scale()
-	}
-
-	return 1
 }
 
 func (s *Screen) Project(r rune, row, col int, fg, bg color.Color, style terminal.Style) {
@@ -195,7 +166,10 @@ func (s *Screen) Resize(size fyne.Size) {
 
 	s.size = size
 	// Keep row/col consistent with what Pane hands to the terminal.
-	row, col := s.CursorLocationForPosition(fyne.NewPos(size.Width, size.Height))
+	cellSize := measureCell()
+	s.cellSize = cellSize
+
+	row, col := int(size.Height/cellSize.Height), int(size.Width/cellSize.Width)
 
 	s.mu.Lock()
 	s.row, s.col = row, col
@@ -203,11 +177,11 @@ func (s *Screen) Resize(size fyne.Size) {
 	s.mu.Unlock()
 
 	s.cursor.Resize(s.cellSize)
-	s.BaseWidget.Resize(size)
 
 	s.mu.Lock()
 	s.render()
 	s.mu.Unlock()
+	s.BaseWidget.Resize(size)
 }
 
 // resizeBuffer fits the cell buffer and the row objects to s.row x s.col,
@@ -241,16 +215,6 @@ func (s *Screen) resizeBuffer() {
 		s.objects = append(s.objects, l.box)
 	}
 	s.objects = append(s.objects, s.cursor)
-}
-
-// CursorLocationForPosition also updates the cell size for the current scale,
-// Pane calls it to size the terminal right before resizing the screen.
-func (s *Screen) CursorLocationForPosition(pos fyne.Position) (int, int) {
-	s.cellSize = measureCell(s.scale())
-
-	row := int(pos.Y / s.cellSize.Height)
-	col := int(pos.X / s.cellSize.Width)
-	return max(row, 0), max(col, 0)
 }
 
 func (s *Screen) PositionForCursorLocation(row, col int) fyne.Position {
@@ -289,7 +253,8 @@ func (s *Screen) updateCursor() {
 		return
 	}
 
-	s.cursor.Move(s.PositionForCursorLocation(row, s.curCol))
+	pos := fyne.NewPos(float32(s.curCol)*s.cellSize.Width, float32(row)*s.cellSize.Height)
+	s.cursor.Move(pos)
 	s.cursor.Show()
 }
 
@@ -560,7 +525,7 @@ func (r *screenRenderer) Objects() []fyne.CanvasObject {
 // Refresh redraws everything, e.g. after a theme change
 func (r *screenRenderer) Refresh() {
 	s := r.screen
-	s.cellSize = measureCell(s.scale())
+	s.cellSize = measureCell()
 	s.cursor.FillColor = theme.Color(theme.ColorNamePrimary)
 	s.cursor.Resize(s.cellSize)
 	s.cursor.Refresh()
@@ -573,19 +538,6 @@ func (r *screenRenderer) Refresh() {
 	}
 	s.render()
 	s.layoutRows()
-}
-
-// blend mixes a and b half and half, used to draw faint text
-func blend(a, b color.Color) color.Color {
-	ar, ag, ab, aa := a.RGBA()
-	br, bg, bb, ba := b.RGBA()
-
-	return color.RGBA64{
-		R: uint16((ar + br) / 2),
-		G: uint16((ag + bg) / 2),
-		B: uint16((ab + bb) / 2),
-		A: uint16((aa + ba) / 2),
-	}
 }
 
 /*
