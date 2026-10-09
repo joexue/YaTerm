@@ -1,7 +1,7 @@
 package terminal
 
 import (
-	"fmt"
+	//"fmt"
 	"image/color"
 	"sync"
 	"yaterm/pty"
@@ -85,7 +85,7 @@ func (t *Terminal) RunCmd(cmd string) {
 				break
 			}
 
-			fmt.Println("xxxxxxxxxxxxxxx", num, err)
+			//fmt.Println("xxxxxxxxxxxxxxx", num, err)
 			t.ProcessOutput(buf[:num], num)
 		}
 
