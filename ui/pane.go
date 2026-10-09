@@ -182,9 +182,8 @@ func (p *Pane) Close() {
 		pa.term.OnExit = pa.TryClose
 
 		pa.root.lastFocus = pa
-		// pa keeps the same size, so force Resize to size the terminal to it
-		pa.size = fyne.Size{}
-		pa.Resize(pa.Size())
+		// pa keeps the same size, so force to resize the terminal
+		pa.term.Resize(pa.row, pa.col)
 	} else {
 		pa.first.parent = pa
 		pa.second.parent = pa
