@@ -101,6 +101,9 @@ func (t *Terminal) parseEscState(r rune) {
 }
 
 func (t *Terminal) ProcessOutput(bytes []byte, num int) {
+	t.stateMu.Lock()
+	defer t.stateMu.Unlock()
+
 	var (
 		size int
 		r    rune

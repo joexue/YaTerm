@@ -34,6 +34,25 @@ type cell struct {
 	style  fyne.TextStyle
 }
 
+// blank tells if the cell shows nothing, so it can be dropped from a line end
+func (c cell) blank() bool {
+	return (c.r == 0 || c.r == ' ') && c.bg == nil && !c.style.Underline && !c.style.Strikethrough
+}
+
+// line is one row of cells. wrapped means the text goes on in the next line
+// because it reached the right edge (auto wrap), not because of a new line,
+// so a resize can join them and wrap them again at the new width.
+// Screen lines are always the screen width, history lines may be shorter as
+// their blank end is dropped, but a wrapped line is always full width.
+type line struct {
+	cells   []cell
+	wrapped bool
+}
+
+func newLine(col int) line {
+	return line{cells: make([]cell, col)}
+}
+
 // sameText tells if two cells can be drawn by the same text object, the
 // background is merged separately so it does not split a text run.
 func (c cell) sameText(o cell) bool {
@@ -80,7 +99,7 @@ type Screen struct {
 	// mu guards the cell buffer, written directly by the terminal goroutine
 	// and read on the UI thread when a flush renders it.
 	mu       sync.Mutex
-	lines    [][]cell
+	lines    []line
 	dirty    []bool
 	row, col int
 	scrolled int // ScrollUp calls not yet applied to rows
@@ -155,59 +174,188 @@ func (s *Screen) Project(r rune, row, col int, fg, bg color.Color, style termina
 		return
 	}
 
-	s.lines[row][col] = c
+	s.lines[row].cells[col] = c
 	s.dirty[row] = true
 }
 
+// SetWrapped marks a row as going on in the next one, called by the terminal
+// when it wraps at the right edge, and cleared when the line end is erased.
+func (s *Screen) SetWrapped(row int, wrapped bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if row >= 0 && row < len(s.lines) {
+		s.lines[row].wrapped = wrapped
+	}
+}
+
+// Resize only sizes the widget, the rows and columns come from the terminal
+// through Reflow, which Pane calls before laying out the screen.
 func (s *Screen) Resize(size fyne.Size) {
 	if size.Width <= 0 || size.Height <= 0 || size == s.size {
 		return
 	}
 
 	s.size = size
-	// Keep row/col consistent with what Pane hands to the terminal.
-	cellSize := measureCell()
-	s.cellSize = cellSize
-
-	row, col := int(size.Height/cellSize.Height), int(size.Width/cellSize.Width)
-
-	s.mu.Lock()
-	s.row, s.col = row, col
-	s.resizeBuffer()
-	s.mu.Unlock()
-
+	s.cellSize = measureCell()
 	s.cursor.Resize(s.cellSize)
+	s.BaseWidget.Resize(size)
 
 	s.mu.Lock()
 	s.render()
+	s.updateCursor()
 	s.mu.Unlock()
-	s.BaseWidget.Resize(size)
 }
 
-// resizeBuffer fits the cell buffer and the row objects to s.row x s.col,
-// keeping the content that is still on screen. Called with mu held.
-func (s *Screen) resizeBuffer() {
-	lines := make([][]cell, s.row)
-	for i := range lines {
-		lines[i] = make([]cell, s.col)
-		if i < len(s.lines) {
-			copy(lines[i], s.lines[i])
+// Reflow fits the history and the screen to row x col. Lines that were auto
+// wrapped are joined again and wrapped at the new width, so a narrower screen
+// moves the line end to the next line instead of cutting it, and a wider one
+// merges it back. The screen keeps the cursor line (or the last line with
+// content) at the bottom, lines above go to the history. Returns the new
+// cursor position.
+func (s *Screen) Reflow(row, col, curRow, curCol int) (int, int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	defer func() {
+		// Everything is redrawn, so pending scrolls no longer matter
+		s.dirty = make([]bool, s.row)
+		for i := range s.dirty {
+			s.dirty[i] = true
+		}
+		s.scrolled = 0
+		s.viewDirty = true
+		s.offset = min(s.offset, s.hist.len())
+	}()
+
+	if row <= 0 || col <= 0 || len(s.lines) == 0 || s.col <= 0 {
+		// Nothing to keep yet
+		s.row, s.col = max(row, 0), max(col, 0)
+		s.lines = make([]line, s.row)
+		for i := range s.lines {
+			s.lines[i] = newLine(s.col)
+		}
+		return max(0, min(curRow, s.row-1)), max(0, min(curCol, s.col-1))
+	}
+
+	curRow = max(0, min(curRow, len(s.lines)-1))
+	curCol = max(0, min(curCol, s.col-1))
+
+	// Blank lines below the cursor are just empty screen, not content
+	last := curRow
+	for i := len(s.lines) - 1; i > curRow; i-- {
+		if s.lines[i].wrapped || !lineBlank(s.lines[i].cells) {
+			last = i
+			break
 		}
 	}
-	s.lines = lines
+
+	// All lines in order, history first
+	nHist := s.hist.len()
+	phys := make([]line, 0, nHist+last+1)
+	for i := 0; i < nHist; i++ {
+		phys = append(phys, s.hist.at(i))
+	}
+	phys = append(phys, s.lines[:last+1]...)
+	cursorPhys := nHist + curRow
+
+	out := make([]line, 0, len(phys))
+	newRow, newCol := 0, 0
+
+	for i := 0; i < len(phys); {
+		// A logical line is a run of wrapped lines and the line ending it
+		j := i
+		for j < len(phys)-1 && phys[j].wrapped {
+			j++
+		}
+
+		var cells []cell
+		if i == j {
+			cells = phys[i].cells // no copy for the common single line
+		} else {
+			for k := i; k <= j; k++ {
+				cells = append(cells, phys[k].cells...)
+			}
+		}
+
+		// The cursor as an offset into the logical line
+		curOff := -1
+		if cursorPhys >= i && cursorPhys <= j {
+			curOff = (cursorPhys-i)*s.col + curCol
+		}
+
+		// Drop the blank end, but keep it up to the cursor
+		n := len(cells)
+		for n > 0 && cells[n-1].blank() {
+			n--
+		}
+		if curOff > n {
+			n = min(curOff, len(cells))
+		}
+
+		// Wrap at the new width, the pieces share the logical line's cells.
+		// Full slice expressions stop a later append from spilling over.
+		start := len(out)
+		for off := 0; off == 0 || off < n; off += col {
+			end := min(off+col, n)
+			out = append(out, line{cells: cells[off:end:end], wrapped: end < n})
+		}
+
+		if curOff >= 0 {
+			newRow, newCol = start+curOff/col, curOff%col
+			// The cursor is right after a line that fills the width
+			for newRow >= len(out) {
+				out = append(out, line{})
+			}
+		}
+
+		i = j + 1
+	}
+
+	// The screen ends with the kept lines, but the cursor must stay on it
+	top := max(0, len(out)-row)
+	top = min(top, newRow)
+
+	s.hist.reset()
+	for _, l := range out[max(0, top-HistoryLines):top] {
+		s.hist.push(l)
+	}
+
+	// Screen lines are full width as the terminal writes into them
+	s.row, s.col = row, col
+	s.lines = make([]line, row)
+	for i := range s.lines {
+		s.lines[i] = newLine(col)
+		if top+i < len(out) {
+			copy(s.lines[i].cells, out[top+i].cells)
+			s.lines[i].wrapped = out[top+i].wrapped
+		}
+	}
+
+	return newRow - top, min(newCol, col-1)
+}
+
+// lineBlank tells if a line shows nothing
+func lineBlank(cells []cell) bool {
+	for _, c := range cells {
+		if !c.blank() {
+			return false
+		}
+	}
+	return true
+}
+
+// syncRows makes one row object for each screen row. Called on the UI thread
+// with mu held, after Reflow changed the number of rows.
+func (s *Screen) syncRows() {
+	if len(s.rows) == s.row && len(s.objects) == s.row+1 {
+		return
+	}
 
 	for len(s.rows) < s.row {
 		s.rows = append(s.rows, newScreenLine())
 	}
 	s.rows = s.rows[:s.row]
-
-	// Everything is redrawn, so pending scrolls no longer matter
-	s.dirty = make([]bool, s.row)
-	for i := range s.dirty {
-		s.dirty[i] = true
-	}
-	s.scrolled = 0
-	s.offset = min(s.offset, s.hist.len())
 
 	// Rows first, the cursor is drawn on top
 	s.objects = make([]fyne.CanvasObject, 0, s.row+1)
@@ -215,6 +363,9 @@ func (s *Screen) resizeBuffer() {
 		s.objects = append(s.objects, l.box)
 	}
 	s.objects = append(s.objects, s.cursor)
+
+	s.layoutRows()
+	canvas.Refresh(s)
 }
 
 func (s *Screen) PositionForCursorLocation(row, col int) fyne.Position {
@@ -318,10 +469,11 @@ func (s *Screen) ScrollUp() {
 	copy(s.lines, s.lines[1:])
 	copy(s.dirty, s.dirty[1:])
 	blank := s.hist.push(top)
-	if len(blank) == s.col {
-		clear(blank)
+	if len(blank.cells) == s.col {
+		clear(blank.cells)
+		blank.wrapped = false
 	} else {
-		blank = make([]cell, s.col)
+		blank = newLine(s.col)
 	}
 	s.lines[last] = blank
 	s.dirty[last] = true
@@ -340,14 +492,16 @@ func (s *Screen) viewLine(i int) []cell {
 	n := s.hist.len()
 	idx := n - s.offset + i
 	if idx < n {
-		return s.hist.at(idx)
+		return s.hist.at(idx).cells
 	}
-	return s.lines[idx-n]
+	return s.lines[idx-n].cells
 }
 
 // render rebuilds the objects of the rows changed since the last render.
 // Called on the UI thread with mu held.
 func (s *Screen) render() {
+	s.syncRows()
+
 	if s.offset > 0 || s.viewDirty {
 		// The view is scrolled back or just moved, redraw every row. Rows that
 		// look the same are cheap, their objects are not refreshed.
@@ -373,7 +527,7 @@ func (s *Screen) render() {
 
 	for i, d := range s.dirty {
 		if d {
-			s.renderLine(i, s.lines[i])
+			s.renderLine(i, s.lines[i].cells)
 			s.dirty[i] = false
 		}
 	}
@@ -381,7 +535,7 @@ func (s *Screen) render() {
 
 func (s *Screen) renderLine(i int, cells []cell) {
 	l := s.rows[i]
-	// History lines keep the width they had, cut them to the screen
+	// History lines may be shorter than the screen, never wider after Reflow
 	cells = cells[:min(len(cells), s.col)]
 	w, h := s.cellSize.Width, s.cellSize.Height
 	fgDefault := theme.Color(theme.ColorNameForeground)
@@ -551,40 +705,46 @@ const HistoryLines = 2000
 
 // history is a ring buffer of the lines scrolled off the top of the screen
 type history struct {
-	lines [][]cell
+	lines []line
 	head  int // index of the oldest line
 	count int
 }
 
 func newHistory(max int) *history {
-	return &history{lines: make([][]cell, max)}
+	return &history{lines: make([]line, max)}
 }
 
 // push adds a line as the newest. When full the oldest line is dropped and
-// returned so its memory can be reused, otherwise it returns nil.
-func (h *history) push(line []cell) []cell {
+// returned so its memory can be reused, otherwise it returns an empty line.
+func (h *history) push(l line) line {
 	max := len(h.lines)
 	if max == 0 {
-		return line
+		return l
 	}
 
 	if h.count < max {
-		h.lines[(h.head+h.count)%max] = line
+		h.lines[(h.head+h.count)%max] = l
 		h.count++
-		return nil
+		return line{}
 	}
 
 	old := h.lines[h.head]
-	h.lines[h.head] = line
+	h.lines[h.head] = l
 	h.head = (h.head + 1) % max
 	return old
 }
 
 // at returns the i-th line, 0 is the oldest
-func (h *history) at(i int) []cell {
+func (h *history) at(i int) line {
 	return h.lines[(h.head+i)%len(h.lines)]
 }
 
 func (h *history) len() int {
 	return h.count
+}
+
+// reset empties the history, the lines are released for the GC
+func (h *history) reset() {
+	clear(h.lines)
+	h.head, h.count = 0, 0
 }

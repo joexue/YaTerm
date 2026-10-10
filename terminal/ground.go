@@ -6,6 +6,8 @@ func (t *Terminal) outputChar(r rune) {
 	// line (which ConPTY sends) would leave an extra blank line.
 	if t.wrapPending {
 		t.wrapPending = false
+		// The line goes on in the next one, so a resize can join them again
+		t.screen.SetWrapped(t.cursorY, true)
 		t.cursorX = 0
 		t.lineFeed()
 	}

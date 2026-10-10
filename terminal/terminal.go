@@ -14,6 +14,13 @@ type Screen interface {
 	Flush(int, int)
 	ScrollUp()
 	MoveCursor(int, int)
+
+	// SetWrapped marks a row as continuing on the next one (auto wrapped), or not
+	SetWrapped(row int, wrapped bool)
+
+	// Reflow fits the content to a new size, re-wrapping lines at the new
+	// width, and returns where the cursor moved to.
+	Reflow(row, col, curRow, curCol int) (int, int)
 }
 
 type Pty interface {
@@ -34,7 +41,11 @@ type Terminal struct {
 	pty    Pty
 	screen Screen
 
-	mu sync.Mutex
+	mu sync.Mutex // guards writing to the pty
+
+	// stateMu guards the terminal state below, output is processed on the
+	// reader goroutine and Resize comes from the UI thread.
+	stateMu sync.Mutex
 
 	row, col int
 
@@ -63,13 +74,30 @@ func New(screen Screen) *Terminal {
 }
 
 func (t *Terminal) Resize(row, col int) {
-	t.row, t.col = row, col
+	// A pane squeezed to nothing would reflow all text away, keep the old size
+	if row <= 0 || col <= 0 {
+		return
+	}
+
+	t.stateMu.Lock()
+	if row != t.row || col != t.col {
+		// The screen re-wraps its lines, the cursor moves with its text
+		t.cursorY, t.cursorX = t.screen.Reflow(row, col, t.cursorY, t.cursorX)
+		t.wrapPending = false
+		t.row, t.col = row, col
+		t.screen.Flush(t.cursorY, t.cursorX)
+	}
+	t.stateMu.Unlock()
+
 	if t.pty != nil {
 		t.pty.Resize(row, col)
 	}
 }
 
 func (t *Terminal) Size() (int, int) {
+	t.stateMu.Lock()
+	defer t.stateMu.Unlock()
+
 	return t.row, t.col
 }
 

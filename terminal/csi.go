@@ -122,15 +122,18 @@ func param(params []int, i, def int) int {
 	return params[i]
 }
 
-// eraseInLine: 0 cursor to end, 1 start to cursor, 2 whole line
+// eraseInLine: 0 cursor to end, 1 start to cursor, 2 whole line.
+// Erasing to the end of a line also ends it, it no longer wraps to the next.
 func (t *Terminal) eraseInLine(mode int) {
 	switch mode {
 	case 0:
 		t.eraseCells(t.cursorY, t.cursorX, t.col)
+		t.screen.SetWrapped(t.cursorY, false)
 	case 1:
 		t.eraseCells(t.cursorY, 0, t.cursorX+1)
 	case 2:
 		t.eraseCells(t.cursorY, 0, t.col)
+		t.screen.SetWrapped(t.cursorY, false)
 	}
 }
 
@@ -139,17 +142,21 @@ func (t *Terminal) eraseInScreen(mode int) {
 	switch mode {
 	case 0:
 		t.eraseCells(t.cursorY, t.cursorX, t.col)
+		t.screen.SetWrapped(t.cursorY, false)
 		for row := t.cursorY + 1; row < t.row; row++ {
 			t.eraseCells(row, 0, t.col)
+			t.screen.SetWrapped(row, false)
 		}
 	case 1:
 		for row := 0; row < t.cursorY; row++ {
 			t.eraseCells(row, 0, t.col)
+			t.screen.SetWrapped(row, false)
 		}
 		t.eraseCells(t.cursorY, 0, t.cursorX+1)
 	case 2, 3:
 		for row := 0; row < t.row; row++ {
 			t.eraseCells(row, 0, t.col)
+			t.screen.SetWrapped(row, false)
 		}
 	}
 }
