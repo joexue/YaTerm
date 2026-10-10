@@ -70,14 +70,18 @@ func NewTabControl(_ fyne.App, w fyne.Window) fyne.CanvasObject {
 	return tabControl
 }
 
-func NewMarkdownTab(text []rune) {
+func NewMarkdownTab() {
 	markdownTabId++
 
 	defaultText := `
 # The content is empty
 You need to select text from terminal then show them
 `
-	rt := widget.NewRichTextFromMarkdown(defaultText)
+	content := fyne.CurrentApp().Clipboard().Content()
+	if len(content) == 0 {
+		content = defaultText
+	}
+	rt := widget.NewRichTextFromMarkdown(content)
 	mtab := container.NewTabItemWithIcon(fmt.Sprintf("MD %d", markdownTabId), theme.NewThemedResource(assert.MarkdownIconRes), container.NewScroll(rt))
 	fyne.Do(func() {
 		tabControl.Append(mtab)

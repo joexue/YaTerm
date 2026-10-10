@@ -44,7 +44,7 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 		})
 
 		showMarkDownItem := fyne.NewMenuItemWithIcon("Show as Markdown", theme.NewThemedResource(assert.MarkdownIconRes), func() {
-			NewMarkdownTab(make([]rune, 1, 1))
+			NewMarkdownTab()
 		})
 
 		searchItem := fyne.NewMenuItemWithIcon("Search", theme.Icon(theme.IconNameSearch), func() {
