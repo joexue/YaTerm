@@ -95,6 +95,9 @@ type Screen struct {
 	widget.BaseWidget
 
 	cursor *canvas.Rectangle
+	// The character under the cursor, drawn on the block in the background
+	// color so the block does not hide it
+	cursorText *canvas.Text
 
 	// mu guards the cell buffer, written directly by the terminal goroutine
 	// and read on the UI thread when a flush renders it.
@@ -124,12 +127,14 @@ type Screen struct {
 
 func NewScreen() *Screen {
 	s := &Screen{
-		cursor:   canvas.NewRectangle(theme.Color(theme.ColorNamePrimary)),
-		cellSize: measureCell(),
-		hist:     newHistory(HistoryLines),
+		cursor:     canvas.NewRectangle(theme.Color(theme.ColorNamePrimary)),
+		cursorText: canvas.NewText("", color.Transparent),
+		cellSize:   measureCell(),
+		hist:       newHistory(HistoryLines),
 	}
 
-	s.objects = []fyne.CanvasObject{s.cursor}
+	s.cursorText.Hide()
+	s.objects = []fyne.CanvasObject{s.cursor, s.cursorText}
 	s.ExtendBaseWidget(s)
 
 	return s
@@ -348,7 +353,7 @@ func lineBlank(cells []cell) bool {
 // syncRows makes one row object for each screen row. Called on the UI thread
 // with mu held, after Reflow changed the number of rows.
 func (s *Screen) syncRows() {
-	if len(s.rows) == s.row && len(s.objects) == s.row+1 {
+	if len(s.rows) == s.row && len(s.objects) == s.row+2 {
 		return
 	}
 
@@ -358,11 +363,11 @@ func (s *Screen) syncRows() {
 	s.rows = s.rows[:s.row]
 
 	// Rows first, the cursor is drawn on top
-	s.objects = make([]fyne.CanvasObject, 0, s.row+1)
+	s.objects = make([]fyne.CanvasObject, 0, s.row+2)
 	for _, l := range s.rows {
 		s.objects = append(s.objects, l.box)
 	}
-	s.objects = append(s.objects, s.cursor)
+	s.objects = append(s.objects, s.cursor, s.cursorText)
 
 	s.layoutRows()
 	canvas.Refresh(s)
@@ -401,12 +406,40 @@ func (s *Screen) updateCursor() {
 	row := s.curRow + s.offset
 	if row >= s.row {
 		s.cursor.Hide()
+		s.cursorText.Hide()
 		return
 	}
 
 	pos := fyne.NewPos(float32(s.curCol)*s.cellSize.Width, float32(row)*s.cellSize.Height)
 	s.cursor.Move(pos)
 	s.cursor.Show()
+
+	// Draw the character under the cursor inverted: in its background color,
+	// or the theme background when it has none, on top of the block
+	var c cell
+	if s.curRow >= 0 && s.curRow < len(s.lines) && s.curCol >= 0 && s.curCol < len(s.lines[s.curRow].cells) {
+		c = s.lines[s.curRow].cells[s.curCol]
+	}
+	if c.r == 0 || c.r == ' ' {
+		s.cursorText.Hide()
+		return
+	}
+
+	fg := c.bg
+	if fg == nil {
+		fg = theme.Color(theme.ColorNameBackground)
+	}
+	text := s.cursorText
+	if text.Text != string(c.r) || text.Color != fg || text.TextStyle != c.style || text.TextSize != theme.TextSize() {
+		text.Text = string(c.r)
+		text.Color = fg
+		text.TextStyle = c.style
+		text.TextSize = theme.TextSize()
+		text.Refresh()
+	}
+	text.Move(pos)
+	text.Resize(s.cellSize)
+	text.Show()
 }
 
 // Scrolled shows the history lines when the mouse wheel scrolls up
@@ -789,6 +822,7 @@ func (r *screenRenderer) Refresh() {
 	}
 	s.render()
 	s.layoutRows()
+	s.updateCursor()
 }
 
 /*
