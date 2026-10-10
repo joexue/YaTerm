@@ -78,7 +78,7 @@ func NewMarkdownTab(text []rune) {
 You need to select text from terminal then show them
 `
 	rt := widget.NewRichTextFromMarkdown(defaultText)
-	mtab := container.NewTabItemWithIcon(fmt.Sprintf("MD %d", markdownTabId), theme.NewThemedResource(assert.MarkdownIconRes), rt)
+	mtab := container.NewTabItemWithIcon(fmt.Sprintf("MD %d", markdownTabId), theme.NewThemedResource(assert.MarkdownIconRes), container.NewScroll(rt))
 	fyne.Do(func() {
 		tabControl.Append(mtab)
 	})
