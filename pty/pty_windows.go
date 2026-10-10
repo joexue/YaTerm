@@ -3,7 +3,7 @@ package pty
 import (
 	"io"
 	"os"
-	"os/exec"
+	"sync"
 	"syscall"
 	"time"
 
@@ -16,9 +16,9 @@ type Pty struct {
 	in  io.Writer
 	out io.Reader
 	pty *conpty.ConPty
-	cmd *exec.Cmd
 
-	process *os.Process
+	process   *os.Process
+	closeOnce sync.Once
 }
 
 func New() *Pty {
@@ -39,7 +39,7 @@ func (p *Pty) Resize(row, col int) {
 }
 
 func (p *Pty) RunCmd(_ string) error {
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(time.Millisecond * 100)
 	for range ticker.C {
 		if p.col > 0 && p.row > 0 {
 			break
@@ -67,13 +67,10 @@ func (p *Pty) RunCmd(_ string) error {
 		return err
 	}
 
-	p.cmd = &exec.Cmd{}
 	process, err := os.FindProcess(pid)
 	if err != nil {
 		return err
 	}
-
-	//_, err = process.Wait()
 
 	p.process = process
 	p.in = cpty.InPipe()
@@ -82,7 +79,23 @@ func (p *Pty) RunCmd(_ string) error {
 
 	p.pty.Resize(uint16(p.col), uint16(p.row))
 
-	return err
+	// ConPTY keeps its output pipe open after the shell exits (e.g. "exit"),
+	// so Read never gets EOF and the pane never closes. Wait for the shell
+	// and close the pseudo console, that ends the pipe and Read returns.
+	go func() {
+		_, _ = process.Wait()
+		p.closePty()
+	}()
+
+	return nil
+}
+
+// closePty closes the pseudo console once, both the exit of the shell and
+// Close can do it
+func (p *Pty) closePty() {
+	p.closeOnce.Do(func() {
+		_ = p.pty.Close()
+	})
 }
 
 func (p *Pty) Read(buf []byte) (int, error) {
@@ -94,7 +107,10 @@ func (p *Pty) Write(bytes []byte) (int, error) {
 }
 
 func (p *Pty) Close() {
+	if p.process == nil {
+		return
+	}
+
 	_ = p.process.Kill()
-	_ = p.cmd.Wait()
-	p.pty.Close()
+	p.closePty()
 }
