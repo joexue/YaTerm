@@ -12,9 +12,12 @@ import (
  *  Utility functions
  * ================================
  */
+// measureCell keeps the font's real advance width: a run of text is drawn as
+// one canvas.Text, so its characters sit at the font's spacing, and a rounded
+// width would let the cursor drift from the text (8.406 vs 8 is a whole cell
+// off by column 25). Only the height is rounded so rows stack without seams.
 func measureCell() fyne.Size {
 	size := fyne.MeasureText("M", theme.TextSize(), fyne.TextStyle{Monospace: true})
-	size.Width = float32(math.Round(float64(size.Width)))
 	size.Height = float32(math.Round(float64(size.Height)))
 	return size
 }
