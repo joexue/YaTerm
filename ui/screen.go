@@ -487,6 +487,91 @@ func (s *Screen) ScrollUp() {
 	}
 }
 
+// ScrollRegion scrolls rows top..bottom by n lines, up when n > 0 and down
+// when n < 0. Lines leaving the region are dropped, not kept in the history,
+// as it is part of the screen like vim's text area above its status line.
+// Insert and delete lines are this too, from the cursor row to the bottom.
+func (s *Screen) ScrollRegion(top, bottom, n int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	top, bottom = max(top, 0), min(bottom, s.row-1)
+	if top >= bottom || n == 0 {
+		return
+	}
+
+	region := s.lines[top : bottom+1]
+	k := min(abs(n), len(region))
+
+	// Rotate, the lines that went out come back blank on the other side
+	if n > 0 {
+		slices.Reverse(region[:k])
+		slices.Reverse(region[k:])
+		slices.Reverse(region)
+		for i := len(region) - k; i < len(region); i++ {
+			clearLine(&region[i])
+		}
+	} else {
+		slices.Reverse(region)
+		slices.Reverse(region[:k])
+		slices.Reverse(region[k:])
+		for i := 0; i < k; i++ {
+			clearLine(&region[i])
+		}
+	}
+
+	for i := top; i <= bottom; i++ {
+		s.dirty[i] = true
+	}
+	if s.offset > 0 {
+		s.viewDirty = true
+	}
+}
+
+// InsertCells shifts the cells from col right by n, the ones pushed past the
+// line end are dropped, the gap gets blank cells with background bg.
+func (s *Screen) InsertCells(row, col, n int, bg color.Color) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if row < 0 || row >= s.row || col < 0 || col >= s.col || n <= 0 {
+		return
+	}
+
+	cells := s.lines[row].cells
+	n = min(n, s.col-col)
+	copy(cells[col+n:], cells[col:])
+	for i := col; i < col+n; i++ {
+		cells[i] = cell{bg: bg}
+	}
+	s.dirty[row] = true
+}
+
+// DeleteCells removes n cells from col, the rest of the line moves left and
+// blank cells with background bg fill the end.
+func (s *Screen) DeleteCells(row, col, n int, bg color.Color) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if row < 0 || row >= s.row || col < 0 || col >= s.col || n <= 0 {
+		return
+	}
+
+	cells := s.lines[row].cells
+	n = min(n, s.col-col)
+	copy(cells[col:], cells[col+n:])
+	for i := s.col - n; i < s.col; i++ {
+		cells[i] = cell{bg: bg}
+	}
+	s.dirty[row] = true
+}
+
+// clearLine blanks a line in place
+func clearLine(l *line) {
+	clear(l.cells)
+	l.wrapped = false
+}
+
 // viewLine returns the line shown on row i of the view. Called with mu held.
 func (s *Screen) viewLine(i int) []cell {
 	n := s.hist.len()

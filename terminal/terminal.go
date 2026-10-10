@@ -15,6 +15,15 @@ type Screen interface {
 	ScrollUp()
 	MoveCursor(int, int)
 
+	// ScrollRegion scrolls rows top..bottom up by n lines (down when n < 0),
+	// lines leaving the region are dropped, not kept in the history
+	ScrollRegion(top, bottom, n int)
+
+	// InsertCells and DeleteCells shift the rest of a row right or left by n,
+	// the new cells are blank with background bg
+	InsertCells(row, col, n int, bg color.Color)
+	DeleteCells(row, col, n int, bg color.Color)
+
 	// SetWrapped marks a row as continuing on the next one (auto wrapped), or not
 	SetWrapped(row int, wrapped bool)
 
@@ -53,6 +62,10 @@ type Terminal struct {
 	savedRow, savedCol int
 	wrapPending        bool
 
+	// Scroll region set by "CSI top;bottom r", 0 based and inclusive.
+	// Full screen when unset, bottom 0 means the last row.
+	scrollTop, scrollBottom int
+
 	state           int
 	decState        int
 	escape          bool
@@ -85,6 +98,8 @@ func (t *Terminal) Resize(row, col int) {
 		t.cursorY, t.cursorX = t.screen.Reflow(row, col, t.cursorY, t.cursorX)
 		t.wrapPending = false
 		t.row, t.col = row, col
+		// The old region does not fit the new size, the program sets it again
+		t.scrollTop, t.scrollBottom = 0, 0
 		t.screen.Flush(t.cursorY, t.cursorX)
 	}
 	t.stateMu.Unlock()

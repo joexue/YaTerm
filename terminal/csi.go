@@ -35,7 +35,8 @@ func (t *Terminal) handleCsi() {
 	case 'm':
 		t.handleColorMode(message)
 	case '@':
-	//escapeInsertChars,
+		t.screen.InsertCells(t.cursorY, t.cursorX, param(params, 0, 1), t.bg)
+		t.wrapPending = false
 	case 'A':
 		t.moveCursor(t.cursorY-param(params, 0, 1), t.cursorX)
 	case 'B':
@@ -53,7 +54,7 @@ func (t *Terminal) handleCsi() {
 	case 'h':
 	//escapePrivateModeOn,
 	case 'L':
-	//escapeInsertLines,
+		t.insertLines(param(params, 0, 1))
 	case 'l':
 	//escapePrivateModeOff,
 	case 'J':
@@ -61,15 +62,14 @@ func (t *Terminal) handleCsi() {
 	case 'K':
 		t.eraseInLine(param(params, 0, 0))
 	case 'P':
-	//escapeDeleteChars,
+		t.screen.DeleteCells(t.cursorY, t.cursorX, param(params, 0, 1), t.bg)
+		t.wrapPending = false
 	case 'r':
-	//escapeSetScrollArea,
+		t.setScrollRegion(param(params, 0, 1), param(params, 1, 0))
 	case 's':
 		t.saveCursor()
 	case 'S':
-		for i := 0; i < param(params, 0, 1); i++ {
-			t.screen.ScrollUp()
-		}
+		t.scrollRegion(param(params, 0, 1))
 	case 'u':
 		t.restoreCursor()
 	case 'i':
@@ -80,9 +80,9 @@ func (t *Terminal) handleCsi() {
 		n := param(params, 0, 1)
 		t.eraseCells(t.cursorY, t.cursorX, t.cursorX+n)
 	case 'M':
-	//escapeDeleteLines,
+		t.deleteLines(param(params, 0, 1))
 	case 'T':
-	//escapeScrollDown,
+		t.scrollRegion(-param(params, 0, 1))
 	case 'b':
 	//escapeRepeatChar,
 	case 't':

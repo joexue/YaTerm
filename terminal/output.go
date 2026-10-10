@@ -31,15 +31,25 @@ func (t *Terminal) parseEscState(r rune) {
 	switch r {
 	// Moves the cursor down one line in the same column. If the cursor is at the bottom margin, the page scrolls up
 	case 'D':
+		t.wrapPending = false
+		t.lineFeed()
+		t.screen.MoveCursor(t.cursorY, t.cursorX)
 
 	// Moves the cursor to the left margin on the next line. If the cursor is at the bottom margin, scroll the page up
 	case 'E':
+		t.wrapPending = false
+		t.cursorX = 0
+		t.lineFeed()
+		t.screen.MoveCursor(t.cursorY, t.cursorX)
 
 	// Sets a horizontal tab stop at the column where the cursor is
 	case 'H':
 
 	// Move the cursor up one line. If the cursor is at the top margin, scroll the region down
 	case 'M':
+		t.wrapPending = false
+		t.reverseIndex()
+		t.screen.MoveCursor(t.cursorY, t.cursorX)
 
 	case 'P':
 		t.state = stateDCS

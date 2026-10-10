@@ -34,3 +34,11 @@ func blend(a, b color.Color) color.Color {
 		A: uint16((aa + ba) / 2),
 	}
 }
+
+// abs returns the absolute value of an int, math.Abs is only for float64
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
+}

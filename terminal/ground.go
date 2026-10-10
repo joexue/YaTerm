@@ -22,13 +22,82 @@ func (t *Terminal) outputChar(r rune) {
 	t.screen.MoveCursor(t.cursorY, t.cursorX)
 }
 
-// lineFeed moves the cursor down one line, scrolling at the bottom
-func (t *Terminal) lineFeed() {
-	t.cursorY += 1
-	if t.row > 0 && t.cursorY >= t.row {
-		t.screen.ScrollUp()
-		t.cursorY = t.row - 1
+// regionBottom is the last row of the scroll region
+func (t *Terminal) regionBottom() int {
+	if t.scrollBottom <= 0 || t.scrollBottom >= t.row {
+		return t.row - 1
 	}
+	return t.scrollBottom
+}
+
+// scrollRegion scrolls the scroll region up by n lines, down when n < 0.
+// Only a full screen scroll up keeps the lines in the history.
+func (t *Terminal) scrollRegion(n int) {
+	bottom := t.regionBottom()
+	if t.scrollTop == 0 && bottom == t.row-1 && n > 0 {
+		for i := 0; i < min(n, t.row); i++ {
+			t.screen.ScrollUp()
+		}
+		return
+	}
+	t.screen.ScrollRegion(t.scrollTop, bottom, n)
+}
+
+// lineFeed moves the cursor down one line. At the bottom of the scroll region
+// the region scrolls up, below the region it stops at the last row.
+func (t *Terminal) lineFeed() {
+	switch {
+	case t.cursorY == t.regionBottom():
+		t.scrollRegion(1)
+	case t.cursorY < t.row-1:
+		t.cursorY += 1
+	}
+}
+
+// reverseIndex moves the cursor up one line, at the top of the scroll region
+// the region scrolls down
+func (t *Terminal) reverseIndex() {
+	switch {
+	case t.cursorY == t.scrollTop:
+		t.scrollRegion(-1)
+	case t.cursorY > 0:
+		t.cursorY -= 1
+	}
+}
+
+// setScrollRegion handles "CSI top;bottom r", the cursor goes home
+func (t *Terminal) setScrollRegion(top, bottom int) {
+	top, bottom = top-1, bottom-1
+	if bottom <= 0 || bottom >= t.row {
+		bottom = t.row - 1
+	}
+	if top < 0 {
+		top = 0
+	}
+	if top >= bottom {
+		return
+	}
+
+	t.scrollTop, t.scrollBottom = top, bottom
+	t.moveCursor(0, 0)
+}
+
+// insertLines and deleteLines work from the cursor row to the bottom of the
+// scroll region, nothing happens when the cursor is outside it
+func (t *Terminal) insertLines(n int) {
+	if t.cursorY < t.scrollTop || t.cursorY > t.regionBottom() {
+		return
+	}
+	t.screen.ScrollRegion(t.cursorY, t.regionBottom(), -n)
+	t.moveCursor(t.cursorY, 0)
+}
+
+func (t *Terminal) deleteLines(n int) {
+	if t.cursorY < t.scrollTop || t.cursorY > t.regionBottom() {
+		return
+	}
+	t.screen.ScrollRegion(t.cursorY, t.regionBottom(), n)
+	t.moveCursor(t.cursorY, 0)
 }
 
 // moveCursor moves the cursor to row, col clamped to the screen
