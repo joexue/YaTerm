@@ -560,9 +560,21 @@ func (s *Screen) renderLine(i int, cells []cell) {
 				rect.FillColor = bg
 				rect.Refresh()
 			}
+
+			// Fyne rounds a rectangle's position and size to device pixels
+			// separately, so with a fractional cell width its end can fall
+			// one pixel short of where the next one starts, leaving a gap.
+			// When another background follows, reach 1 unit into it, it is
+			// drawn later and covers the overlap. Not when none follows, the
+			// color would bleed into the next cell.
+			width := float32(end-start) * w
+			if end < len(cells) && cells[end].bg != nil {
+				width++
+			}
+
 			// Move and Resize repaint only when the value changes
 			rect.Move(fyne.NewPos(float32(start)*w, 0))
-			rect.Resize(fyne.NewSize(float32(end-start)*w, h))
+			rect.Resize(fyne.NewSize(width, h))
 			objs = append(objs, rect)
 		}
 
