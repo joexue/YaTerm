@@ -247,7 +247,8 @@ func (p *Pane) TypedShortcut(sc fyne.Shortcut) {
 		name = fyne.KeyV
 
 	case *fyne.ShortcutCopy:
-		if mac || sc.Secondary { // Cmd+C, Ctrl+Insert, no selection to copy yet
+		if mac || sc.Secondary { // Cmd+C, Ctrl+Insert
+			p.copySelection()
 			return
 		}
 		name = fyne.KeyC
@@ -281,6 +282,8 @@ func (p *Pane) TypedShortcut(sc fyne.Shortcut) {
 	if mods == clipMods && (name == fyne.KeyV || name == fyne.KeyC) {
 		if name == fyne.KeyV {
 			p.paste(fyne.CurrentApp().Clipboard())
+		} else {
+			p.copySelection()
 		}
 		return
 	}

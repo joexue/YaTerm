@@ -69,8 +69,9 @@ type screenLine struct {
 	texts []*canvas.Text
 
 	// Reused between redraws to avoid allocating
-	next []fyne.CanvasObject
-	buf  []byte
+	next   []fyne.CanvasObject
+	buf    []byte
+	selBuf []cell
 }
 
 func newScreenLine() *screenLine {
@@ -115,6 +116,12 @@ type Screen struct {
 	hist      *history
 	offset    int
 	viewDirty bool
+
+	// histTotal counts every line ever pushed into the history, so a line has
+	// a fixed number (its absolute line) while the history and view scroll.
+	// The selection uses it to stay on the same text.
+	histTotal int
+	sel       selection
 
 	// UI thread only
 	rows      []*screenLine
@@ -322,9 +329,12 @@ func (s *Screen) Reflow(row, col, curRow, curCol int) (int, int) {
 	top = min(top, newRow)
 
 	s.hist.reset()
+	// Lines are wrapped again, the old line numbers mean nothing
+	s.sel = selection{}
 	for _, l := range out[max(0, top-HistoryLines):top] {
 		s.hist.push(l)
 	}
+	s.histTotal = s.hist.len()
 
 	// Screen lines are full width as the terminal writes into them
 	s.row, s.col = row, col
@@ -458,6 +468,15 @@ func (s *Screen) Scrolled(ev *fyne.ScrollEvent) {
 	s.scrollTo(s.offset + n)
 }
 
+// ScrollLines scrolls the view n lines back into the history, forward when
+// n < 0, e.g. while a selection is dragged past the top or bottom
+func (s *Screen) ScrollLines(n int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.scrollTo(s.offset + n)
+}
+
 // ScrollToBottom goes back to the live screen, e.g. when a key is typed
 func (s *Screen) ScrollToBottom() {
 	s.scrollAcc = 0
@@ -502,6 +521,7 @@ func (s *Screen) ScrollUp() {
 	copy(s.lines, s.lines[1:])
 	copy(s.dirty, s.dirty[1:])
 	blank := s.hist.push(top)
+	s.histTotal++
 	if len(blank.cells) == s.col {
 		clear(blank.cells)
 		blank.wrapped = false
@@ -626,7 +646,7 @@ func (s *Screen) render() {
 		s.scrolled = 0
 		s.viewDirty = false
 		for i := range s.rows {
-			s.renderLine(i, s.viewLine(i))
+			s.renderLine(i, s.viewLine(i), s.histTotal-s.offset+i)
 			s.dirty[i] = false
 		}
 		return
@@ -645,14 +665,15 @@ func (s *Screen) render() {
 
 	for i, d := range s.dirty {
 		if d {
-			s.renderLine(i, s.lines[i].cells)
+			s.renderLine(i, s.lines[i].cells, s.histTotal+i)
 			s.dirty[i] = false
 		}
 	}
 }
 
-func (s *Screen) renderLine(i int, cells []cell) {
+func (s *Screen) renderLine(i int, cells []cell, abs int) {
 	l := s.rows[i]
+	cells = s.highlight(l, cells, abs)
 	// History lines may be shorter than the screen, never wider after Reflow
 	cells = cells[:min(len(cells), s.col)]
 	w, h := s.cellSize.Width, s.cellSize.Height

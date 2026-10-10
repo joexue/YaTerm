@@ -1,7 +1,10 @@
 package ui
 
 import (
+	"time"
+
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"yaterm/assert"
@@ -53,5 +56,158 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 		menuItems := []*fyne.MenuItem{hsplitItem, vsplitItem, separatorItem, showMarkDownItem, separatorItem, searchItem, typeAgentItem, separatorItem, closePaneItem, closeTabItem}
 		popUpMenu := widget.NewPopUpMenu(fyne.NewMenu("", menuItems...), c)
 		popUpMenu.ShowAtRelativePosition(pe.Position, p)
+	}
+}
+
+/*
+ * ================================
+ *  Selection: drag or double click to select and copy, middle click pastes
+ * ================================
+ */
+
+// Two clicks closer than this in time and distance make a double click
+const (
+	doubleClickTime     = 400 * time.Millisecond
+	doubleClickDistance = 4
+)
+
+// While a selection is dragged past the top or bottom, the view scrolls this
+// often, by one line plus one for each line height the mouse is away, so it
+// goes faster the further away it is, up to dragScrollMax lines a step.
+const (
+	dragScrollInterval = 50 * time.Millisecond
+	dragScrollMax      = 10
+)
+
+// screenPos converts a position in the pane to one in its screen
+func (p *Pane) screenPos(pos fyne.Position) fyne.Position {
+	return pos.Subtract(fyne.NewPos(panePadding, panePadding))
+}
+
+func (p *Pane) MouseDown(ev *desktop.MouseEvent) {
+	if p.split != splitNone {
+		return
+	}
+
+	switch ev.Button {
+	case desktop.MouseButtonPrimary:
+		// A double click is detected here, not with fyne.DoubleTappable,
+		// which would delay every single click and so the focus
+		now := time.Now()
+		d := ev.Position.Subtract(p.lastClickPos)
+		double := now.Sub(p.lastClick) < doubleClickTime &&
+			abs(int(d.X)) <= doubleClickDistance && abs(int(d.Y)) <= doubleClickDistance
+		p.lastClick, p.lastClickPos = now, ev.Position
+
+		if double {
+			p.screen.SelectWord(p.screenPos(ev.Position))
+			p.copySelection()
+			p.lastClick = time.Time{} // a third click starts again
+		} else {
+			p.screen.SelectStart(p.screenPos(ev.Position))
+		}
+
+	case desktop.MouseButtonTertiary:
+		p.paste(fyne.CurrentApp().Clipboard())
+	}
+}
+
+func (p *Pane) MouseUp(*desktop.MouseEvent) {
+}
+
+// Dragged selects from where the mouse went down to where it is now
+func (p *Pane) Dragged(ev *fyne.DragEvent) {
+	if p.split != splitNone {
+		return
+	}
+
+	p.dragging = true
+	p.dragPos = p.screenPos(ev.Position)
+	p.screen.SelectTo(p.dragPos)
+
+	// Past the top or bottom, keep scrolling even when the mouse stops, as
+	// Dragged only comes when it moves
+	if p.dragScrollLines() != 0 {
+		p.startDragScroll()
+	} else {
+		p.stopDragScroll()
+	}
+}
+
+// dragScrollLines returns how many lines to scroll for the drag position,
+// positive to go back into the history, 0 when it is inside the screen
+func (p *Pane) dragScrollLines() int {
+	h := p.screen.cellSize.Height
+	switch {
+	case p.dragPos.Y < 0:
+		return min(1+int(-p.dragPos.Y/h), dragScrollMax)
+	case p.dragPos.Y >= p.screen.Size().Height:
+		return -min(1+int((p.dragPos.Y-p.screen.Size().Height)/h), dragScrollMax)
+	}
+	return 0
+}
+
+// startDragScroll scrolls the view and extends the selection every
+// dragScrollInterval until stopDragScroll
+func (p *Pane) startDragScroll() {
+	if p.dragScrollStop != nil {
+		return
+	}
+
+	stop := make(chan struct{})
+	p.dragScrollStop = stop
+	go func() {
+		ticker := time.NewTicker(dragScrollInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stop:
+				return
+			case <-ticker.C:
+				fyne.Do(func() {
+					// Stopped while this was queued
+					if p.dragScrollStop != stop {
+						return
+					}
+					if n := p.dragScrollLines(); n != 0 {
+						p.screen.ScrollLines(n)
+						// The row is clamped to the screen, so the selection
+						// reaches the line that just scrolled into view
+						p.screen.SelectTo(p.dragPos)
+					}
+				})
+			}
+		}
+	}()
+}
+
+func (p *Pane) stopDragScroll() {
+	if p.dragScrollStop != nil {
+		close(p.dragScrollStop)
+		p.dragScrollStop = nil
+	}
+}
+
+// DragEnd copies the selection, like xterm there is no separate copy step
+func (p *Pane) DragEnd() {
+	p.stopDragScroll()
+
+	// A drag that scrolled is usually released outside the pane, and Fyne
+	// takes the focus away from it on a release over anything else, just
+	// before calling DragEnd. The drag started here, so keep the focus.
+	if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
+		c.Focus(p)
+	}
+
+	if p.dragging {
+		p.dragging = false
+		p.copySelection()
+	}
+}
+
+// copySelection puts the selected text into the clipboard
+func (p *Pane) copySelection() {
+	if text := p.screen.SelectedText(); text != "" {
+		fyne.CurrentApp().Clipboard().SetContent(text)
 	}
 }

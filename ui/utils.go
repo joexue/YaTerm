@@ -5,6 +5,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"image/color"
 	"math"
+	"strings"
 )
 
 /*
@@ -41,4 +42,19 @@ func abs(n int) int {
 		return -n
 	}
 	return n
+}
+
+func isWordRune(r rune) bool {
+	return r != 0 && !strings.ContainsRune(wordDelimiters, r)
+}
+
+// over paints c on top of an opaque bg and returns the opaque result
+func over(c, bg color.Color) color.Color {
+	cr, cg, cb, ca := c.RGBA()
+	br, bgg, bb, _ := bg.RGBA()
+	mix := func(fg, back uint32) uint8 {
+		// RGBA() is premultiplied, so fg already has the alpha applied
+		return uint8((fg + back*(0xffff-ca)/0xffff) >> 8)
+	}
+	return color.RGBA{R: mix(cr, br), G: mix(cg, bgg), B: mix(cb, bb), A: 0xff}
 }

@@ -103,6 +103,10 @@ func (p *Pty) Read(buf []byte) (int, error) {
 }
 
 func (p *Pty) Write(bytes []byte) (int, error) {
+	// Typing or pasting into a new pane before its shell has started
+	if p.in == nil {
+		return 0, errNotStarted
+	}
 	return p.in.Write(bytes)
 }
 

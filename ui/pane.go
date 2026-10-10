@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"image/color"
+	"time"
 	"yaterm/terminal"
 )
 
@@ -28,6 +29,8 @@ var (
 	_ fyne.Tabbable          = (*Pane)(nil)
 	_ fyne.Tappable          = (*Pane)(nil)
 	_ fyne.SecondaryTappable = (*Pane)(nil)
+	_ desktop.Mouseable      = (*Pane)(nil)
+	_ fyne.Draggable         = (*Pane)(nil)
 )
 
 const (
@@ -63,6 +66,16 @@ type Pane struct {
 	root      *Pane
 	parent    *Pane
 	lastFocus *Pane
+
+	// Mouse selection: the last click, to find double clicks, and a drag
+	lastClick    time.Time
+	lastClickPos fyne.Position
+	dragging     bool
+
+	// Where the drag is, in screen coordinates, and the stop for the timer
+	// that scrolls while it is past the top or bottom
+	dragPos        fyne.Position
+	dragScrollStop chan struct{}
 
 	// Modifier keys held down, tracked by KeyDown/KeyUp as TypedKey has no modifiers
 	modKeys map[fyne.KeyName]bool
