@@ -178,16 +178,17 @@ func (s *Screen) SelectedText() string {
 	return b.String()
 }
 
-// highlight returns the cells of a row with the selected ones in the
-// selection color, or the cells as they are when the row has no selection.
+// highlight returns the cells of a row with the search matches and the
+// selection painted in, or the cells as they are when the row has neither.
 // Called with mu held.
 func (s *Screen) highlight(l *screenLine, cells []cell, abs int) []cell {
-	if !s.sel.active {
-		return cells
+	selected := false
+	var start, end selPos
+	if s.sel.active {
+		start, end = s.sel.bounds()
+		selected = abs >= start.line && abs <= end.line
 	}
-
-	start, end := s.sel.bounds()
-	if abs < start.line || abs > end.line {
+	if !selected && !s.hasMatches(abs) {
 		return cells
 	}
 
@@ -199,6 +200,11 @@ func (s *Screen) highlight(l *screenLine, cells []cell, abs int) []cell {
 	}
 	l.selBuf = buf
 
+	s.markMatches(buf, abs)
+	if !selected {
+		return buf
+	}
+
 	from, to := 0, s.col-1
 	if abs == start.line {
 		from = start.col
@@ -208,7 +214,7 @@ func (s *Screen) highlight(l *screenLine, cells []cell, abs int) []cell {
 	}
 
 	// Opaque, a see-through color would show where background rectangles
-	// overlap to hide the seams between them
+	// overlap to hide the seams between them. Drawn over the matches.
 	selColor := over(theme.Color(theme.ColorNameSelection), theme.Color(theme.ColorNameBackground))
 	for c := from; c <= to; c++ {
 		buf[c].bg = selColor

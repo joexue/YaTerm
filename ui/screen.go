@@ -123,6 +123,9 @@ type Screen struct {
 	histTotal int
 	sel       selection
 
+	// The search of the search bar, its matches are highlighted
+	find findState
+
 	// UI thread only
 	rows      []*screenLine
 	objects   []fyne.CanvasObject
@@ -188,6 +191,7 @@ func (s *Screen) Project(r rune, row, col int, fg, bg color.Color, style termina
 
 	s.lines[row].cells[col] = c
 	s.dirty[row] = true
+	s.find.stale = true
 }
 
 // SetWrapped marks a row as going on in the next one, called by the terminal
@@ -228,6 +232,7 @@ func (s *Screen) Resize(size fyne.Size) {
 func (s *Screen) Reflow(row, col, curRow, curCol int) (int, int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.find.stale = true
 
 	defer func() {
 		// Everything is redrawn, so pending scrolls no longer matter
@@ -405,6 +410,12 @@ func (s *Screen) Flush(row, col int) {
 		defer s.mu.Unlock()
 
 		s.flushing = false
+		// The content changed under the search, find the matches again, at
+		// most once a frame as flushes are merged
+		if s.find.re != nil && s.find.stale {
+			s.runSearch()
+			s.viewDirty = true
+		}
 		s.render()
 		s.updateCursor()
 	})
@@ -530,6 +541,7 @@ func (s *Screen) ScrollUp() {
 	}
 	s.lines[last] = blank
 	s.dirty[last] = true
+	s.find.stale = true
 
 	if s.offset > 0 {
 		// Keep the view still while new output comes in
@@ -547,6 +559,7 @@ func (s *Screen) ScrollUp() {
 func (s *Screen) ScrollRegion(top, bottom, n int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.find.stale = true
 
 	top, bottom = max(top, 0), min(bottom, s.row-1)
 	if top >= bottom || n == 0 {
@@ -586,6 +599,7 @@ func (s *Screen) ScrollRegion(top, bottom, n int) {
 func (s *Screen) InsertCells(row, col, n int, bg color.Color) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.find.stale = true
 
 	if row < 0 || row >= s.row || col < 0 || col >= s.col || n <= 0 {
 		return
@@ -605,6 +619,7 @@ func (s *Screen) InsertCells(row, col, n int, bg color.Color) {
 func (s *Screen) DeleteCells(row, col, n int, bg color.Color) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.find.stale = true
 
 	if row < 0 || row >= s.row || col < 0 || col >= s.col || n <= 0 {
 		return

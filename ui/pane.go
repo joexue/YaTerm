@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"image/color"
+	"strings"
 	"time"
 	"yaterm/terminal"
 )
@@ -71,6 +72,10 @@ type Pane struct {
 	lastClick    time.Time
 	lastClickPos fyne.Position
 	dragging     bool
+	pressed      bool // the primary button went down on the pane itself
+
+	// The find box at the top right, nil until first opened
+	search *searchBar
 
 	// Where the drag is, in screen coordinates, and the stop for the timer
 	// that scrolls while it is past the top or bottom
@@ -192,6 +197,10 @@ func (p *Pane) Close() {
 		// pane is closed.
 		pa.term = take.term
 		pa.screen = take.screen
+		// take's search bar goes away with take, so do its highlights
+		if take.search != nil {
+			take.screen.Search(nil, true)
+		}
 		pa.term.OnExit = pa.TryClose
 
 		pa.root.lastFocus = pa
@@ -214,6 +223,12 @@ func (p *Pane) TryClose() {
 }
 
 func (p *Pane) Split(direction int, ratio float32) {
+	// The screen moves to the first child, the search bar does not follow
+	if p.search != nil {
+		p.hideSearch()
+		p.search = nil
+	}
+
 	p.split = direction
 	p.first = NewPane(p, p.term, false)
 	p.second = NewPane(p, nil, true)
@@ -314,6 +329,15 @@ func (r *paneRenderer) Layout(size fyne.Size) {
 		r.pane.screen.Resize(size.Subtract(pad).Subtract(pad))
 		r.pane.screen.Move(offset)
 
+		// The search bar sits in the top right corner, over the text
+		if s := r.pane.search; s != nil {
+			margin := theme.Padding() * 2
+			min := s.MinSize()
+			width := fyne.Min(min.Width, size.Width-2*margin)
+			s.Resize(fyne.NewSize(width, min.Height))
+			s.Move(fyne.NewPos(size.Width-width-margin, margin))
+		}
+
 	case splitHorizontal:
 		w1 := (w - SplitDefaultThickness) * r.pane.ratio
 		w2 := w - SplitDefaultThickness - w1
@@ -349,6 +373,9 @@ func (r *paneRenderer) MinSize() fyne.Size {
 
 func (r *paneRenderer) Objects() []fyne.CanvasObject {
 	if r.pane.split == splitNone {
+		if r.pane.search != nil {
+			return []fyne.CanvasObject{r.pane.border, r.pane.screen, r.pane.search}
+		}
 		return []fyne.CanvasObject{r.pane.border, r.pane.screen}
 	} else {
 		return []fyne.CanvasObject{r.pane.first, r.pane.divider, r.pane.second}
@@ -357,4 +384,46 @@ func (r *paneRenderer) Objects() []fyne.CanvasObject {
 
 func (r *paneRenderer) Refresh() {
 	r.Layout(r.pane.Size())
+}
+
+/*
+ * ================================
+ *  Search
+ * ================================
+ */
+
+// showSearch opens the search bar at the top right and focuses its entry.
+// A selection on one line is put in it as the text to find.
+func (p *Pane) showSearch() {
+	if p.split != splitNone {
+		return
+	}
+
+	if p.search == nil {
+		p.search = newSearchBar(p.screen, p.hideSearch)
+		p.Refresh()
+	}
+
+	if text := p.screen.SelectedText(); text != "" && !strings.Contains(text, "\n") {
+		p.search.entry.SetText(text)
+	}
+
+	p.search.Show()
+	p.Refresh()
+	p.search.focus()
+	p.search.search()
+}
+
+// hideSearch closes the search bar, clears the highlights and gives the
+// keyboard back to the terminal
+func (p *Pane) hideSearch() {
+	if p.search == nil {
+		return
+	}
+
+	p.search.Hide()
+	p.screen.Search(nil, true)
+	if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
+		c.Focus(p)
+	}
 }

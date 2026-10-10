@@ -48,6 +48,7 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 		})
 
 		searchItem := fyne.NewMenuItemWithIcon("Search", theme.Icon(theme.IconNameSearch), func() {
+			p.showSearch()
 		})
 
 		typeAgentItem := fyne.NewMenuItemWithIcon("Type Agent", theme.Icon(theme.IconNameAccount), func() {
@@ -91,6 +92,8 @@ func (p *Pane) MouseDown(ev *desktop.MouseEvent) {
 
 	switch ev.Button {
 	case desktop.MouseButtonPrimary:
+		p.pressed = true
+
 		// A double click is detected here, not with fyne.DoubleTappable,
 		// which would delay every single click and so the focus
 		now := time.Now()
@@ -113,11 +116,20 @@ func (p *Pane) MouseDown(ev *desktop.MouseEvent) {
 }
 
 func (p *Pane) MouseUp(*desktop.MouseEvent) {
+	p.pressed = false
 }
 
 // Dragged selects from where the mouse went down to where it is now
 func (p *Pane) Dragged(ev *fyne.DragEvent) {
 	if p.split != splitNone {
+		return
+	}
+
+	// Only a drag that started with a press on the pane selects. Fyne sends
+	// a drag that starts on a button over the pane (e.g. in the search bar)
+	// to the pane too, as the button can not be dragged, but the press went
+	// to the button.
+	if !p.pressed && !p.dragging {
 		return
 	}
 
@@ -191,6 +203,11 @@ func (p *Pane) stopDragScroll() {
 // DragEnd copies the selection, like xterm there is no separate copy step
 func (p *Pane) DragEnd() {
 	p.stopDragScroll()
+	if !p.dragging {
+		// Not our drag, e.g. it started on a search bar button
+		return
+	}
+	p.dragging = false
 
 	// A drag that scrolled is usually released outside the pane, and Fyne
 	// takes the focus away from it on a release over anything else, just
@@ -199,10 +216,7 @@ func (p *Pane) DragEnd() {
 		c.Focus(p)
 	}
 
-	if p.dragging {
-		p.dragging = false
-		p.copySelection()
-	}
+	p.copySelection()
 }
 
 // copySelection puts the selected text into the clipboard
