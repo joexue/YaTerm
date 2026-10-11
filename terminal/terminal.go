@@ -129,7 +129,7 @@ func (t *Terminal) Resize(row, col int) {
 		t.row, t.col = row, col
 		// The old region does not fit the new size, the program sets it again
 		t.scrollTop, t.scrollBottom = 0, 0
-		t.screen.Flush(t.cursorY, t.cursorX)
+		t.screen.Flush(t.cursorShown())
 	}
 	t.stateMu.Unlock()
 

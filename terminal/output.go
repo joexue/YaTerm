@@ -49,14 +49,12 @@ func (t *Terminal) parseEscState(r rune) {
 	case 'D':
 		t.wrapPending = false
 		t.lineFeed()
-		t.screen.MoveCursor(t.cursorY, t.cursorX)
 
 	// Moves the cursor to the left margin on the next line. If the cursor is at the bottom margin, scroll the page up
 	case 'E':
 		t.wrapPending = false
 		t.cursorX = 0
 		t.lineFeed()
-		t.screen.MoveCursor(t.cursorY, t.cursorX)
 
 	// Sets a horizontal tab stop at the column where the cursor is
 	case 'H':
@@ -65,7 +63,6 @@ func (t *Terminal) parseEscState(r rune) {
 	case 'M':
 		t.wrapPending = false
 		t.reverseIndex()
-		t.screen.MoveCursor(t.cursorY, t.cursorX)
 
 	case 'P':
 		t.state = stateDCS
@@ -160,7 +157,7 @@ func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 		t.processRune(r)
 	}
 
-	t.screen.Flush(t.cursorY, t.cursorX)
+	t.screen.Flush(t.cursorShown())
 }
 
 // processRune runs one character of the output through the state machine

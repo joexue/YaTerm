@@ -61,8 +61,6 @@ func (t *Terminal) outputChar(r rune) {
 	} else {
 		t.cursorX += w
 	}
-
-	t.screen.MoveCursor(t.cursorY, t.cursorX)
 }
 
 // regionBottom is the last row of the scroll region
@@ -84,6 +82,19 @@ func (t *Terminal) scrollRegion(n int) {
 		return
 	}
 	t.screen.ScrollRegion(t.scrollTop, bottom, n)
+}
+
+// cursorShown is where the cursor is drawn. After writing the last column
+// the cursor stays there until the next character wraps (deferred wrap), but
+// it is drawn at the start of the next line, where that character will go.
+// bash forces the wrap itself, PowerShell through ConPTY does not, so its
+// cursor looked stuck at the line end. On the bottom row there is no next
+// line before the wrap scrolls, it is drawn where it is.
+func (t *Terminal) cursorShown() (int, int) {
+	if t.wrapPending && t.cursorY < t.row-1 {
+		return t.cursorY + 1, 0
+	}
+	return t.cursorY, t.cursorX
 }
 
 // lineFeed moves the cursor down one line. At the bottom of the scroll region
@@ -160,7 +171,6 @@ func (t *Terminal) moveCursor(row, col int) {
 
 	t.cursorY, t.cursorX = row, col
 	t.wrapPending = false
-	t.screen.MoveCursor(t.cursorY, t.cursorX)
 }
 
 func (t *Terminal) saveCursor() {
@@ -201,7 +211,6 @@ func (t *Terminal) processGround(r rune) {
 		// Line feed keeps the column, the tty or ConPTY sends "\r\n" for a new line
 		t.wrapPending = false
 		t.lineFeed()
-		t.screen.MoveCursor(t.cursorY, t.cursorX)
 		return
 
 	case asciiReturn:
