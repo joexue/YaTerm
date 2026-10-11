@@ -63,6 +63,7 @@ func (p *Pty) RunCmd(_ string) error {
 	env = append(env, "TERM=xterm-256color")
 	env = append(env, "COLORTERM=truecolor")
 	p.cmd = exec.Command(shell)
+	p.cmd.Env = env
 
 	// Start the command with a pty.
 	f, err := pty.Start(p.cmd)
