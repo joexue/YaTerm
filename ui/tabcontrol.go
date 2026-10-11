@@ -87,7 +87,8 @@ You need to select text from terminal then show them
 		content = defaultText
 	}
 	rt := widget.NewRichTextFromMarkdown(content)
-	mtab := container.NewTabItemWithIcon(fmt.Sprintf("MD %d", markdownTabId), theme.NewThemedResource(assert.MarkdownIconRes), container.NewScroll(rt))
+	rt.Scroll = fyne.ScrollBoth
+	mtab := container.NewTabItemWithIcon(fmt.Sprintf("MD %d", markdownTabId), theme.NewThemedResource(assert.MarkdownIconRes), rt)
 	fyne.Do(func() {
 		tabControl.Append(mtab)
 	})
