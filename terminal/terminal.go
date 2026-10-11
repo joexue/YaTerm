@@ -66,21 +66,41 @@ type Terminal struct {
 	// Full screen when unset, bottom 0 means the last row.
 	scrollTop, scrollBottom int
 
-	state           int
-	decState        int
-	escape          bool
-	controlSequence string
+	state    int
+	decState int
+	escape   bool
+	param    []rune
 
 	fg, bg color.Color
 	style  Style
 
+	title string // set by OSC 0 or 2
+
+	// Callbacks to the UI, called on the reader goroutine with the state lock
+	// held, so they must not call back into the terminal.
+	// OnTitleChange gets the new title (OSC 0/2), OnClipboard text a program
+	// puts into the clipboard (OSC 52), OnQueryColor the color asked for by
+	// OSC 10 (text), 11 (background) or 12 (cursor).
+	OnTitleChange func(title string)
+	OnClipboard   func(text string)
+	OnQueryColor  func(code int) color.Color
+
 	OnExit func()
+}
+
+// Title is the title the program set with OSC 0 or 2, empty if none
+func (t *Terminal) Title() string {
+	t.stateMu.Lock()
+	defer t.stateMu.Unlock()
+
+	return t.title
 }
 
 func New(screen Screen) *Terminal {
 	t := &Terminal{
 		pty:    pty.New(),
 		screen: screen,
+		title:  "",
 	}
 
 	return t
@@ -157,4 +177,11 @@ func (t *Terminal) Read(bytes []byte) (int, error) {
 
 func (t *Terminal) GetScreen() Screen {
 	return t.screen
+}
+
+func (t *Terminal) setTitle(title string) {
+	t.title = title
+	if f := t.OnTitleChange; f != nil {
+		f(title)
+	}
 }

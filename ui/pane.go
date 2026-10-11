@@ -88,6 +88,10 @@ type Pane struct {
 
 	// Callback from creater, called when the whole pane tree is finished
 	OnTearDown func()
+
+	// Callback from creater, called on the root with the title of the
+	// focused pane's program (OSC 0/2), e.g. to show it in the tab
+	OnTitle func(title string)
 }
 
 func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
@@ -126,6 +130,7 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 	p.ExtendBaseWidget(p)
 
 	term.OnExit = p.TryClose
+	p.connectTerm()
 	if run {
 		go func() {
 			term.RunCmd("xxx")
@@ -202,6 +207,7 @@ func (p *Pane) Close() {
 			take.screen.Search(nil, true)
 		}
 		pa.term.OnExit = pa.TryClose
+		pa.connectTerm()
 
 		pa.root.lastFocus = pa
 		// pa keeps the same size, so force to resize the terminal
@@ -276,8 +282,10 @@ func (p *Pane) Resize(size fyne.Size) {
  */
 func (p *Pane) FocusGained() {
 	p.root.lastFocus = p
-	w, h := p.term.Size()
-	fmt.Println("Focus: ", p.id, p.Size(), w, h)
+	if p.term != nil {
+		p.root.showTitle(p.term.Title())
+	}
+
 	if p.parent != nil {
 		p.border.StrokeColor = theme.Color(theme.ColorNamePrimary)
 		p.border.Refresh()
@@ -426,4 +434,51 @@ func (p *Pane) hideSearch() {
 	if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
 		c.Focus(p)
 	}
+}
+
+/*
+ * ================================
+ *  Program requests (OSC)
+ * ================================
+ */
+
+// connectTerm points the terminal's callbacks to this pane, done again when
+// the terminal moves to another pane on a split or a close
+func (p *Pane) connectTerm() {
+	p.term.OnTitleChange = p.titleChanged
+	p.term.OnClipboard = func(text string) {
+		fyne.Do(func() { fyne.CurrentApp().Clipboard().SetContent(text) })
+	}
+	p.term.OnQueryColor = queryThemeColor
+}
+
+// titleChanged shows a new title from the program, if this pane is the
+// focused one. Called on the terminal's reader goroutine.
+func (p *Pane) titleChanged(title string) {
+	fyne.Do(func() {
+		if p.root.lastFocus == p {
+			p.root.showTitle(title)
+		}
+	})
+}
+
+// showTitle hands a title to the root's OnTitle, an empty one keeps the old
+func (p *Pane) showTitle(title string) {
+	if f := p.OnTitle; f != nil && title != "" {
+		f(title)
+	}
+}
+
+// queryThemeColor answers OSC 10, 11 and 12 with the theme's text,
+// background and cursor color
+func queryThemeColor(code int) color.Color {
+	switch code {
+	case 10:
+		return theme.Color(theme.ColorNameForeground)
+	case 11:
+		return theme.Color(theme.ColorNameBackground)
+	case 12:
+		return theme.Color(theme.ColorNamePrimary)
+	}
+	return nil
 }

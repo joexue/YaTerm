@@ -53,14 +53,16 @@ func (t *Terminal) parseEscState(r rune) {
 
 	case 'P':
 		t.state = stateDCS
+		t.param = []rune{}
 
 	case '[':
 		t.state = stateCSI
+		t.param = []rune{}
 
 	// No direct effect; ST is used to delimit the end of stateOSC style escape sequences
 	case '\\':
 		if t.state == stateOSC {
-			t.processOsc(r)
+			t.handleOSC("\x1b\\")
 		} else {
 			t.state = stateGROUND
 		}
@@ -96,6 +98,7 @@ func (t *Terminal) parseEscState(r rune) {
 	// Operating System Command Sequences
 	case ']':
 		t.state = stateOSC
+		t.param = []rune{}
 
 	// "#8" Fills the display with E characters for diagnostic/test purposes (for vttest)
 	case '#':

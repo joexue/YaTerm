@@ -20,6 +20,11 @@ func NewTabItem() *container.TabItem {
 	pane := NewPane(nil, nil, true)
 	tab := container.NewTabItem(fmt.Sprintf("Tab %d", tabId), pane)
 
+	// The title the program sets (OSC 0/2) replaces "Tab n"
+	pane.OnTitle = func(title string) {
+		win.SetTitle("YaTerm: " + title)
+	}
+
 	// When pane is closed from pane internally (e.g. from popup menu)
 	pane.OnTearDown = func() {
 		tabControl.Remove(tab)

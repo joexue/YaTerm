@@ -6,16 +6,16 @@ import (
 )
 
 func (t *Terminal) processCsi(r rune) {
-	t.controlSequence += string(r)
+	t.param = append(t.param, r)
 	if (r < '0' || r > '9') && r != ';' && r != ':' && r != '=' && r != '?' && r != '>' {
 		t.handleCsi()
+		t.param = []rune{}
 		t.state = stateGROUND
 	}
 }
 
 func (t *Terminal) handleCsi() {
-	runes := []rune(t.controlSequence)
-	t.controlSequence = ""
+	runes := t.param
 
 	if len(runes) == 0 {
 		return
