@@ -37,6 +37,13 @@ func (t *Terminal) parseEscState(r rune) {
 		return
 	}
 
+	// Inside an APC, SOS or PM, an ESC with anything but '\' aborts it and
+	// starts a new escape sequence, so a string that is never ended does not
+	// swallow all the output after it
+	if t.state == stateAPC && r != '\\' {
+		t.state = stateGROUND
+	}
+
 	switch r {
 	// Moves the cursor down one line in the same column. If the cursor is at the bottom margin, the page scrolls up
 	case 'D':
@@ -115,7 +122,8 @@ func (t *Terminal) parseEscState(r rune) {
 	case '#':
 		t.state = stateTEST
 
-	case '_':
+	// APC, SOS and PM: strings that are read and ignored, see processApc
+	case '_', 'X', '^':
 		t.state = stateAPC
 
 	// Just reset the sate to ground if we don't recognize it, may not right or never happen?
