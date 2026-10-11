@@ -1,0 +1,14 @@
+Website = "https://github.com/joexue/yaterm"
+
+[Details]
+Icon = "assert/Resource/icons/yaterm.png"
+Name = "YaTerm"
+ID = "github.com/joexue/yaterm"
+Version = "1.0.0"
+Build = 1
+
+[Source]
+Repo = "https://github.com/joexue/yaterm"
+
+[LinuxAndBSD]
+Categories = ["System"]
