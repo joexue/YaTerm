@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"maps"
+	"net/url"
 	"slices"
 
 	"fyne.io/fyne/v2"
@@ -11,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	yatheme "yaterm/theme"
 )
@@ -55,19 +57,58 @@ func ShowSettings(w fyne.Window) {
 
 	s := &settings{scheme: th.Scheme().Name, fontSize: th.FontSize()}
 
+	var d dialog.Dialog
+	save := func() {
+		d.Hide()
+		applySettings(s, th)
+	}
+	cancel := func() {
+		d.Hide()
+	}
+
+	// Each page ends with the project's page and the buttons, so the link
+	// lines up with the page and not with the tabs on its left. A widget can
+	// be in one place only, so every page gets its own row.
+	page := func(body fyne.CanvasObject) fyne.CanvasObject {
+		return container.NewBorder(nil, bottomRow(save, cancel), nil, nil, body)
+	}
+
 	tabs := container.NewAppTabs(
-		container.NewTabItem("Appearance", appearancePage(s)),
-		container.NewTabItem("Shortcuts", shortcutsPage()),
+		container.NewTabItem("Appearance", page(appearancePage(s))),
+		container.NewTabItem("Shortcuts", page(shortcutsPage())),
 	)
 	tabs.SetTabLocation(container.TabLocationLeading)
 
-	d := dialog.NewCustomConfirm("Settings", "Save", "Cancel", tabs, func(save bool) {
-		if save {
-			applySettings(s, th)
-		}
-	}, w)
+	d = dialog.NewCustomWithoutButtons("Settings", tabs, w)
 	d.Resize(fyne.NewSize(720, 480))
 	d.Show()
+}
+
+// bottomRow is the row at the end of a settings page: the project's page on
+// the left, Cancel and Save on the right with some room between them. The
+// buttons are made here, not by a confirm dialog, so the link can be in the
+// same row.
+func bottomRow(save, cancel func()) fyne.CanvasObject {
+	cancelBtn := widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), cancel)
+	saveBtn := widget.NewButtonWithIcon("Save", theme.ConfirmIcon(), save)
+	saveBtn.Importance = widget.HighImportance
+
+	gap := canvas.NewRectangle(color.Transparent)
+	gap.SetMinSize(fyne.NewSize(theme.Padding()*3, 0))
+
+	return container.NewBorder(nil, nil, projectLink(), container.NewHBox(cancelBtn, gap, saveBtn))
+}
+
+// projectURL is the project's page
+const projectURL = "https://github.com/joexue/yaterm"
+
+// projectLink is a link to the project's page, opened in the browser
+func projectLink() fyne.CanvasObject {
+	u, err := url.Parse(projectURL)
+	if err != nil {
+		return widget.NewLabel(projectURL)
+	}
+	return widget.NewHyperlink("github.com/joexue/yaterm", u)
 }
 
 // appearancePage has the color scheme with a preview and the font size
@@ -167,8 +208,8 @@ func shortcutsPage() fyne.CanvasObject {
 		{"Copy", "Ctrl+Shift+C, Ctrl+Insert, or select with the mouse"},
 		{"Paste", "Ctrl+Shift+V, Shift+Insert, middle click"},
 		{"Select a word", "Double click"},
-		{"Search", "Right click → Search"},
-		{"Split pane", "Right click → Horizontal / Vertical Split"},
+		{"Search", "Right click > Search"},
+		{"Split pane", "Right click > Horizontal / Vertical Split"},
 		{"Scroll back", "Mouse wheel"},
 	} {
 		form.Append(s.action, widget.NewLabel(s.keys))
