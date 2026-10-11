@@ -294,6 +294,7 @@ func (p *Pane) Resize(size fyne.Size) {
  */
 func (p *Pane) FocusGained() {
 	p.root.lastFocus = p
+	p.screen.SetFocused(true)
 	if p.term != nil {
 		p.root.showTitle(p.term.Title())
 	}
@@ -305,6 +306,8 @@ func (p *Pane) FocusGained() {
 }
 
 func (p *Pane) FocusLost() {
+	p.screen.SetFocused(false)
+
 	// Key ups go to the new focus, so forget the modifiers held here
 	clear(p.modKeys)
 	p.mods = 0

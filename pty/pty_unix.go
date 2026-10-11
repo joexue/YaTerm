@@ -96,6 +96,11 @@ func (p *Pty) Write(bytes []byte) (int, error) {
 }
 
 func (p *Pty) Close() {
+	// Closed before the shell started, e.g. right after a split
+	if p.cmd == nil || p.cmd.Process == nil {
+		return
+	}
+
 	syscall.Kill(-p.cmd.Process.Pid, syscall.SIGKILL)
 	_ = p.cmd.Wait()
 	p.pty.Close()

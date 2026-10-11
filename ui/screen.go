@@ -99,6 +99,8 @@ type Screen struct {
 	// The character under the cursor, drawn on the block in the background
 	// color so the block does not hide it
 	cursorText *canvas.Text
+	// The cursor is only shown while the pane has the keyboard focus
+	focused bool
 
 	// mu guards the cell buffer, written directly by the terminal goroutine
 	// and read on the UI thread when a flush renders it.
@@ -463,11 +465,21 @@ func (s *Screen) Flush(row, col int) {
 	})
 }
 
+// SetFocused shows the cursor while the pane has the keyboard focus and hides
+// it when the focus goes elsewhere, e.g. to another pane or another window
+func (s *Screen) SetFocused(focused bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.focused = focused
+	s.updateCursor()
+}
+
 // updateCursor places the cursor, it moves down with the view when scrolled
 // back and is hidden when it is below the view. Called with mu held.
 func (s *Screen) updateCursor() {
 	row := s.curRow + s.offset
-	if row >= s.row {
+	if !s.focused || row >= s.row {
 		s.cursor.Hide()
 		s.cursorText.Hide()
 		return
