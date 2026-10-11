@@ -22,6 +22,7 @@ type Divider struct {
 
 	pane           *Pane
 	hovered        bool
+	dragging       bool
 	startDragOff   *fyne.Position
 	currentDragPos fyne.Position
 }
@@ -41,7 +42,7 @@ func (d *Divider) CreateRenderer() fyne.WidgetRenderer {
 	th := d.Theme()
 	v := fyne.CurrentApp().Settings().ThemeVariant()
 
-	background := canvas.NewRectangle(th.Color(theme.ColorNameShadow, v))
+	background := canvas.NewRectangle(th.Color(theme.ColorNameMenuBackground, v))
 	return &DividerRenderer{
 		Divider:    d,
 		background: background,
@@ -57,9 +58,16 @@ func (d *Divider) Cursor() desktop.Cursor {
 
 func (d *Divider) DragEnd() {
 	d.startDragOff = nil
+	d.dragging = false
+	d.Refresh()
 }
 
 func (d *Divider) Dragged(e *fyne.DragEvent) {
+	if !d.dragging {
+		d.dragging = true
+		d.Refresh()
+	}
+
 	if d.startDragOff == nil {
 		d.currentDragPos = d.Position().Add(e.Position)
 		start := e.Position.Subtract(e.Dragged)
@@ -136,10 +144,13 @@ func (r *DividerRenderer) Refresh() {
 	th := r.Divider.Theme()
 	v := fyne.CurrentApp().Settings().ThemeVariant()
 
-	if r.Divider.hovered {
-		r.background.FillColor = th.Color(theme.ColorNameHover, v)
+	// The color of the tab bar, so it stands out from the terminal's
+	// background in dark and light schemes alike, and the accent color while
+	// the mouse is on it or drags it
+	if r.Divider.hovered || r.Divider.dragging {
+		r.background.FillColor = th.Color(theme.ColorNamePrimary, v)
 	} else {
-		r.background.FillColor = th.Color(theme.ColorNameShadow, v)
+		r.background.FillColor = th.Color(theme.ColorNameMenuBackground, v)
 	}
 	r.background.Refresh()
 	r.Layout(r.Divider.Size())
