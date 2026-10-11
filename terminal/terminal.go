@@ -83,6 +83,7 @@ type Terminal struct {
 	fg, bg color.Color
 	style  Style
 
+	cwd   string // set by OSC 7
 	title string // set by OSC 0 or 2
 
 	// Callbacks to the UI, called on the reader goroutine with the state lock
@@ -193,4 +194,8 @@ func (t *Terminal) setTitle(title string) {
 	if f := t.OnTitleChange; f != nil {
 		f(title)
 	}
+}
+
+func (t *Terminal) setCwd(cwd string) {
+	t.cwd = cwd
 }

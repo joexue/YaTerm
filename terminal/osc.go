@@ -46,6 +46,9 @@ func (t *Terminal) handleOSC(st string) {
 	case "0", "2":
 		t.setTitle(cleanTitle(arg))
 
+	case "7":
+		t.setCwd(arg)
+
 	// Icon name, there are no icons
 	case "1":
 
