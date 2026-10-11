@@ -28,6 +28,15 @@ const (
 
 // ref: https://wezterm.org/escape-sequences.html#c1-control-codes
 func (t *Terminal) parseEscState(r rune) {
+	// Inside a DCS only "ESC \" ends it, any other ESC is part of its text,
+	// e.g. tmux passthrough doubles the ESC of the sequences it carries
+	if t.state == stateDCS && r != '\\' {
+		if len(t.param) < dcsMaxLen {
+			t.param = append(t.param, asciiEscape, r)
+		}
+		return
+	}
+
 	switch r {
 	// Moves the cursor down one line in the same column. If the cursor is at the bottom margin, the page scrolls up
 	case 'D':
@@ -63,6 +72,8 @@ func (t *Terminal) parseEscState(r rune) {
 	case '\\':
 		if t.state == stateOSC {
 			t.processOsc(0x9c)
+		} else if t.state == stateDCS {
+			t.processDcs(0x9c)
 		} else {
 			t.state = stateGROUND
 		}
