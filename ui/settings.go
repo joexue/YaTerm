@@ -89,6 +89,14 @@ func ShowSettings(w fyne.Window) {
 // buttons are made here, not by a confirm dialog, so the link can be in the
 // same row.
 func bottomRow(save, cancel func()) fyne.CanvasObject {
+	buttons, _ := saveCancelButtons(save, cancel)
+	return container.NewBorder(nil, nil, projectLink(), buttons)
+}
+
+// saveCancelButtons are the Cancel and Save buttons of YaTerm's dialogs, with
+// some room between them, to put on the right. The Save button is returned
+// too, e.g. to disable it while a form is not valid.
+func saveCancelButtons(save, cancel func()) (fyne.CanvasObject, *widget.Button) {
 	cancelBtn := widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), cancel)
 	saveBtn := widget.NewButtonWithIcon("Save", theme.ConfirmIcon(), save)
 	saveBtn.Importance = widget.HighImportance
@@ -96,7 +104,7 @@ func bottomRow(save, cancel func()) fyne.CanvasObject {
 	gap := canvas.NewRectangle(color.Transparent)
 	gap.SetMinSize(fyne.NewSize(theme.Padding()*3, 0))
 
-	return container.NewBorder(nil, nil, projectLink(), container.NewHBox(cancelBtn, gap, saveBtn))
+	return container.NewHBox(cancelBtn, gap, saveBtn), saveBtn
 }
 
 // projectURL is the project's page

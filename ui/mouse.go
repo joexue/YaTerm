@@ -51,8 +51,8 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 			p.showSearch()
 		})
 
-		typeAgentItem := fyne.NewMenuItemWithIcon("Type Agent", theme.Icon(theme.IconNameAccount), func() {
-		})
+		typeAgentItem := fyne.NewMenuItemWithIcon("Type Agent", theme.Icon(theme.IconNameAccount), nil)
+		typeAgentItem.ChildMenu = p.typeAgentMenu()
 
 		menuItems := []*fyne.MenuItem{hsplitItem, vsplitItem, separatorItem, showMarkDownItem, separatorItem, searchItem, typeAgentItem, separatorItem, closePaneItem, closeTabItem}
 		popUpMenu := widget.NewPopUpMenu(fyne.NewMenu("", menuItems...), c)
