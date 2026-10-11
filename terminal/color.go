@@ -6,34 +6,14 @@ import (
 	"strings"
 )
 
-// The 16 basic colors, xterm defaults
-var basicColors = [16]color.Color{
-	color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xff}, // black
-	color.RGBA{R: 0xcd, G: 0x00, B: 0x00, A: 0xff}, // red
-	color.RGBA{R: 0x00, G: 0xcd, B: 0x00, A: 0xff}, // green
-	color.RGBA{R: 0xcd, G: 0xcd, B: 0x00, A: 0xff}, // yellow
-	color.RGBA{R: 0x00, G: 0x00, B: 0xee, A: 0xff}, // blue
-	color.RGBA{R: 0xcd, G: 0x00, B: 0xcd, A: 0xff}, // magenta
-	color.RGBA{R: 0x00, G: 0xcd, B: 0xcd, A: 0xff}, // cyan
-	color.RGBA{R: 0xe5, G: 0xe5, B: 0xe5, A: 0xff}, // white
-	color.RGBA{R: 0x7f, G: 0x7f, B: 0x7f, A: 0xff}, // bright black
-	color.RGBA{R: 0xff, G: 0x00, B: 0x00, A: 0xff}, // bright red
-	color.RGBA{R: 0x00, G: 0xff, B: 0x00, A: 0xff}, // bright green
-	color.RGBA{R: 0xff, G: 0xff, B: 0x00, A: 0xff}, // bright yellow
-	color.RGBA{R: 0x5c, G: 0x5c, B: 0xff, A: 0xff}, // bright blue
-	color.RGBA{R: 0xff, G: 0x00, B: 0xff, A: 0xff}, // bright magenta
-	color.RGBA{R: 0x00, G: 0xff, B: 0xff, A: 0xff}, // bright cyan
-	color.RGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xff}, // bright white
-}
-
 // indexedColor returns one of the 256 xterm colors
-func indexedColor(i int) color.Color {
+func (t *Terminal) indexedColor(i int) color.Color {
 	switch {
 	case i < 0 || i > 255:
 		return nil
 
 	case i < 16:
-		return basicColors[i]
+		return t.colorSchema[i]
 
 	// 6x6x6 color cube
 	case i < 232:
@@ -119,17 +99,17 @@ func (t *Terminal) handleColorMode(message string) {
 			t.style.Strikethrough = false
 
 		case mode >= 30 && mode <= 37:
-			t.fg = basicColors[mode-30]
+			t.fg = t.colorSchema[mode-30]
 		case mode == 39:
 			t.fg = nil
 		case mode >= 40 && mode <= 47:
-			t.bg = basicColors[mode-40]
+			t.bg = t.colorSchema[mode-40]
 		case mode == 49:
 			t.bg = nil
 		case mode >= 90 && mode <= 97:
-			t.fg = basicColors[mode-90+8]
+			t.fg = t.colorSchema[mode-90+8]
 		case mode >= 100 && mode <= 107:
-			t.bg = basicColors[mode-100+8]
+			t.bg = t.colorSchema[mode-100+8]
 
 		// "38;5;n" or "38;2;r;g;b", the arguments follow as separate fields
 		case mode == 38 || mode == 48:
@@ -155,7 +135,7 @@ func (t *Terminal) handleExtendedColor(mode int, args []string, colon bool) int 
 		if len(args) < 2 {
 			return len(args)
 		}
-		c = indexedColor(atoi(args[1]))
+		c = t.indexedColor(atoi(args[1]))
 		used = 2
 
 	case 2:

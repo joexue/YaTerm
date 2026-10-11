@@ -8,12 +8,14 @@ import (
 )
 
 // Names of a scheme's colors that are not one of the 16 regular colors, as
-// in a Windows Terminal scheme
+// in a Windows Terminal scheme. They are Fyne color names, "background" and
+// "foreground" are the same as theme.ColorNameBackground and
+// theme.ColorNameForeground, so Color gives Fyne those from the scheme.
 const (
-	ColorBackground          = "background"
-	ColorForeground          = "foreground"
-	ColorCursor              = "cursorColor"
-	ColorSelectionBackground = "selectionBackground"
+	ColorBackground          fyne.ThemeColorName = "background"
+	ColorForeground          fyne.ThemeColorName = "foreground"
+	ColorCursor              fyne.ThemeColorName = "cursorColor"
+	ColorSelectionBackground fyne.ThemeColorName = "selectionBackground"
 )
 
 // Scheme is a terminal color scheme. The 16 regular colors are found by
@@ -23,7 +25,7 @@ const (
 type Scheme struct {
 	Name   string
 	ANSI   [16]color.Color
-	Colors map[string]color.Color
+	Colors map[fyne.ThemeColorName]color.Color
 }
 
 // The schemes below are the built in schemes of Windows Terminal, from its
@@ -57,7 +59,7 @@ var Campbell = Scheme{
 		color.RGBA{R: 0xF2, G: 0xF2, B: 0xF2, A: 0xff}, // bright white
 	},
 
-	Colors: map[string]color.Color{
+	Colors: map[fyne.ThemeColorName]color.Color{
 		ColorBackground:          color.RGBA{R: 0x0C, G: 0x0C, B: 0x0C, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xCC, G: 0xCC, B: 0xCC, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
@@ -88,7 +90,7 @@ var CampbellPowershell = Scheme{
 		color.RGBA{R: 0xF2, G: 0xF2, B: 0xF2, A: 0xff}, // bright white
 	},
 
-	Colors: map[string]color.Color{
+	Colors: map[fyne.ThemeColorName]color.Color{
 		ColorBackground:          color.RGBA{R: 0x01, G: 0x24, B: 0x56, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xCC, G: 0xCC, B: 0xCC, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
@@ -119,7 +121,7 @@ var Vintage = Scheme{
 		color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff}, // bright white
 	},
 
-	Colors: map[string]color.Color{
+	Colors: map[fyne.ThemeColorName]color.Color{
 		ColorBackground:          color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xC0, G: 0xC0, B: 0xC0, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
@@ -150,7 +152,7 @@ var OneHalfDark = Scheme{
 		color.RGBA{R: 0xDC, G: 0xDF, B: 0xE4, A: 0xff}, // bright white
 	},
 
-	Colors: map[string]color.Color{
+	Colors: map[fyne.ThemeColorName]color.Color{
 		ColorBackground:          color.RGBA{R: 0x28, G: 0x2C, B: 0x34, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xDC, G: 0xDF, B: 0xE4, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
@@ -181,7 +183,7 @@ var OneHalfLight = Scheme{
 		color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff}, // bright white
 	},
 
-	Colors: map[string]color.Color{
+	Colors: map[fyne.ThemeColorName]color.Color{
 		ColorBackground:          color.RGBA{R: 0xFA, G: 0xFA, B: 0xFA, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0x38, G: 0x3A, B: 0x42, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0x4F, G: 0x52, B: 0x5D, A: 0xff},
@@ -212,7 +214,7 @@ var SolarizedDark = Scheme{
 		color.RGBA{R: 0xFD, G: 0xF6, B: 0xE3, A: 0xff}, // bright white
 	},
 
-	Colors: map[string]color.Color{
+	Colors: map[fyne.ThemeColorName]color.Color{
 		ColorBackground:          color.RGBA{R: 0x00, G: 0x2B, B: 0x36, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0x83, G: 0x94, B: 0x96, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
@@ -243,7 +245,7 @@ var SolarizedLight = Scheme{
 		color.RGBA{R: 0xFD, G: 0xF6, B: 0xE3, A: 0xff}, // bright white
 	},
 
-	Colors: map[string]color.Color{
+	Colors: map[fyne.ThemeColorName]color.Color{
 		ColorBackground:          color.RGBA{R: 0xFD, G: 0xF6, B: 0xE3, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0x65, G: 0x7B, B: 0x83, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0x00, G: 0x2B, B: 0x36, A: 0xff},
@@ -274,7 +276,7 @@ var TangoDark = Scheme{
 		color.RGBA{R: 0xEE, G: 0xEE, B: 0xEC, A: 0xff}, // bright white
 	},
 
-	Colors: map[string]color.Color{
+	Colors: map[fyne.ThemeColorName]color.Color{
 		ColorBackground:          color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xD3, G: 0xD7, B: 0xCF, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
@@ -305,7 +307,7 @@ var TangoLight = Scheme{
 		color.RGBA{R: 0xEE, G: 0xEE, B: 0xEC, A: 0xff}, // bright white
 	},
 
-	Colors: map[string]color.Color{
+	Colors: map[fyne.ThemeColorName]color.Color{
 		ColorBackground:          color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0x55, G: 0x57, B: 0x53, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xff},
@@ -336,7 +338,7 @@ var DarkPlus = Scheme{
 		color.RGBA{R: 0xE5, G: 0xE5, B: 0xE5, A: 0xff}, // bright white
 	},
 
-	Colors: map[string]color.Color{
+	Colors: map[fyne.ThemeColorName]color.Color{
 		ColorBackground:          color.RGBA{R: 0x1E, G: 0x1E, B: 0x1E, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xCC, G: 0xCC, B: 0xCC, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0x80, G: 0x80, B: 0x80, A: 0xff},
@@ -367,7 +369,7 @@ var VSCodeDarkModern = Scheme{
 		color.RGBA{R: 0xE5, G: 0xE5, B: 0xE5, A: 0xff}, // bright white
 	},
 
-	Colors: map[string]color.Color{
+	Colors: map[fyne.ThemeColorName]color.Color{
 		ColorBackground:          color.RGBA{R: 0x1F, G: 0x1F, B: 0x1F, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xCC, G: 0xCC, B: 0xCC, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
@@ -398,7 +400,7 @@ var VSCodeLightModern = Scheme{
 		color.RGBA{R: 0xA5, G: 0xA5, B: 0xA5, A: 0xff}, // bright white
 	},
 
-	Colors: map[string]color.Color{
+	Colors: map[fyne.ThemeColorName]color.Color{
 		ColorBackground:          color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0x3B, G: 0x3B, B: 0x3B, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xff},
@@ -429,7 +431,7 @@ var CGA = Scheme{
 		color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff}, // bright white
 	},
 
-	Colors: map[string]color.Color{
+	Colors: map[fyne.ThemeColorName]color.Color{
 		ColorBackground:          color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xAA, G: 0xAA, B: 0xAA, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0x00, G: 0xAA, B: 0x00, A: 0xff},
@@ -460,7 +462,7 @@ var IBM5153 = Scheme{
 		color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff}, // bright white
 	},
 
-	Colors: map[string]color.Color{
+	Colors: map[fyne.ThemeColorName]color.Color{
 		ColorBackground:          color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xAA, G: 0xAA, B: 0xAA, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0x00, G: 0xAA, B: 0x00, A: 0xff},
@@ -491,7 +493,7 @@ var Dimidium = Scheme{
 		color.RGBA{R: 0xDE, G: 0xE3, B: 0xE4, A: 0xff}, // bright white
 	},
 
-	Colors: map[string]color.Color{
+	Colors: map[fyne.ThemeColorName]color.Color{
 		ColorBackground:          color.RGBA{R: 0x14, G: 0x14, B: 0x14, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xBA, G: 0xB7, B: 0xB6, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0x37, G: 0xE5, B: 0x7B, A: 0xff},
@@ -522,7 +524,7 @@ var Ottosson = Scheme{
 		color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff}, // bright white
 	},
 
-	Colors: map[string]color.Color{
+	Colors: map[fyne.ThemeColorName]color.Color{
 		ColorBackground:          color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xBE, G: 0xBE, B: 0xBE, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
@@ -550,14 +552,70 @@ var Schemes = map[string]*Scheme{
 	"Ottosson":            &Ottosson,
 }
 
+// DefaultScheme is the scheme a new theme starts with
+const DefaultScheme = "Campbell"
+
+var _ fyne.Theme = (*YatermTheme)(nil)
+
 type YatermTheme struct {
 	fyne.Theme
 
 	variant fyne.ThemeVariant
+	scheme  *Scheme
 }
 
 func (f *YatermTheme) Color(name fyne.ThemeColorName, _ fyne.ThemeVariant) color.Color {
+	if c, ok := f.SchemeColor(name); ok {
+		return c
+	}
+
 	return f.Theme.Color(name, f.variant)
+}
+
+// Scheme is the color scheme in use
+func (f *YatermTheme) Scheme() *Scheme {
+	return f.scheme
+}
+
+// SetScheme picks the scheme by its name, see Schemes. The theme becomes
+// dark or light after the scheme's background. An unknown name changes
+// nothing and returns false.
+func (f *YatermTheme) SetScheme(name string) bool {
+	s, ok := Schemes[name]
+	if !ok {
+		return false
+	}
+
+	f.scheme = s
+	f.variant = theme.VariantDark
+	if !isDark(s.Colors[ColorBackground]) {
+		f.variant = theme.VariantLight
+	}
+	return true
+}
+
+// ANSIColor returns one of the 16 regular colors of the scheme by number,
+// in the order of the SGR colors (30..37, then the bright 90..97), nil when
+// out of range
+func (f *YatermTheme) ANSIColor(i int) color.Color {
+	if i < 0 || i >= len(f.scheme.ANSI) {
+		return nil
+	}
+	return f.scheme.ANSI[i]
+}
+
+// SchemeColor returns one of the other colors of the scheme by name, e.g.
+// ColorBackground, and false when the scheme has no such color
+func (f *YatermTheme) SchemeColor(name fyne.ThemeColorName) (color.Color, bool) {
+	c, ok := f.scheme.Colors[name]
+	return c, ok
+}
+
+// isDark tells if a background is dark, by its luminance
+func isDark(c color.Color) bool {
+	r, g, b, _ := c.RGBA()
+	// Rec. 709 luma, on the 16 bit channels
+	return 0.2126*float64(r)+0.7152*float64(g)+0.0722*float64(b) < 0.5*0xffff
 }
 
 func (f *YatermTheme) Size(name fyne.ThemeSizeName) float32 {
@@ -584,5 +642,7 @@ func (t *YatermTheme) Font(s fyne.TextStyle) fyne.Resource {
 }
 
 func NewYatermTheme() *YatermTheme {
-	return &YatermTheme{Theme: theme.DarkTheme(), variant: theme.VariantDark}
+	t := &YatermTheme{Theme: theme.DefaultTheme()}
+	t.SetScheme(DefaultScheme)
+	return t
 }

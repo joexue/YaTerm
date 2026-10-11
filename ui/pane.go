@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 	"yaterm/terminal"
+	yatheme "yaterm/theme"
 )
 
 /*
@@ -100,6 +101,9 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 	if term == nil {
 		screen = NewScreen()
 		term = terminal.New(screen)
+		if th := currentTheme(); th != nil {
+			term.SetColors(th.Scheme().ANSI)
+		}
 	} else {
 		screen = term.GetScreen().(*Screen)
 	}
@@ -489,4 +493,11 @@ func queryThemeColor(code int) color.Color {
 		return theme.Color(theme.ColorNamePrimary)
 	}
 	return nil
+}
+
+// currentTheme is the app's YatermTheme, nil when the app uses another theme
+// (e.g. in tests, or inside a container.ThemeOverride)
+func currentTheme() *yatheme.YatermTheme {
+	th, _ := theme.Current().(*yatheme.YatermTheme)
+	return th
 }

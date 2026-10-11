@@ -83,6 +83,8 @@ type Terminal struct {
 	fg, bg color.Color
 	style  Style
 
+	colorSchema [16]color.Color
+
 	cwd   string // set by OSC 7
 	title string // set by OSC 0 or 2
 
@@ -198,4 +200,8 @@ func (t *Terminal) setTitle(title string) {
 
 func (t *Terminal) setCwd(cwd string) {
 	t.cwd = cwd
+}
+
+func (t *Terminal) SetColors(schema [16]color.Color) {
+	t.colorSchema = schema
 }
