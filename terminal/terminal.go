@@ -60,7 +60,10 @@ type Terminal struct {
 
 	cursorX, cursorY   int
 	savedRow, savedCol int
-	wrapPending        bool
+	// "ESC 7" saves the character sets with the cursor, like xterm
+	savedCharsets [2]rune
+	savedShifted  int
+	wrapPending   bool
 
 	// Scroll region set by "CSI top;bottom r", 0 based and inclusive.
 	// Full screen when unset, bottom 0 means the last row.
@@ -68,6 +71,11 @@ type Terminal struct {
 
 	state    int
 	decState int
+
+	// Character sets of G0 and G1 ("ESC ( X", "ESC ) X"), 0 means ASCII,
+	// and which one is in use, 0 for G0 (SI) or 1 for G1 (SO)
+	charsets [2]rune
+	shifted  int
 	escape   bool
 	param    []rune
 

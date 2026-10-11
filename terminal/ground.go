@@ -22,6 +22,7 @@ var widthCond = func() *runewidth.Condition {
 }()
 
 func (t *Terminal) outputChar(r rune) {
+	r = t.translateChar(r)
 	w := widthCond.RuneWidth(r)
 	if w == 0 {
 		// Combining marks and other zero width characters are not supported
@@ -165,14 +166,24 @@ func (t *Terminal) moveCursor(row, col int) {
 func (t *Terminal) saveCursor() {
 	t.savedRow = t.cursorY
 	t.savedCol = t.cursorX
+	t.savedCharsets, t.savedShifted = t.charsets, t.shifted
 }
 
 func (t *Terminal) restoreCursor() {
 	t.moveCursor(t.savedRow, t.savedCol)
+	t.charsets, t.shifted = t.savedCharsets, t.savedShifted
 }
 
 func (t *Terminal) processGround(r rune) {
 	switch r {
+	// Switch between the G0 and G1 character sets
+	case asciiShiftIn:
+		t.shifted = 0
+		return
+	case asciiShiftOut:
+		t.shifted = 1
+		return
+
 	// Ignore for now
 	case asciiBell:
 		return
