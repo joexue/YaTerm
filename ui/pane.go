@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"fmt"
+	//"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/driver/desktop"
@@ -134,7 +134,7 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 	if run {
 		go func() {
 			term.RunCmd("xxx")
-			fmt.Println("xxxxxxxxx exit", p.id)
+			//fmt.Println("xxxxxxxxx exit", p.id)
 		}()
 	}
 

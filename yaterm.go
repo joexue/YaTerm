@@ -4,21 +4,10 @@ import (
 	_ "embed"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
-	"image/color"
 	"yaterm/assert"
 	"yaterm/theme"
 	"yaterm/ui"
 )
-
-type YatermTheme struct {
-	fyne.Theme
-
-	variant fyne.ThemeVariant
-}
-
-func (f *YatermTheme) Color(name fyne.ThemeColorName, _ fyne.ThemeVariant) color.Color {
-	return f.Theme.Color(name, f.variant)
-}
 
 func main() {
 	a := app.New()
