@@ -36,7 +36,7 @@ type cell struct {
 
 // blank tells if the cell shows nothing, so it can be dropped from a line end
 func (c cell) blank() bool {
-	return (c.r == 0 || c.r == ' ') && c.bg == nil && !c.style.Underline && !c.style.Strikethrough
+	return (c.r == 0 || c.r == ' ' || c.r == terminal.WidePad) && c.bg == nil && !c.style.Underline && !c.style.Strikethrough
 }
 
 // line is one row of cells. wrapped means the text goes on in the next line
@@ -189,7 +189,17 @@ func (s *Screen) Project(r rune, row, col int, fg, bg color.Color, style termina
 		return
 	}
 
-	s.lines[row].cells[col] = c
+	// Writing over half of a wide character leaves the other half alone,
+	// blank it, as the character can not be drawn half
+	cells := s.lines[row].cells
+	if cells[col].r == terminal.WideTail && c.r != terminal.WideTail && col > 0 {
+		cells[col-1].r = ' '
+	}
+	if col+1 < len(cells) && cells[col+1].r == terminal.WideTail {
+		cells[col+1].r = ' '
+	}
+
+	cells[col] = c
 	s.dirty[row] = true
 	s.find.stale = true
 }
@@ -286,19 +296,28 @@ func (s *Screen) Reflow(row, col, curRow, curCol int) (int, int) {
 			j++
 		}
 
+		// The cursor as an offset into the logical line
+		curOff := -1
+
 		var cells []cell
 		if i == j {
 			cells = phys[i].cells // no copy for the common single line
+			if cursorPhys == i {
+				curOff = curCol
+			}
 		} else {
 			for k := i; k <= j; k++ {
-				cells = append(cells, phys[k].cells...)
+				c := phys[k].cells
+				// A wide character that did not fit at the line end left a
+				// pad cell there, it is not text
+				if k < j && len(c) > 0 && c[len(c)-1].r == terminal.WidePad {
+					c = c[:len(c)-1]
+				}
+				if k == cursorPhys {
+					curOff = len(cells) + curCol
+				}
+				cells = append(cells, c...)
 			}
-		}
-
-		// The cursor as an offset into the logical line
-		curOff := -1
-		if cursorPhys >= i && cursorPhys <= j {
-			curOff = (cursorPhys-i)*s.col + curCol
 		}
 
 		// Drop the blank end, but keep it up to the cursor
@@ -313,14 +332,32 @@ func (s *Screen) Reflow(row, col, curRow, curCol int) (int, int) {
 		// Wrap at the new width, the pieces share the logical line's cells.
 		// Full slice expressions stop a later append from spilling over.
 		start := len(out)
-		for off := 0; off == 0 || off < n; off += col {
+		var offs []int // where each piece starts
+		for off := 0; ; {
 			end := min(off+col, n)
+			// A wide character is not split from its tail, it moves to the
+			// next line and this one ends a cell short
+			if end < n && cells[end].r == terminal.WideTail && end-1 > off {
+				end--
+			}
 			out = append(out, line{cells: cells[off:end:end], wrapped: end < n})
+			offs = append(offs, off)
+			if end >= n {
+				break
+			}
+			off = end
 		}
 
 		if curOff >= 0 {
-			newRow, newCol = start+curOff/col, curOff%col
+			k := len(offs) - 1
+			for k > 0 && offs[k] > curOff {
+				k--
+			}
+			newRow, newCol = start+k, curOff-offs[k]
 			// The cursor is right after a line that fills the width
+			if newCol >= col {
+				newRow, newCol = newRow+1, newCol-col
+			}
 			for newRow >= len(out) {
 				out = append(out, line{})
 			}
@@ -347,8 +384,13 @@ func (s *Screen) Reflow(row, col, curRow, curCol int) (int, int) {
 	for i := range s.lines {
 		s.lines[i] = newLine(col)
 		if top+i < len(out) {
-			copy(s.lines[i].cells, out[top+i].cells)
+			n := copy(s.lines[i].cells, out[top+i].cells)
 			s.lines[i].wrapped = out[top+i].wrapped
+			// A wrapped line ends short only when a wide character moved to
+			// the next line, mark the gap as pad so joining drops it
+			if s.lines[i].wrapped && n < col {
+				s.lines[i].cells[n].r = terminal.WidePad
+			}
 		}
 	}
 
@@ -431,17 +473,26 @@ func (s *Screen) updateCursor() {
 		return
 	}
 
+	// The character under the cursor, a wide one makes the cursor two cells
+	var c cell
+	width := 1
+	if s.curRow >= 0 && s.curRow < len(s.lines) && s.curCol >= 0 && s.curCol < len(s.lines[s.curRow].cells) {
+		cells := s.lines[s.curRow].cells
+		c = cells[s.curCol]
+		if s.curCol+1 < len(cells) && cells[s.curCol+1].r == terminal.WideTail {
+			width = 2
+		}
+	}
+
 	pos := fyne.NewPos(float32(s.curCol)*s.cellSize.Width, float32(row)*s.cellSize.Height)
+	size := fyne.NewSize(float32(width)*s.cellSize.Width, s.cellSize.Height)
 	s.cursor.Move(pos)
+	s.cursor.Resize(size)
 	s.cursor.Show()
 
 	// Draw the character under the cursor inverted: in its background color,
 	// or the theme background when it has none, on top of the block
-	var c cell
-	if s.curRow >= 0 && s.curRow < len(s.lines) && s.curCol >= 0 && s.curCol < len(s.lines[s.curRow].cells) {
-		c = s.lines[s.curRow].cells[s.curCol]
-	}
-	if c.r == 0 || c.r == ' ' {
+	if c.r == 0 || c.r == ' ' || c.r == terminal.WideTail || c.r == terminal.WidePad {
 		s.cursorText.Hide()
 		return
 	}
@@ -459,7 +510,7 @@ func (s *Screen) updateCursor() {
 		text.Refresh()
 	}
 	text.Move(pos)
-	text.Resize(s.cellSize)
+	text.Resize(size)
 	text.Show()
 }
 
@@ -740,19 +791,26 @@ func (s *Screen) renderLine(i int, cells []cell, abs int) {
 		c := cells[start]
 
 		// Only ASCII is merged, other runes may be drawn by a fallback font
-		// with a different width, so they get their own text to stay on the grid.
+		// with a different width, so they get their own text to stay on the
+		// grid. A wide character's text covers its tail cell too.
 		end := start + 1
-		if c.r < 0x80 {
-			for end < len(cells) && cells[end].r < 0x80 && cells[end].sameText(c) {
+		switch {
+		case isASCII(c.r):
+			for end < len(cells) && isASCII(cells[end].r) && cells[end].sameText(c) {
 				end++
 			}
+		case end < len(cells) && cells[end].r == terminal.WideTail:
+			end++
 		}
 
 		buf := l.buf[:0]
 		blank := true
 		for _, cc := range cells[start:end] {
 			r := cc.r
-			if r == 0 {
+			if r == terminal.WideTail {
+				continue // drawn by the character before it
+			}
+			if r == 0 || r == terminal.WidePad {
 				r = ' '
 			}
 			if r != ' ' {
@@ -914,4 +972,8 @@ func (h *history) len() int {
 func (h *history) reset() {
 	clear(h.lines)
 	h.head, h.count = 0, 0
+}
+
+func isASCII(r rune) bool {
+	return r >= 0 && r < 0x80
 }

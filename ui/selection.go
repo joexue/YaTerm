@@ -5,6 +5,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/theme"
+	"yaterm/terminal"
 )
 
 // Characters that end a word for double click selection, '/', '.', '-' and
@@ -158,6 +159,9 @@ func (s *Screen) SelectedText() string {
 		var lb strings.Builder
 		for c := from; c <= to; c++ {
 			r := l.cells[c].r
+			if r == terminal.WideTail || r == terminal.WidePad {
+				continue // not text of its own
+			}
 			if r == 0 {
 				r = ' '
 			}
@@ -212,6 +216,7 @@ func (s *Screen) highlight(l *screenLine, cells []cell, abs int) []cell {
 	if abs == end.line {
 		to = min(to, end.col)
 	}
+	from, to = wholeWide(buf, from, to)
 
 	// Opaque, a see-through color would show where background rectangles
 	// overlap to hide the seams between them. Drawn over the matches.
@@ -220,4 +225,16 @@ func (s *Screen) highlight(l *screenLine, cells []cell, abs int) []cell {
 		buf[c].bg = selColor
 	}
 	return buf
+}
+
+// wholeWide widens from..to so a wide character in it is covered with both
+// its cells, a highlight on half a character looks broken
+func wholeWide(buf []cell, from, to int) (int, int) {
+	if from > 0 && from < len(buf) && buf[from].r == terminal.WideTail {
+		from--
+	}
+	if to >= 0 && to+1 < len(buf) && buf[to+1].r == terminal.WideTail {
+		to++
+	}
+	return from, to
 }

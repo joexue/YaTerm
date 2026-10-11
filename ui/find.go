@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2/theme"
+	"yaterm/terminal"
 )
 
 // findMatch is one search hit from start to end, both cells included, in
@@ -107,6 +108,9 @@ func (s *Screen) runSearch() {
 			l, _ := s.lineAt(abs)
 			for c, cl := range l.cells {
 				r := cl.r
+				if r == terminal.WideTail || r == terminal.WidePad {
+					continue // not text of its own
+				}
 				if r == 0 {
 					r = ' '
 				}
@@ -202,6 +206,7 @@ func (s *Screen) markMatches(buf []cell, abs int) {
 		if ms[i].end.line == abs {
 			to = min(to, ms[i].end.col)
 		}
+		from, to = wholeWide(buf, from, to)
 
 		for c := from; c <= to; c++ {
 			if i == s.find.cur {

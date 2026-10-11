@@ -1,6 +1,43 @@
 package terminal
 
+import "github.com/mattn/go-runewidth"
+
+// Cells that hold no character of their own:
+// WideTail is the second cell of a wide character (e.g. Chinese), which takes
+// two columns and is drawn over both cells. WidePad is the last column left
+// blank when a wide character did not fit there and went to the next line,
+// it is not text, joining the lines again on a resize drops it.
+const (
+	WideTail rune = -1
+	WidePad  rune = -2
+)
+
+// widthCond measures characters like the C library's wcwidth that shells and
+// vim use. Ambiguous ones like box drawing are 1 wide, even in a CJK locale,
+// where go-runewidth would make them 2 by default.
+var widthCond = func() *runewidth.Condition {
+	c := runewidth.NewCondition()
+	c.EastAsianWidth = false
+	return c
+}()
+
 func (t *Terminal) outputChar(r rune) {
+	w := widthCond.RuneWidth(r)
+	if w == 0 {
+		// Combining marks and other zero width characters are not supported
+		return
+	}
+	if w > 1 && t.col < 2 {
+		w = 1
+	}
+
+	// A wide character that does not fit in the last column goes to the next
+	// line, leaving that column blank
+	if w == 2 && !t.wrapPending && t.cursorX >= t.col-1 {
+		t.screen.Project(WidePad, t.cursorY, t.cursorX, nil, t.bg, Style{})
+		t.wrapPending = true
+	}
+
 	// The cursor stays on the last column after writing there, and only wraps
 	// when the next character comes. Otherwise a "\r\n" right after a full
 	// line (which ConPTY sends) would leave an extra blank line.
@@ -13,10 +50,15 @@ func (t *Terminal) outputChar(r rune) {
 	}
 
 	t.screen.Project(r, t.cursorY, t.cursorX, t.fg, t.bg, t.style)
-	if t.cursorX >= t.col-1 {
+	if w == 2 {
+		t.screen.Project(WideTail, t.cursorY, t.cursorX+1, t.fg, t.bg, t.style)
+	}
+
+	if t.cursorX+w >= t.col {
+		t.cursorX = t.col - 1
 		t.wrapPending = true
 	} else {
-		t.cursorX += 1 // to fix for eastern characters
+		t.cursorX += w
 	}
 
 	t.screen.MoveCursor(t.cursorY, t.cursorX)
