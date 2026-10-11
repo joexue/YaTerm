@@ -235,6 +235,14 @@ func (p *Pane) Split(direction int, ratio float32) {
 		p.search = nil
 	}
 
+	if direction == splitHorizontal && p.col < 3 {
+		return
+	}
+
+	if direction == splitVertical && p.row < 3 {
+		return
+	}
+
 	p.split = direction
 	p.first = NewPane(p, p.term, false)
 	p.second = NewPane(p, nil, true)

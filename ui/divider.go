@@ -8,7 +8,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-var SplitDefaultThickness = float32(4)
+var SplitDefaultThickness = float32(5)
 
 var (
 	_ fyne.CanvasObject  = (*Divider)(nil)
