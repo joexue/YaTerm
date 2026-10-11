@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"math"
 	"strings"
+	yatheme "yaterm/theme"
 )
 
 /*
@@ -18,9 +19,18 @@ import (
 // width would let the cursor drift from the text (8.406 vs 8 is a whole cell
 // off by column 25). Only the height is rounded so rows stack without seams.
 func measureCell() fyne.Size {
-	size := fyne.MeasureText("M", theme.TextSize(), fyne.TextStyle{Monospace: true})
+	size := fyne.MeasureText("M", terminalTextSize(), fyne.TextStyle{Monospace: true})
 	size.Height = float32(math.Round(float64(size.Height)))
 	return size
+}
+
+// terminalTextSize is the size of the terminal's text from the YaTerm theme,
+// or the normal text size with another theme
+func terminalTextSize() float32 {
+	if size := theme.Size(yatheme.SizeNameTerminalText); size > 0 {
+		return size
+	}
+	return theme.TextSize()
 }
 
 // blend mixes a and b half and half, used to draw faint text

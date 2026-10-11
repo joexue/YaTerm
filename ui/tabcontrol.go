@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"yaterm/assert"
@@ -69,7 +68,7 @@ func NewTabControl(_ fyne.App, w fyne.Window) fyne.CanvasObject {
 	}
 
 	tabControl.OnSettings = func() {
-		dialog.ShowInformation("Infos", "https://github.com/joexue/yaterm", w)
+		ShowSettings(w)
 	}
 
 	return tabControl

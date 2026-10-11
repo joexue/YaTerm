@@ -555,13 +555,22 @@ var Schemes = map[string]*Scheme{
 // DefaultScheme is the scheme a new theme starts with
 const DefaultScheme = "Campbell"
 
+// SizeNameTerminalText is the size of the terminal's text. It is apart from
+// theme.SizeNameText, so the font size setting changes the terminal only, not
+// the tabs, menus and dialogs, like in Windows Terminal.
+const SizeNameTerminalText fyne.ThemeSizeName = "yatermTerminalText"
+
+// DefaultFontSize is the terminal text size a new theme starts with
+const DefaultFontSize float32 = 14
+
 var _ fyne.Theme = (*YatermTheme)(nil)
 
 type YatermTheme struct {
 	fyne.Theme
 
-	variant fyne.ThemeVariant
-	scheme  *Scheme
+	variant  fyne.ThemeVariant
+	scheme   *Scheme
+	fontSize float32
 }
 
 func (f *YatermTheme) Color(name fyne.ThemeColorName, _ fyne.ThemeVariant) color.Color {
@@ -622,6 +631,8 @@ func (f *YatermTheme) Size(name fyne.ThemeSizeName) float32 {
 	switch name {
 	case theme.SizeNameSplitThickness:
 		return 4
+	case SizeNameTerminalText:
+		return f.fontSize
 	}
 
 	return f.Theme.Size(name)
@@ -641,8 +652,21 @@ func (t *YatermTheme) Font(s fyne.TextStyle) fyne.Resource {
 	return assert.ResourceJetBrainsMonoRegularTtf
 }
 
+// FontSize is the size of the terminal's text
+func (f *YatermTheme) FontSize() float32 {
+	return f.fontSize
+}
+
+// SetFontSize sets the size of the terminal's text, a size of 0 or less
+// changes nothing
+func (f *YatermTheme) SetFontSize(size float32) {
+	if size > 0 {
+		f.fontSize = size
+	}
+}
+
 func NewYatermTheme() *YatermTheme {
-	t := &YatermTheme{Theme: theme.DefaultTheme()}
+	t := &YatermTheme{Theme: theme.DefaultTheme(), fontSize: DefaultFontSize}
 	t.SetScheme(DefaultScheme)
 	return t
 }

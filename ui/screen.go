@@ -502,11 +502,11 @@ func (s *Screen) updateCursor() {
 		fg = theme.Color(theme.ColorNameBackground)
 	}
 	text := s.cursorText
-	if text.Text != string(c.r) || text.Color != fg || text.TextStyle != c.style || text.TextSize != theme.TextSize() {
+	if text.Text != string(c.r) || text.Color != fg || text.TextStyle != c.style || text.TextSize != terminalTextSize() {
 		text.Text = string(c.r)
 		text.Color = fg
 		text.TextStyle = c.style
-		text.TextSize = theme.TextSize()
+		text.TextSize = terminalTextSize()
 		text.Refresh()
 	}
 	text.Move(pos)
@@ -744,7 +744,7 @@ func (s *Screen) renderLine(i int, cells []cell, abs int) {
 	cells = cells[:min(len(cells), s.col)]
 	w, h := s.cellSize.Width, s.cellSize.Height
 	fgDefault := theme.Color(theme.ColorNameForeground)
-	textSize := theme.TextSize()
+	textSize := terminalTextSize()
 
 	objs := l.next[:0]
 

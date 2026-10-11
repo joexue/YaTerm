@@ -10,9 +10,13 @@ import (
 )
 
 func main() {
-	a := app.New()
+	// The ID lets Fyne keep the settings (preferences) between runs
+	a := app.NewWithID("io.github.joexue.yaterm")
 	a.SetIcon(assert.YatermIconRes)
-	a.Settings().SetTheme(theme.NewYatermTheme())
+
+	th := theme.NewYatermTheme()
+	ui.LoadSettings(a, th)
+	a.Settings().SetTheme(th)
 
 	w := a.NewWindow("YaTerm")
 
