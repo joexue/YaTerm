@@ -78,6 +78,7 @@ type Terminal struct {
 	shifted  int
 	escape   bool
 	param    []rune
+	pending  []byte // the start of a UTF-8 character the last read ended in
 
 	fg, bg color.Color
 	style  Style

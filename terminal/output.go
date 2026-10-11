@@ -136,67 +136,65 @@ func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 	t.stateMu.Lock()
 	defer t.stateMu.Unlock()
 
-	var (
-		size int
-		r    rune
-	)
+	data := bytes[:num]
+	if len(t.pending) > 0 {
+		data = append(t.pending, data...)
+		t.pending = nil
+	}
 
-	for i := 0; i < num; i = i + size {
-		bytes = bytes[size:]
-		r, size = utf8.DecodeRune(bytes)
-		if size == 0 {
+	for len(data) > 0 {
+		// A character split over two reads is finished with the next read
+		if !utf8.FullRune(data) {
+			t.pending = append([]byte(nil), data...)
 			break
 		}
 
-		if size == 1 && r == utf8.RuneError {
-			if len(bytes) < 4 {
-				// may be part of unicode
-				break
-			} else {
-				// really wrong code
-				continue
-			}
-		}
+		r, size := utf8.DecodeRune(data)
+		data = data[size:]
 
-		if r == asciiEscape {
-			t.escape = true
+		// Not UTF-8, e.g. a raw 8 bit C1 byte, dropped
+		if r == utf8.RuneError && size == 1 {
 			continue
 		}
 
-		if t.escape {
-			t.parseEscState(r)
-			t.escape = false
-			continue
-		}
-
-		switch t.state {
-		case stateCSI:
-			t.processCsi(r)
-			continue
-
-		case stateOSC:
-			t.processOsc(r)
-			continue
-
-		case stateAPC:
-			t.processApc(r)
-			continue
-
-		case stateDCS:
-			t.processDcs(r)
-			continue
-
-		case stateDEC:
-			t.processDec(r)
-			continue
-
-		case stateTEST:
-			t.processTest(r)
-			continue
-		}
-
-		t.processGround(r)
+		t.processRune(r)
 	}
 
 	t.screen.Flush(t.cursorY, t.cursorX)
+}
+
+// processRune runs one character of the output through the state machine
+func (t *Terminal) processRune(r rune) {
+	if r == asciiEscape {
+		t.escape = true
+		return
+	}
+
+	if isC1(r) {
+		t.processC1(r)
+		return
+	}
+
+	if t.escape {
+		t.parseEscState(r)
+		t.escape = false
+		return
+	}
+
+	switch t.state {
+	case stateCSI:
+		t.processCsi(r)
+	case stateOSC:
+		t.processOsc(r)
+	case stateAPC:
+		t.processApc(r)
+	case stateDCS:
+		t.processDcs(r)
+	case stateDEC:
+		t.processDec(r)
+	case stateTEST:
+		t.processTest(r)
+	default:
+		t.processGround(r)
+	}
 }
