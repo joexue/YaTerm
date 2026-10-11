@@ -19,11 +19,15 @@ func (t *Terminal) processOsc(r rune) {
 	switch r {
 	case asciiBell:
 		t.handleOSC("\x07")
+		t.state = stateGROUND
 		t.param = []rune{}
 	case 0x9c: // C1 ST
 		t.handleOSC("\x1b\\")
+		t.state = stateGROUND
 		t.param = []rune{}
 	case asciiNull:
+		t.state = stateGROUND
+		t.param = []rune{}
 		// Ignored, as xterm does
 	default:
 		if len(t.param) < oscMaxLen {
@@ -35,7 +39,6 @@ func (t *Terminal) processOsc(r rune) {
 // handleOSC runs a complete OSC, st is how it ended, a reply ends the same way
 func (t *Terminal) handleOSC(st string) {
 	data := string(t.param)
-	t.state = stateGROUND
 
 	code, arg, _ := strings.Cut(data, ";")
 	switch code {

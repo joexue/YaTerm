@@ -62,7 +62,7 @@ func (t *Terminal) parseEscState(r rune) {
 	// No direct effect; ST is used to delimit the end of stateOSC style escape sequences
 	case '\\':
 		if t.state == stateOSC {
-			t.handleOSC("\x1b\\")
+			t.processOsc(0x9c)
 		} else {
 			t.state = stateGROUND
 		}
