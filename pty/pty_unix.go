@@ -44,8 +44,20 @@ func (p *Pty) Resize(row, col int) {
 	})
 }
 
-// defaultProgram is the program when none is set
-const defaultProgram = "bash"
+// defaultProgram is the program when none is set: the user's shell, which
+// differs between systems (bash on most Linux, zsh on macOS, sh or ksh on the
+// BSDs, which have no bash unless it is installed), else the POSIX shell
+// every one of them has
+var defaultProgram = loginShell()
+
+func loginShell() string {
+	if shell := os.Getenv("SHELL"); shell != "" {
+		if _, _, ok := FindProgram(shell); ok {
+			return shell
+		}
+	}
+	return "/bin/sh"
+}
 
 // RunCmd starts the program of the command line cmd, "" for the default
 // program. A program that can not be started falls back to the default, so a
