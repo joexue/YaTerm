@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/theme"
+	//"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"yaterm/assert"
 )
@@ -105,7 +105,7 @@ You need to select text from terminal then show them
 	}
 	rt := widget.NewRichTextFromMarkdown(content)
 	rt.Scroll = fyne.ScrollBoth
-	mtab := container.NewTabItemWithIcon(fmt.Sprintf("MD %d", markdownTabId), theme.NewThemedResource(assert.MarkdownIconRes), rt)
+	mtab := container.NewTabItemWithIcon(fmt.Sprintf("MD %d", markdownTabId), assert.MarkdownIconRes, rt)
 	fyne.Do(func() {
 		tabControl.Append(mtab)
 	})
