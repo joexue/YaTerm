@@ -10,6 +10,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"yaterm/assert"
 	"yaterm/terminal"
 )
 
@@ -330,6 +331,7 @@ func (s *tmuxSession) end() {
 	s.control.tmuxControl = nil
 	if s.attached {
 		s.control.term.Print("\n[tmux control mode ended]\n")
+		s.control.term.Write([]byte{'\n'});
 	}
 
 	tmuxMu.Lock()
@@ -396,7 +398,7 @@ func (s *tmuxSession) createWindow(id int, name, layout string) *container.TabIt
 		return nil
 	}
 
-	w := &tmuxWindow{id: id, root: root, tab: container.NewTabItem(name, root)}
+	w := &tmuxWindow{id: id, root: root, tab: container.NewTabItemWithIcon(name, assert.TmuxIconRes, root)}
 	s.windows[id] = w
 	tabControl.Append(w.tab)
 	return w.tab
