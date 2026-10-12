@@ -39,6 +39,7 @@ func LoadSettings(a fyne.App, th *yatheme.YatermTheme) {
 	size := p.FloatWithFallback(prefFontSize, float64(yatheme.DefaultFontSize))
 	th.SetFontSize(float32(max(minFontSize, min(size, maxFontSize))))
 	th.SetCursorShape(yatheme.CursorShape(p.StringWithFallback(prefCursorShape, string(yatheme.DefaultCursorShape))))
+	bindings = loadBindings(a)
 }
 
 // settings is what the settings dialog edits, applied only on Save
@@ -46,6 +47,7 @@ type settings struct {
 	scheme      string
 	fontSize    float32
 	cursorShape yatheme.CursorShape
+	bindings    map[action]keyBinding
 }
 
 // cursorShapeNames are the cursor shapes as the settings show them
@@ -65,7 +67,12 @@ func ShowSettings(w fyne.Window) {
 		return
 	}
 
-	s := &settings{scheme: th.Scheme().Name, fontSize: th.FontSize(), cursorShape: th.CursorShape()}
+	s := &settings{
+		scheme:      th.Scheme().Name,
+		fontSize:    th.FontSize(),
+		cursorShape: th.CursorShape(),
+		bindings:    copyBindings(bindings),
+	}
 
 	var d dialog.Dialog
 	save := func() {
@@ -85,7 +92,7 @@ func ShowSettings(w fyne.Window) {
 
 	tabs := container.NewAppTabs(
 		container.NewTabItem("Appearance", page(appearancePage(s))),
-		container.NewTabItem("Shortcuts", page(shortcutsPage())),
+		container.NewTabItem("Shortcuts", page(shortcutsPage(s, w))),
 	)
 	tabs.SetTabLocation(container.TabLocationLeading)
 
@@ -267,23 +274,128 @@ func (p *schemePreview) show(scheme *yatheme.Scheme, size float32, shape yatheme
 	p.box.Refresh()
 }
 
-// shortcutsPage lists the shortcuts. They can not be changed yet.
-func shortcutsPage() fyne.CanvasObject {
-	form := widget.NewForm()
-	for _, s := range []struct{ action, keys string }{
+// shortcutsPage has YaTerm's own shortcuts, each can be changed, set to
+// none or back to its default, and below them the keys that are built in
+func shortcutsPage(s *settings, w fyne.Window) fyne.CanvasObject {
+	note := widget.NewLabel("")
+	note.Importance = widget.LowImportance
+	note.Wrapping = fyne.TextWrapWord
+
+	keyLabels := map[action]*widget.Label{}
+	refresh := func() {
+		for act, l := range keyLabels {
+			if b := s.bindings[act]; b.none() {
+				l.SetText("None")
+			} else {
+				l.SetText(b.String())
+			}
+		}
+	}
+
+	// set gives act the key, a key another action has moves over
+	set := func(act action, b keyBinding) {
+		note.SetText("")
+		if !b.none() {
+			for other, ob := range s.bindings {
+				if other != act && ob == b {
+					s.bindings[other] = keyBinding{}
+					note.SetText(b.String() + " was the key of " + actionName(other) + ", which has none now.")
+				}
+			}
+		}
+		s.bindings[act] = b
+		refresh()
+	}
+
+	actionsForm := widget.NewForm()
+	for _, a := range actions {
+		act := a.id
+		key := widget.NewLabel("")
+		key.TextStyle = fyne.TextStyle{Monospace: true}
+		keyLabels[act] = key
+
+		change := widget.NewButton("Change", func() {
+			recordKey(w, a.name, func(b keyBinding) { set(act, b) })
+		})
+		clear := widget.NewButton("None", func() { set(act, keyBinding{}) })
+		reset := widget.NewButton("Default", func() { set(act, defaultBindings[act]) })
+		for _, b := range []*widget.Button{change, clear, reset} {
+			b.Importance = widget.LowImportance
+		}
+
+		actionsForm.Append(a.name, container.NewBorder(nil, nil, nil, container.NewHBox(change, clear, reset), key))
+	}
+	refresh()
+
+	builtIn := widget.NewForm()
+	for _, k := range []struct{ action, keys string }{
 		{"Copy", "Ctrl+Shift+C, Ctrl+Insert, or select with the mouse"},
 		{"Paste", "Ctrl+Shift+V, Shift+Insert, middle click"},
 		{"Select a word", "Double click"},
 		{"Search", "Right click > Search"},
-		{"Split pane", "Right click > Horizontal / Vertical Split"},
 		{"Scroll back", "Mouse wheel"},
 	} {
-		form.Append(s.action, widget.NewLabel(s.keys))
+		builtIn.Append(k.action, widget.NewLabel(k.keys))
 	}
 
-	note := widget.NewLabel("Changing the shortcuts will come later.")
-	note.Importance = widget.LowImportance
-	return container.NewBorder(nil, note, nil, nil, form)
+	title := func(t string) fyne.CanvasObject {
+		l := widget.NewLabel(t)
+		l.TextStyle = fyne.TextStyle{Bold: true}
+		return l
+	}
+	content := container.NewVBox(title("Actions"), actionsForm, note, widget.NewSeparator(), title("Built in"), builtIn)
+	return container.NewVScroll(content)
+}
+
+// actionName is the name the settings show for an action
+func actionName(act action) string {
+	for _, a := range actions {
+		if a.id == act {
+			return a.name
+		}
+	}
+	return string(act)
+}
+
+// recordKey asks for the keys of a shortcut, done gets them. Esc cancels.
+func recordKey(w fyne.Window, name string, done func(keyBinding)) {
+	var d dialog.Dialog
+	hint := widget.NewLabel("Press the keys for \"" + name + "\", or Esc to cancel.")
+	problem := widget.NewLabel("")
+	problem.Importance = widget.DangerImportance
+
+	rec := newKeyRecorder()
+	rec.onCancel = func() { d.Hide() }
+	rec.onKey = func(b keyBinding) {
+		if reason := unusableKey(b); reason != "" {
+			problem.SetText(reason)
+			return
+		}
+		d.Hide()
+		done(b)
+	}
+
+	cancel := widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), func() { d.Hide() })
+	content := container.NewVBox(hint, rec, problem, container.NewHBox(layout.NewSpacer(), cancel))
+	d = dialog.NewCustomWithoutButtons("Set shortcut", content, w)
+	d.Show()
+	w.Canvas().Focus(rec)
+}
+
+// unusableKey tells why a key can not be a shortcut, "" when it can: a key
+// that types something, like a letter or Shift+letter, is needed for typing
+func unusableKey(b keyBinding) string {
+	if modifierOf(b.Key) != 0 {
+		return ""
+	}
+	typing := b.Mods&(fyne.KeyModifierControl|fyne.KeyModifierAlt|fyne.KeyModifierSuper) == 0
+	if typing && len([]rune(string(b.Key))) == 1 {
+		return "A letter, number or sign needs Ctrl or Alt, it is needed for typing."
+	}
+	if typing && (b.Key == fyne.KeySpace || b.Key == fyne.KeyReturn || b.Key == fyne.KeyEnter || b.Key == fyne.KeyBackspace || b.Key == fyne.KeyTab) {
+		return string(b.Key) + " needs Ctrl or Alt, it is needed for typing."
+	}
+	return ""
 }
 
 // applySettings keeps the settings and applies them to the theme and to every
@@ -293,6 +405,10 @@ func applySettings(s *settings, th *yatheme.YatermTheme) {
 	a.Preferences().SetString(prefScheme, s.scheme)
 	a.Preferences().SetFloat(prefFontSize, float64(s.fontSize))
 	a.Preferences().SetString(prefCursorShape, string(s.cursorShape))
+	if s.bindings != nil {
+		bindings = copyBindings(s.bindings)
+		saveBindings(a, bindings)
+	}
 
 	th.SetScheme(s.scheme)
 	th.SetFontSize(s.fontSize)

@@ -274,6 +274,11 @@ func (p *Pane) TypedShortcut(sc fyne.Shortcut) {
 		return
 	}
 
+	// YaTerm's own shortcuts come first, a key set to none goes on below
+	if p.runShortcut(name, mods) {
+		return
+	}
+
 	// Ctrl+Shift+V pastes (Cmd+Shift+V on macOS), Ctrl+Shift+C would copy
 	clipMods := fyne.KeyModifierControl | fyne.KeyModifierShift
 	if mac {
