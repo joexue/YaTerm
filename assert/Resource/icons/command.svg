@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- A saved command, a shell prompt ">_", in the style of Fyne's Material
+     icons: a 24x24 grid, 2px lines -->
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <!-- ">" -->
+  <path d="M4.4 6.4L5.8 5l7 7-7 7-1.4-1.4L10 12z"/>
+  <!-- "_" -->
+  <path d="M12 17h8v2h-8z"/>
+</svg>

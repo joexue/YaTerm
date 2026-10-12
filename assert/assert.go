@@ -65,3 +65,11 @@ var ResourceJetBrainsMonoItalicTtf = &fyne.StaticResource{
 	StaticName:    "fonts/JetBrainsMono-Italic.ttf",
 	StaticContent: resourceJetBrainsMonoItalic,
 }
+
+//go:embed Resource/icons/command.svg
+var commandIcon []byte
+
+var CommandIconRes = &fyne.StaticResource{
+	StaticName:    "command.svg",
+	StaticContent: commandIcon,
+}
