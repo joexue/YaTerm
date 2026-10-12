@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"yaterm/terminal"
@@ -16,9 +17,10 @@ import (
 )
 
 var (
-	_ fyne.Widget     = (*Screen)(nil)
-	_ fyne.Scrollable = (*Screen)(nil)
-	_ terminal.Screen = (*Screen)(nil)
+	_ fyne.Widget       = (*Screen)(nil)
+	_ fyne.Scrollable   = (*Screen)(nil)
+	_ desktop.Hoverable = (*Screen)(nil)
+	_ terminal.Screen   = (*Screen)(nil)
 )
 
 // One mouse wheel notch is 25 units in Fyne (10 on macOS), scroll 3 lines a notch
@@ -136,6 +138,7 @@ type Screen struct {
 	objects   []fyne.CanvasObject
 	cellSize  fyne.Size
 	scrollAcc float32
+	bar       *scrollBar
 
 	size fyne.Size
 }
@@ -149,7 +152,8 @@ func NewScreen() *Screen {
 	}
 
 	s.cursorText.Hide()
-	s.objects = []fyne.CanvasObject{s.cursor, s.cursorText}
+	s.bar = newScrollBar(s)
+	s.objects = []fyne.CanvasObject{s.cursor, s.cursorText, s.bar}
 	s.ExtendBaseWidget(s)
 
 	return s
@@ -415,7 +419,7 @@ func lineBlank(cells []cell) bool {
 // syncRows makes one row object for each screen row. Called on the UI thread
 // with mu held, after Reflow changed the number of rows.
 func (s *Screen) syncRows() {
-	if len(s.rows) == s.row && len(s.objects) == s.row+2 {
+	if len(s.rows) == s.row && len(s.objects) == s.row+3 {
 		return
 	}
 
@@ -424,12 +428,12 @@ func (s *Screen) syncRows() {
 	}
 	s.rows = s.rows[:s.row]
 
-	// Rows first, the cursor is drawn on top
-	s.objects = make([]fyne.CanvasObject, 0, s.row+2)
+	// Rows first, the cursor is drawn on top, the scroll bar over all
+	s.objects = make([]fyne.CanvasObject, 0, s.row+3)
 	for _, l := range s.rows {
 		s.objects = append(s.objects, l.box)
 	}
-	s.objects = append(s.objects, s.cursor, s.cursorText)
+	s.objects = append(s.objects, s.cursor, s.cursorText, s.bar)
 
 	s.layoutRows()
 	canvas.Refresh(s)
@@ -569,8 +573,11 @@ func (s *Screen) updateCursor() {
 	text.Show()
 }
 
-// Scrolled shows the history lines when the mouse wheel scrolls up
+// Scrolled shows the history lines when the mouse wheel scrolls up, and
+// the scroll bar with them
 func (s *Screen) Scrolled(ev *fyne.ScrollEvent) {
+	defer s.bar.reveal()
+
 	s.scrollAcc += ev.Scrolled.DY
 	// Multiply first so a whole notch is exact, 25/3 is not exact in float
 	n := int(s.scrollAcc * scrollNotchLines / scrollNotchUnits)
@@ -592,6 +599,15 @@ func (s *Screen) ScrollLines(n int) {
 	defer s.mu.Unlock()
 
 	s.scrollTo(s.offset + n)
+}
+
+// ScrollTo moves the view offset lines back into the history, e.g. for the
+// scroll bar
+func (s *Screen) ScrollTo(offset int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.scrollTo(offset)
 }
 
 // ScrollToBottom goes back to the live screen, e.g. when a key is typed
@@ -760,6 +776,7 @@ func (s *Screen) viewLine(i int) []cell {
 // Called on the UI thread with mu held.
 func (s *Screen) render() {
 	s.syncRows()
+	defer s.bar.update(s.offset, s.hist.len(), s.row)
 
 	if s.offset > 0 || s.viewDirty {
 		// The view is scrolled back or just moved, redraw every row. Rows that
@@ -939,6 +956,10 @@ func (r *screenRenderer) Destroy() {
 }
 
 func (r *screenRenderer) Layout(size fyne.Size) {
+	// The scroll bar lies over the right edge, it takes no columns
+	r.screen.bar.Resize(fyne.NewSize(scrollBarWidth, size.Height))
+	r.screen.bar.Move(fyne.NewPos(size.Width-scrollBarWidth, 0))
+
 	r.screen.mu.Lock()
 	defer r.screen.mu.Unlock()
 
@@ -1032,3 +1053,21 @@ func (h *history) reset() {
 func isASCII(r rune) bool {
 	return r >= 0 && r < 0x80
 }
+
+/*
+ * ================================
+ *  Hover: the mouse at the right edge shows the scroll bar
+ * ================================
+ */
+
+func (s *Screen) MouseIn(ev *desktop.MouseEvent) {
+	s.MouseMoved(ev)
+}
+
+func (s *Screen) MouseMoved(ev *desktop.MouseEvent) {
+	if ev.Position.X >= s.Size().Width-scrollEdge {
+		s.bar.reveal()
+	}
+}
+
+func (s *Screen) MouseOut() {}
