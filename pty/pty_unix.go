@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -83,6 +85,12 @@ func (p *Pty) RunCmd(cmd string) error {
 		}
 		p.cmd = exec.Command(path, args...)
 		p.cmd.Env = env
+		// On macOS the default shell starts as a login shell, as Terminal.app
+		// and iTerm2 do, so it reads e.g. ~/.zprofile where Homebrew sets its
+		// PATH. A "-" before the name tells any shell it is a login shell.
+		if runtime.GOOS == "darwin" && cmd == defaultProgram {
+			p.cmd.Args[0] = "-" + filepath.Base(path)
+		}
 		return pty.Start(p.cmd)
 	}
 
