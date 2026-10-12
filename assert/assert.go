@@ -37,6 +37,14 @@ var MarkdownIconRes = &fyne.StaticResource{
 	StaticContent: markdownIcon,
 }
 
+//go:embed Resource/icons/tmux.svg
+var tmuxIcon []byte
+
+var TmuxIconRes = &fyne.StaticResource{
+	StaticName:    "tmux.svg",
+	StaticContent: tmuxIcon,
+}
+
 //go:embed fonts/JetBrainsMono-Regular.ttf
 var resourceJetBrainsMonoRegular []byte
 var ResourceJetBrainsMonoRegularTtf = &fyne.StaticResource{
