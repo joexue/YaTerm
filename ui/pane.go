@@ -103,6 +103,7 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 		term = terminal.New(screen)
 		if th := currentTheme(); th != nil {
 			term.SetColors(th.Scheme().ANSI)
+			screen.SetCursorShape(th.CursorShape())
 		}
 	} else {
 		screen = term.GetScreen().(*Screen)

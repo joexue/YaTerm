@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"yaterm/terminal"
+	yatheme "yaterm/theme"
 )
 
 var (
@@ -101,6 +102,8 @@ type Screen struct {
 	cursorText *canvas.Text
 	// The cursor is only shown while the pane has the keyboard focus
 	focused bool
+	// How the cursor is drawn, from the settings
+	cursorShape yatheme.CursorShape
 
 	// mu guards the cell buffer, written directly by the terminal goroutine
 	// and read on the UI thread when a flush renders it.
@@ -139,7 +142,7 @@ type Screen struct {
 
 func NewScreen() *Screen {
 	s := &Screen{
-		cursor:     canvas.NewRectangle(theme.Color(theme.ColorNamePrimary)),
+		cursor:     canvas.NewRectangle(cursorColor()),
 		cursorText: canvas.NewText("", color.Transparent),
 		cellSize:   measureCell(),
 		hist:       newHistory(HistoryLines),
@@ -465,6 +468,28 @@ func (s *Screen) Flush(row, col int) {
 	})
 }
 
+// cursorColor is the cursor color of the YaTerm theme, or the primary color
+// with another theme (e.g. Fyne's own, which has no cursor color)
+func cursorColor() color.Color {
+	if th := currentTheme(); th != nil {
+		return th.CursorColor()
+	}
+	return theme.Color(theme.ColorNamePrimary)
+}
+
+// cursorThickness is the width of the bar cursor and the height of the
+// underline cursor
+const cursorThickness = 2
+
+// SetCursorShape sets how the cursor is drawn
+func (s *Screen) SetCursorShape(shape yatheme.CursorShape) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.cursorShape = shape
+	s.updateCursor()
+}
+
 // SetFocused shows the cursor while the pane has the keyboard focus and hides
 // it when the focus goes elsewhere, e.g. to another pane or another window
 func (s *Screen) SetFocused(focused bool) {
@@ -498,6 +523,24 @@ func (s *Screen) updateCursor() {
 
 	pos := fyne.NewPos(float32(s.curCol)*s.cellSize.Width, float32(row)*s.cellSize.Height)
 	size := fyne.NewSize(float32(width)*s.cellSize.Width, s.cellSize.Height)
+
+	// A bar or an underline is a thin part of the cell, the character stays
+	// readable next to it, so it is not drawn inverted
+	switch s.cursorShape {
+	case yatheme.CursorBar:
+		s.cursor.Move(pos)
+		s.cursor.Resize(fyne.NewSize(min(cursorThickness, size.Width), size.Height))
+		s.cursor.Show()
+		s.cursorText.Hide()
+		return
+	case yatheme.CursorUnderline:
+		s.cursor.Move(pos.AddXY(0, size.Height-cursorThickness))
+		s.cursor.Resize(fyne.NewSize(size.Width, cursorThickness))
+		s.cursor.Show()
+		s.cursorText.Hide()
+		return
+	}
+
 	s.cursor.Move(pos)
 	s.cursor.Resize(size)
 	s.cursor.Show()
@@ -916,7 +959,7 @@ func (r *screenRenderer) Objects() []fyne.CanvasObject {
 func (r *screenRenderer) Refresh() {
 	s := r.screen
 	s.cellSize = measureCell()
-	s.cursor.FillColor = theme.Color(theme.ColorNamePrimary)
+	s.cursor.FillColor = cursorColor()
 	s.cursor.Resize(s.cellSize)
 	s.cursor.Refresh()
 

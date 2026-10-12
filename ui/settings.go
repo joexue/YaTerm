@@ -19,8 +19,9 @@ import (
 
 // Preference keys of the settings, kept by Fyne between runs
 const (
-	prefScheme   = "scheme"
-	prefFontSize = "fontSize"
+	prefScheme      = "scheme"
+	prefFontSize    = "fontSize"
+	prefCursorShape = "cursorShape"
 )
 
 // The font sizes the setting offers
@@ -37,12 +38,21 @@ func LoadSettings(a fyne.App, th *yatheme.YatermTheme) {
 	// A size saved before the limits changed is brought into them
 	size := p.FloatWithFallback(prefFontSize, float64(yatheme.DefaultFontSize))
 	th.SetFontSize(float32(max(minFontSize, min(size, maxFontSize))))
+	th.SetCursorShape(yatheme.CursorShape(p.StringWithFallback(prefCursorShape, string(yatheme.DefaultCursorShape))))
 }
 
 // settings is what the settings dialog edits, applied only on Save
 type settings struct {
-	scheme   string
-	fontSize float32
+	scheme      string
+	fontSize    float32
+	cursorShape yatheme.CursorShape
+}
+
+// cursorShapeNames are the cursor shapes as the settings show them
+var cursorShapeNames = map[yatheme.CursorShape]string{
+	yatheme.CursorBlock:     "Block",
+	yatheme.CursorBar:       "Bar",
+	yatheme.CursorUnderline: "Underline",
 }
 
 // ShowSettings opens the settings dialog: the kinds of settings in tabs on
@@ -55,7 +65,7 @@ func ShowSettings(w fyne.Window) {
 		return
 	}
 
-	s := &settings{scheme: th.Scheme().Name, fontSize: th.FontSize()}
+	s := &settings{scheme: th.Scheme().Name, fontSize: th.FontSize(), cursorShape: th.CursorShape()}
 
 	var d dialog.Dialog
 	save := func() {
@@ -122,12 +132,13 @@ func projectLink() fyne.CanvasObject {
 // appearancePage has the color scheme with a preview and the font size
 func appearancePage(s *settings) fyne.CanvasObject {
 	preview := newSchemePreview()
-	preview.show(yatheme.Schemes[s.scheme], s.fontSize)
+	show := func() { preview.show(yatheme.Schemes[s.scheme], s.fontSize, s.cursorShape) }
+	show()
 
 	names := slices.Sorted(maps.Keys(yatheme.Schemes))
 	scheme := widget.NewSelect(names, func(name string) {
 		s.scheme = name
-		preview.show(yatheme.Schemes[name], s.fontSize)
+		show()
 	})
 	scheme.SetSelected(s.scheme)
 
@@ -137,13 +148,30 @@ func appearancePage(s *settings) fyne.CanvasObject {
 	size.OnChanged = func(v float64) {
 		s.fontSize = float32(v)
 		sizeLabel.SetText(fmt.Sprintf("%.0f", v))
-		preview.show(yatheme.Schemes[s.scheme], s.fontSize)
+		show()
 	}
 	size.SetValue(float64(s.fontSize))
+
+	var shapes []string
+	for _, c := range yatheme.CursorShapes {
+		shapes = append(shapes, cursorShapeNames[c])
+	}
+	cursor := widget.NewRadioGroup(shapes, func(name string) {
+		for c, n := range cursorShapeNames {
+			if n == name {
+				s.cursorShape = c
+			}
+		}
+		show()
+	})
+	cursor.Horizontal = true
+	cursor.Required = true
+	cursor.SetSelected(cursorShapeNames[s.cursorShape])
 
 	form := widget.NewForm(
 		widget.NewFormItem("Color scheme", scheme),
 		widget.NewFormItem("Font size", container.NewBorder(nil, nil, nil, sizeLabel, size)),
+		widget.NewFormItem("Cursor shape", cursor),
 	)
 
 	return container.NewBorder(form, nil, nil, nil, preview.box)
@@ -156,18 +184,31 @@ type schemePreview struct {
 	bg     *canvas.Rectangle
 	lines  []*canvas.Text
 	colors [16]*canvas.Rectangle
+
+	// The cursor after the prompt: cell sizes the place, cursor is drawn in it
+	cell   *canvas.Rectangle
+	cursor *canvas.Rectangle
 }
 
 func newSchemePreview() *schemePreview {
 	p := &schemePreview{bg: canvas.NewRectangle(color.Black)}
 	p.bg.CornerRadius = 4
 
+	p.cell = canvas.NewRectangle(color.Transparent)
+	p.cursor = canvas.NewRectangle(color.White)
+	cursorCell := container.NewStack(p.cell, container.NewWithoutLayout(p.cursor))
+
 	text := container.NewVBox()
-	for _, t := range []string{"user@yaterm:~$ ls -la", "drwxr-xr-x  joe  joe  4096  src", "-rw-r--r--  joe  joe   210  README.md"} {
+	for i, t := range []string{"user@yaterm:~$ ls -la", "drwxr-xr-x  joe  joe  4096  src", "-rw-r--r--  joe  joe   210  README.md"} {
 		line := canvas.NewText(t, color.White)
 		line.TextStyle = fyne.TextStyle{Monospace: true}
 		p.lines = append(p.lines, line)
-		text.Add(line)
+		if i == 0 {
+			// The prompt line ends with the cursor
+			text.Add(container.NewHBox(line, cursorCell))
+		} else {
+			text.Add(line)
+		}
 	}
 
 	normal, bright := container.NewHBox(), container.NewHBox()
@@ -187,8 +228,9 @@ func newSchemePreview() *schemePreview {
 	return p
 }
 
-// show draws scheme in the preview, with the text at size
-func (p *schemePreview) show(scheme *yatheme.Scheme, size float32) {
+// show draws scheme in the preview, with the text at size and the cursor in
+// shape
+func (p *schemePreview) show(scheme *yatheme.Scheme, size float32, shape yatheme.CursorShape) {
 	if scheme == nil {
 		return
 	}
@@ -207,6 +249,22 @@ func (p *schemePreview) show(scheme *yatheme.Scheme, size float32) {
 		r.FillColor = scheme.ANSI[i]
 		r.Refresh()
 	}
+
+	cell := fyne.MeasureText("M", size, fyne.TextStyle{Monospace: true})
+	p.cell.SetMinSize(cell)
+	pos, csize := fyne.NewPos(0, 0), cell
+	switch shape {
+	case yatheme.CursorBar:
+		csize.Width = cursorThickness
+	case yatheme.CursorUnderline:
+		pos.Y = cell.Height - cursorThickness
+		csize.Height = cursorThickness
+	}
+	p.cursor.Move(pos)
+	p.cursor.Resize(csize)
+	p.cursor.FillColor = scheme.Colors[yatheme.ColorCursor]
+	p.cursor.Refresh()
+	p.box.Refresh()
 }
 
 // shortcutsPage lists the shortcuts. They can not be changed yet.
@@ -234,9 +292,11 @@ func applySettings(s *settings, th *yatheme.YatermTheme) {
 	a := fyne.CurrentApp()
 	a.Preferences().SetString(prefScheme, s.scheme)
 	a.Preferences().SetFloat(prefFontSize, float64(s.fontSize))
+	a.Preferences().SetString(prefCursorShape, string(s.cursorShape))
 
 	th.SetScheme(s.scheme)
 	th.SetFontSize(s.fontSize)
+	th.SetCursorShape(s.cursorShape)
 
 	// Setting the theme again redraws everything in its new colors and size
 	a.Settings().SetTheme(th)
@@ -264,6 +324,7 @@ func (p *Pane) applyTheme(th *yatheme.YatermTheme) {
 	if p.term != nil {
 		p.term.SetColors(th.Scheme().ANSI)
 	}
+	p.screen.SetCursorShape(th.CursorShape())
 
 	// Resize returns early for the same size, so forget it first
 	p.size = fyne.Size{}

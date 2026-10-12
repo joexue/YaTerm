@@ -563,14 +563,30 @@ const SizeNameTerminalText fyne.ThemeSizeName = "yatermTerminalText"
 // DefaultFontSize is the terminal text size a new theme starts with
 const DefaultFontSize float32 = 14
 
+// CursorShape is how the terminal cursor is drawn
+type CursorShape string
+
+const (
+	CursorBlock     CursorShape = "block"     // the whole cell, the character inverted
+	CursorBar       CursorShape = "bar"       // a thin line on the left of the cell
+	CursorUnderline CursorShape = "underline" // a thin line at the bottom of the cell
+)
+
+// CursorShapes are all the cursor shapes
+var CursorShapes = []CursorShape{CursorBlock, CursorBar, CursorUnderline}
+
+// DefaultCursorShape is the cursor shape a new theme starts with
+const DefaultCursorShape = CursorBlock
+
 var _ fyne.Theme = (*YatermTheme)(nil)
 
 type YatermTheme struct {
 	fyne.Theme
 
-	variant  fyne.ThemeVariant
-	scheme   *Scheme
-	fontSize float32
+	variant     fyne.ThemeVariant
+	scheme      *Scheme
+	fontSize    float32
+	cursorShape CursorShape
 }
 
 func (f *YatermTheme) Color(name fyne.ThemeColorName, _ fyne.ThemeVariant) color.Color {
@@ -665,8 +681,30 @@ func (f *YatermTheme) SetFontSize(size float32) {
 	}
 }
 
+// CursorColor is the color of the terminal cursor, from the scheme
+func (f *YatermTheme) CursorColor() color.Color {
+	return f.scheme.Colors[ColorCursor]
+}
+
+// CursorShape is how the terminal cursor is drawn
+func (f *YatermTheme) CursorShape() CursorShape {
+	return f.cursorShape
+}
+
+// SetCursorShape sets how the terminal cursor is drawn, an unknown shape
+// changes nothing and returns false
+func (f *YatermTheme) SetCursorShape(shape CursorShape) bool {
+	for _, s := range CursorShapes {
+		if s == shape {
+			f.cursorShape = shape
+			return true
+		}
+	}
+	return false
+}
+
 func NewYatermTheme() *YatermTheme {
-	t := &YatermTheme{Theme: theme.DefaultTheme(), fontSize: DefaultFontSize}
+	t := &YatermTheme{Theme: theme.DefaultTheme(), fontSize: DefaultFontSize, cursorShape: DefaultCursorShape}
 	t.SetScheme(DefaultScheme)
 	return t
 }
