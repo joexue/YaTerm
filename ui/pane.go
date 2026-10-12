@@ -138,8 +138,7 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 	p.connectTerm()
 	if run {
 		go func() {
-			term.RunCmd("xxx")
-			//fmt.Println("xxxxxxxxx exit", p.id)
+			term.RunCmd(program)
 		}()
 	}
 

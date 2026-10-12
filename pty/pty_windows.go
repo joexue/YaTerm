@@ -3,6 +3,7 @@ package pty
 import (
 	"io"
 	"os"
+	"os/exec"
 	"sync"
 	"syscall"
 	"time"
@@ -38,7 +39,13 @@ func (p *Pty) Resize(row, col int) {
 	p.pty.Resize(uint16(col), uint16(row))
 }
 
-func (p *Pty) RunCmd(_ string) error {
+// defaultProgram is the program when none is set
+const defaultProgram = `C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe`
+
+// RunCmd starts the program of the command line cmd, "" for the default
+// program. A program that is not found falls back to the default, so a wrong
+// setting does not close every new tab.
+func (p *Pty) RunCmd(cmd string) error {
 	ticker := time.NewTicker(time.Millisecond * 100)
 	for range ticker.C {
 		if p.col > 0 && p.row > 0 {
@@ -48,6 +55,15 @@ func (p *Pty) RunCmd(_ string) error {
 
 	ticker.Stop()
 
+	// CreateProcess does not look in PATH, so the program gets its full path
+	path, args, ok := FindProgram(cmd)
+	if !ok {
+		path, args, ok = FindProgram(defaultProgram)
+		if !ok {
+			return &exec.Error{Name: cmd, Err: exec.ErrNotFound}
+		}
+	}
+
 	cpty, err := conpty.New(80, 25)
 	if err != nil {
 		return err
@@ -55,8 +71,8 @@ func (p *Pty) RunCmd(_ string) error {
 
 	dir, _ := os.Getwd()
 	pid, _, err := cpty.Spawn(
-		"C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
-		[]string{},
+		path,
+		append([]string{path}, args...),
 		&syscall.ProcAttr{
 			Env: os.Environ(),
 			Dir: dir,

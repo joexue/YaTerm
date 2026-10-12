@@ -1,11 +1,13 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"image/color"
 	"maps"
 	"net/url"
 	"slices"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -14,6 +16,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"yaterm/pty"
 	yatheme "yaterm/theme"
 )
 
@@ -22,6 +25,7 @@ const (
 	prefScheme      = "scheme"
 	prefFontSize    = "fontSize"
 	prefCursorShape = "cursorShape"
+	prefProgram     = "program"
 )
 
 // The font sizes the setting offers
@@ -40,7 +44,12 @@ func LoadSettings(a fyne.App, th *yatheme.YatermTheme) {
 	th.SetFontSize(float32(max(minFontSize, min(size, maxFontSize))))
 	th.SetCursorShape(yatheme.CursorShape(p.StringWithFallback(prefCursorShape, string(yatheme.DefaultCursorShape))))
 	bindings = loadBindings(a)
+	program = p.String(prefProgram)
 }
+
+// program is the command line new tabs and panes run, "" for the platform's
+// default (PowerShell on Windows, bash elsewhere)
+var program string
 
 // settings is what the settings dialog edits, applied only on Save
 type settings struct {
@@ -48,6 +57,7 @@ type settings struct {
 	fontSize    float32
 	cursorShape yatheme.CursorShape
 	bindings    map[action]keyBinding
+	program     string
 }
 
 // cursorShapeNames are the cursor shapes as the settings show them
@@ -72,10 +82,17 @@ func ShowSettings(w fyne.Window) {
 		fontSize:    th.FontSize(),
 		cursorShape: th.CursorShape(),
 		bindings:    copyBindings(bindings),
+		program:     program,
 	}
 
 	var d dialog.Dialog
 	save := func() {
+		if s.program != "" {
+			if _, _, ok := pty.FindProgram(s.program); !ok {
+				dialog.ShowError(fmt.Errorf("the default program %q is not found", s.program), w)
+				return
+			}
+		}
 		d.Hide()
 		applySettings(s, th)
 	}
@@ -93,6 +110,7 @@ func ShowSettings(w fyne.Window) {
 	tabs := container.NewAppTabs(
 		container.NewTabItem("Appearance", page(appearancePage(s))),
 		container.NewTabItem("Shortcuts", page(shortcutsPage(s, w))),
+		container.NewTabItem("General", page(generalPage(s))),
 	)
 	tabs.SetTabLocation(container.TabLocationLeading)
 
@@ -134,6 +152,36 @@ func projectLink() fyne.CanvasObject {
 		return widget.NewLabel(projectURL)
 	}
 	return widget.NewHyperlink("github.com/joexue/yaterm", u)
+}
+
+// generalPage has the program new tabs and panes run
+func generalPage(s *settings) fyne.CanvasObject {
+	prog := widget.NewEntry()
+	prog.SetPlaceHolder(pty.DefaultProgram())
+	prog.SetText(s.program)
+	prog.Validator = func(cmd string) error {
+		if strings.TrimSpace(cmd) == "" {
+			return nil
+		}
+		if _, _, ok := pty.FindProgram(cmd); !ok {
+			return errors.New("not found")
+		}
+		return nil
+	}
+	prog.OnChanged = func(cmd string) {
+		s.program = strings.TrimSpace(cmd)
+	}
+
+	reset := widget.NewButton("Default", func() { prog.SetText("") })
+	reset.Importance = widget.LowImportance
+
+	hint := widget.NewLabel("New tabs and panes run it, the open ones keep theirs. Empty is the default, " +
+		pty.DefaultProgram() + ". It may have arguments, e.g. \"bash --login\", put a path with spaces in quotes.")
+	hint.Wrapping = fyne.TextWrapWord
+	hint.Importance = widget.LowImportance
+
+	form := widget.NewForm(widget.NewFormItem("Default program", container.NewBorder(nil, nil, nil, reset, prog)))
+	return container.NewVBox(form, hint)
 }
 
 // appearancePage has the color scheme with a preview and the font size
@@ -332,7 +380,7 @@ func shortcutsPage(s *settings, w fyne.Window) fyne.CanvasObject {
 		{"Copy", "Ctrl+Shift+C, Ctrl+Insert, or select with the mouse"},
 		{"Paste", "Ctrl+Shift+V, Shift+Insert, middle click"},
 		{"Select a word", "Double click"},
-		{"Search", "Right click -> Search"},
+		{"Search", "Right click > Search"},
 		{"Scroll back", "Mouse wheel"},
 	} {
 		builtIn.Append(k.action, widget.NewLabel(k.keys))
@@ -343,7 +391,7 @@ func shortcutsPage(s *settings, w fyne.Window) fyne.CanvasObject {
 		l.TextStyle = fyne.TextStyle{Bold: true}
 		return l
 	}
-	content := container.NewVBox(title("Actions:"), actionsForm, note, widget.NewSeparator(), title("Built in:"), builtIn)
+	content := container.NewVBox(title("Actions"), actionsForm, note, widget.NewSeparator(), title("Built in"), builtIn)
 	return container.NewVScroll(content)
 }
 
@@ -405,6 +453,8 @@ func applySettings(s *settings, th *yatheme.YatermTheme) {
 	a.Preferences().SetString(prefScheme, s.scheme)
 	a.Preferences().SetFloat(prefFontSize, float64(s.fontSize))
 	a.Preferences().SetString(prefCursorShape, string(s.cursorShape))
+	a.Preferences().SetString(prefProgram, s.program)
+	program = s.program
 	if s.bindings != nil {
 		bindings = copyBindings(s.bindings)
 		saveBindings(a, bindings)

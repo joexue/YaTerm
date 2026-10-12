@@ -44,7 +44,13 @@ func (p *Pty) Resize(row, col int) {
 	})
 }
 
-func (p *Pty) RunCmd(_ string) error {
+// defaultProgram is the program when none is set
+const defaultProgram = "bash"
+
+// RunCmd starts the program of the command line cmd, "" for the default
+// program. A program that can not be started falls back to the default, so a
+// wrong setting does not close every new tab.
+func (p *Pty) RunCmd(cmd string) error {
 	ticker := time.NewTicker(time.Millisecond * 100)
 	for range ticker.C {
 		if p.col > 0 && p.row > 0 {
@@ -54,19 +60,24 @@ func (p *Pty) RunCmd(_ string) error {
 
 	ticker.Stop()
 
-	shell := os.Getenv("SHELL")
-	if shell == "" {
-		shell = "bash"
-	}
-
 	env := os.Environ()
 	env = append(env, "TERM=xterm-256color")
 	env = append(env, "COLORTERM=truecolor")
-	p.cmd = exec.Command(shell)
-	p.cmd.Env = env
 
-	// Start the command with a pty.
-	f, err := pty.Start(p.cmd)
+	start := func(cmd string) (*os.File, error) {
+		path, args, ok := FindProgram(cmd)
+		if !ok {
+			return nil, &exec.Error{Name: cmd, Err: exec.ErrNotFound}
+		}
+		p.cmd = exec.Command(path, args...)
+		p.cmd.Env = env
+		return pty.Start(p.cmd)
+	}
+
+	f, err := start(cmd)
+	if err != nil && cmd != defaultProgram {
+		f, err = start(defaultProgram)
+	}
 
 	if err == nil {
 		p.in = f
