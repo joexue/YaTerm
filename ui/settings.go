@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"maps"
 	"net/url"
+	"runtime"
 	"slices"
 	"strings"
 
@@ -26,7 +27,6 @@ const (
 	prefFontSize    = "fontSize"
 	prefCursorShape = "cursorShape"
 	prefProgram     = "program"
-	prefTmux        = "tmuxControl"
 )
 
 // The font sizes the setting offers
@@ -46,7 +46,6 @@ func LoadSettings(a fyne.App, th *yatheme.YatermTheme) {
 	th.SetCursorShape(yatheme.CursorShape(p.StringWithFallback(prefCursorShape, string(yatheme.DefaultCursorShape))))
 	bindings = loadBindings(a)
 	program = p.String(prefProgram)
-	allowTmux = p.BoolWithFallback(prefTmux, true)
 }
 
 // program is the command line new tabs and panes run, "" for the platform's
@@ -60,7 +59,6 @@ type settings struct {
 	cursorShape yatheme.CursorShape
 	bindings    map[action]keyBinding
 	program     string
-	allowTmux   bool
 }
 
 // cursorShapeNames are the cursor shapes as the settings show them
@@ -86,7 +84,6 @@ func ShowSettings(w fyne.Window) {
 		cursorShape: th.CursorShape(),
 		bindings:    copyBindings(bindings),
 		program:     program,
-		allowTmux:   allowTmux,
 	}
 
 	var d dialog.Dialog
@@ -184,14 +181,41 @@ func generalPage(s *settings) fyne.CanvasObject {
 	hint.Wrapping = fyne.TextWrapWord
 	hint.Importance = widget.LowImportance
 
-	tmux := widget.NewCheck("Allow tmux control mode (tmux -CC)", func(on bool) { s.allowTmux = on })
-	tmux.SetChecked(s.allowTmux)
 	tmuxHint := widget.NewLabel("Run \"tmux -CC\" in a pane: its windows open as tabs and its panes as panes.")
 	tmuxHint.Wrapping = fyne.TextWrapWord
 	tmuxHint.Importance = widget.LowImportance
 
 	form := widget.NewForm(widget.NewFormItem("Default program", container.NewBorder(nil, nil, nil, reset, prog)))
-	return container.NewVBox(form, hint, widget.NewSeparator(), tmux, tmuxHint)
+	page := container.NewVBox(form, hint, widget.NewSeparator(), tmuxHint)
+	if runtime.GOOS == "windows" {
+		page.Add(widget.NewSeparator())
+		page.Add(conptyInfo())
+	}
+	return page
+}
+
+// conptyInfo tells which ConPTY is in use: the one built into Windows drops
+// the sequence that starts tmux control mode, the newer conpty.dll passes it
+func conptyInfo() fyne.CanvasObject {
+	dll := pty.ConptyDLL()
+	var note string
+	switch {
+	case dll == "":
+		dll = "none"
+		note = "ConPTY could not be loaded, no program can run."
+	case strings.EqualFold(dll, "kernel32.dll"):
+		dll = "kernel32.dll (built into Windows)"
+		note = "It drops the start of tmux control mode, so \"tmux -CC\" does not work. " +
+			"Put conpty.dll and OpenConsole.exe next to yaterm.exe and restart YaTerm to use the newer one."
+	default:
+		note = "The newer ConPTY, it passes tmux control mode through."
+	}
+
+	form := widget.NewForm(widget.NewFormItem("ConPTY", widget.NewLabel(dll)))
+	hint := widget.NewLabel(note)
+	hint.Wrapping = fyne.TextWrapWord
+	hint.Importance = widget.LowImportance
+	return container.NewVBox(form, hint)
 }
 
 // appearancePage has the color scheme with a preview and the font size
@@ -465,8 +489,6 @@ func applySettings(s *settings, th *yatheme.YatermTheme) {
 	a.Preferences().SetString(prefCursorShape, string(s.cursorShape))
 	a.Preferences().SetString(prefProgram, s.program)
 	program = s.program
-	a.Preferences().SetBool(prefTmux, s.allowTmux)
-	allowTmux = s.allowTmux
 	if s.bindings != nil {
 		bindings = copyBindings(s.bindings)
 		saveBindings(a, bindings)

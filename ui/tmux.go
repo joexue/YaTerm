@@ -23,9 +23,6 @@ import (
  * ================================
  */
 
-// allowTmux is the setting to allow the control mode
-var allowTmux = true
-
 // The session in use, only one at a time. Started on the reader goroutine of
 // the control pane, used on the UI thread.
 var (
@@ -84,10 +81,6 @@ type tmuxPane struct {
 // startTmux is the control pane's OnTmuxControl: a session, or one that
 // detaches right away when another is in use
 func startTmux(control *Pane) terminal.TmuxHandler {
-	if !allowTmux {
-		return nil
-	}
-
 	tmuxMu.Lock()
 	defer tmuxMu.Unlock()
 	if tmuxActive != nil {
@@ -331,7 +324,7 @@ func (s *tmuxSession) end() {
 	s.control.tmuxControl = nil
 	if s.attached {
 		s.control.term.Print("\n[tmux control mode ended]\n")
-		s.control.term.Write([]byte{'\n'});
+		s.control.term.Write([]byte{'\n'})
 	}
 
 	tmuxMu.Lock()

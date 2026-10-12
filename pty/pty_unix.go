@@ -116,3 +116,8 @@ func (p *Pty) Close() {
 	_ = p.cmd.Wait()
 	p.pty.Close()
 }
+
+// ConptyDLL is only for Windows, elsewhere it is ""
+func ConptyDLL() string {
+	return ""
+}
