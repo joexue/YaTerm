@@ -22,11 +22,11 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 	}
 
 	if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
-		hsplitItem := fyne.NewMenuItemWithIcon("Horizontal Split", theme.NewThemedResource(assert.HSplitIconRes), func() {
-			p.Split(splitHorizontal, 0.5)
+		splitRightItem := fyne.NewMenuItemWithIcon("Split Right", theme.NewThemedResource(assert.HSplitIconRes), func() {
+			p.Split(splitRight, 0.5)
 		})
-		vsplitItem := fyne.NewMenuItemWithIcon("Vertical Split", theme.NewThemedResource(assert.VSplitIconRes), func() {
-			p.Split(splitVertical, 0.5)
+		splitDownItem := fyne.NewMenuItemWithIcon("Split Down", theme.NewThemedResource(assert.VSplitIconRes), func() {
+			p.Split(splitDown, 0.5)
 		})
 
 		separatorItem := fyne.NewMenuItemSeparator()
@@ -54,7 +54,7 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 		typeAgentItem := fyne.NewMenuItemWithIcon("Type Agent", theme.Icon(theme.IconNameAccount), nil)
 		typeAgentItem.ChildMenu = p.typeAgentMenu()
 
-		menuItems := []*fyne.MenuItem{hsplitItem, vsplitItem, separatorItem, showMarkDownItem, separatorItem, searchItem, typeAgentItem, separatorItem, closePaneItem, closeTabItem}
+		menuItems := []*fyne.MenuItem{splitRightItem, splitDownItem, separatorItem, showMarkDownItem, separatorItem, searchItem, typeAgentItem, separatorItem, closePaneItem, closeTabItem}
 		popUpMenu := widget.NewPopUpMenu(fyne.NewMenu("", menuItems...), c)
 		popUpMenu.ShowAtRelativePosition(pe.Position, p)
 	}

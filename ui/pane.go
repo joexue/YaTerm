@@ -36,9 +36,9 @@ var (
 )
 
 const (
-	splitNone = iota
-	splitHorizontal
-	splitVertical
+	splitNone  = iota
+	splitRight // the new pane on the right, side by side
+	splitDown  // the new pane below, one over the other
 )
 
 var paneBorderWidth = float32(1)
@@ -240,11 +240,11 @@ func (p *Pane) Split(direction int, ratio float32) {
 		p.search = nil
 	}
 
-	if direction == splitHorizontal && p.col < 3 {
+	if direction == splitRight && p.col < 3 {
 		return
 	}
 
-	if direction == splitVertical && p.row < 3 {
+	if direction == splitDown && p.row < 3 {
 		return
 	}
 
@@ -362,7 +362,7 @@ func (r *paneRenderer) Layout(size fyne.Size) {
 			s.Move(fyne.NewPos(size.Width-width-margin, margin))
 		}
 
-	case splitHorizontal:
+	case splitRight:
 		w1 := (w - SplitDefaultThickness) * r.pane.ratio
 		w2 := w - SplitDefaultThickness - w1
 
@@ -375,7 +375,7 @@ func (r *paneRenderer) Layout(size fyne.Size) {
 		r.pane.second.Resize(fyne.NewSize(w2, h))
 		r.pane.second.Move(fyne.NewPos(w1+SplitDefaultThickness, 0))
 
-	case splitVertical:
+	case splitDown:
 		h1 := (h - SplitDefaultThickness) * r.pane.ratio
 		h2 := h - SplitDefaultThickness - h1
 

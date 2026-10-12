@@ -19,14 +19,14 @@ import (
 type action string
 
 const (
-	actNextTab         action = "nextTab"
-	actPrevTab         action = "prevTab"
-	actPaneRight       action = "paneRight"
-	actPaneLeft        action = "paneLeft"
-	actPaneUp          action = "paneUp"
-	actPaneDown        action = "paneDown"
-	actSplitVertical   action = "splitVertical"
-	actSplitHorizontal action = "splitHorizontal"
+	actNextTab    action = "nextTab"
+	actPrevTab    action = "prevTab"
+	actPaneRight  action = "paneRight"
+	actPaneLeft   action = "paneLeft"
+	actPaneUp     action = "paneUp"
+	actPaneDown   action = "paneDown"
+	actSplitRight action = "splitRight"
+	actSplitDown  action = "splitDown"
 )
 
 // actions are all the actions, in the order the settings show them, with
@@ -41,8 +41,8 @@ var actions = []struct {
 	{actPaneLeft, "Left pane"},
 	{actPaneUp, "Upper pane"},
 	{actPaneDown, "Lower pane"},
-	{actSplitVertical, "Split vertical ( | )"},
-	{actSplitHorizontal, "Split horizontal ( _ )"},
+	{actSplitRight, "Split right"},
+	{actSplitDown, "Split down"},
 }
 
 // keyBinding is a key with its modifiers, the zero value is no key
@@ -55,17 +55,18 @@ func (b keyBinding) none() bool {
 	return b.Key == ""
 }
 
-// defaultBindings are the keys when the user changed nothing. "|" and "_" are
-// Shift+"\" and Shift+"-" on a US keyboard, so that is the key Fyne reports.
+// defaultBindings are the keys when the user changed nothing. The split keys
+// look like the divider they make: "\" for panes side by side, "-" for one
+// over the other.
 var defaultBindings = map[action]keyBinding{
-	actNextTab:         {fyne.KeyRight, fyne.KeyModifierControl},
-	actPrevTab:         {fyne.KeyLeft, fyne.KeyModifierControl},
-	actPaneRight:       {fyne.KeyRight, fyne.KeyModifierAlt},
-	actPaneLeft:        {fyne.KeyLeft, fyne.KeyModifierAlt},
-	actPaneUp:          {fyne.KeyUp, fyne.KeyModifierAlt},
-	actPaneDown:        {fyne.KeyDown, fyne.KeyModifierAlt},
-	actSplitVertical:   {fyne.KeyBackslash, fyne.KeyModifierControl | fyne.KeyModifierShift},
-	actSplitHorizontal: {fyne.KeyMinus, fyne.KeyModifierControl | fyne.KeyModifierShift},
+	actNextTab:    {fyne.KeyRight, fyne.KeyModifierControl},
+	actPrevTab:    {fyne.KeyLeft, fyne.KeyModifierControl},
+	actPaneRight:  {fyne.KeyRight, fyne.KeyModifierAlt},
+	actPaneLeft:   {fyne.KeyLeft, fyne.KeyModifierAlt},
+	actPaneUp:     {fyne.KeyUp, fyne.KeyModifierAlt},
+	actPaneDown:   {fyne.KeyDown, fyne.KeyModifierAlt},
+	actSplitRight: {fyne.KeyBackslash, fyne.KeyModifierControl},
+	actSplitDown:  {fyne.KeyMinus, fyne.KeyModifierControl},
 }
 
 // bindings are the keys in use, the defaults until LoadSettings loads the
@@ -205,12 +206,10 @@ func (p *Pane) runShortcut(key fyne.KeyName, mods fyne.KeyModifier) bool {
 		p.focusNeighbor(0, -1)
 	case actPaneDown:
 		p.focusNeighbor(0, 1)
-	case actSplitVertical:
-		// A vertical divider, the panes side by side: the menu's Horizontal
-		// Split, whose icon has the "|" line
-		p.Split(splitHorizontal, 0.5)
-	case actSplitHorizontal:
-		p.Split(splitVertical, 0.5)
+	case actSplitRight:
+		p.Split(splitRight, 0.5)
+	case actSplitDown:
+		p.Split(splitDown, 0.5)
 	}
 	return true
 }

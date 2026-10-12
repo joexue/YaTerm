@@ -50,7 +50,7 @@ func (d *Divider) CreateRenderer() fyne.WidgetRenderer {
 }
 
 func (d *Divider) Cursor() desktop.Cursor {
-	if d.pane.split == splitHorizontal {
+	if d.pane.split == splitRight {
 		return desktop.HResizeCursor
 	}
 	return desktop.VResizeCursor
@@ -78,7 +78,7 @@ func (d *Divider) Dragged(e *fyne.DragEvent) {
 
 	x, y := d.currentDragPos.Components()
 	var ratio, firstRatio, secondRatio float32
-	if d.pane.split == splitHorizontal {
+	if d.pane.split == splitRight {
 		widthFree := float32(d.pane.Size().Width - DividerThickness(d))
 		firstRatio = float32(d.pane.first.MinSize().Width) / widthFree
 		secondRatio = 1. - (float32(d.pane.second.MinSize().Width) / widthFree)
@@ -130,7 +130,7 @@ func (r *DividerRenderer) Layout(size fyne.Size) {
 }
 
 func (r *DividerRenderer) MinSize() fyne.Size {
-	if r.Divider.pane.split == splitHorizontal {
+	if r.Divider.pane.split == splitRight {
 		return fyne.NewSize(DividerThickness(r.Divider), DividerLength(r.Divider))
 	}
 	return fyne.NewSize(DividerLength(r.Divider), DividerThickness(r.Divider))
