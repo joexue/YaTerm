@@ -458,6 +458,7 @@ func applySettings(s *settings, th *yatheme.YatermTheme) {
 	if s.bindings != nil {
 		bindings = copyBindings(s.bindings)
 		saveBindings(a, bindings)
+		registerWindowShortcuts()
 	}
 
 	th.SetScheme(s.scheme)

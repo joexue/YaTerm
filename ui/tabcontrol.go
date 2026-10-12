@@ -64,8 +64,15 @@ func NewTabControl(_ fyne.App, w fyne.Window) fyne.CanvasObject {
 		switch tab.Content.(type) {
 		case *Pane:
 			tab.Content.(*Pane).TryFocus()
+		default:
+			// A pane of the tab before would keep the focus while hidden and
+			// get the keys typed on this tab, so nothing has the focus here,
+			// the keys go to the window and its shortcuts
+			w.Canvas().Unfocus()
 		}
 	}
+
+	registerWindowShortcuts()
 
 	tabControl.OnSettings = func() {
 		ShowSettings(w)

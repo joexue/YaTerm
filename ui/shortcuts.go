@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/driver/desktop"
 )
 
 /*
@@ -192,12 +193,28 @@ func (p *Pane) runShortcut(key fyne.KeyName, mods fyne.KeyModifier) bool {
 	if !ok {
 		return false
 	}
+	p.runAction(act)
+	return true
+}
 
+// runAction runs an action from this pane. The tab actions work anywhere, the
+// pane actions only on a pane of the tab that is shown, a pane of a hidden tab
+// may still have the focus, e.g. after a switch to a markdown tab.
+func (p *Pane) runAction(act action) {
 	switch act {
 	case actNextTab:
 		switchTab(1)
+		return
 	case actPrevTab:
 		switchTab(-1)
+		return
+	}
+
+	if !p.inShownTab() {
+		return
+	}
+
+	switch act {
 	case actPaneRight:
 		p.focusNeighbor(1, 0)
 	case actPaneLeft:
@@ -211,7 +228,84 @@ func (p *Pane) runShortcut(key fyne.KeyName, mods fyne.KeyModifier) bool {
 	case actSplitDown:
 		p.Split(splitDown, 0.5)
 	}
-	return true
+}
+
+// inShownTab tells if the pane is in the tab that is shown
+func (p *Pane) inShownTab() bool {
+	if tabControl == nil {
+		return true // e.g. a pane on its own in a test
+	}
+	i := tabControl.SelectedIndex
+	return i >= 0 && i < len(tabControl.Items) && tabControl.Items[i].Content == p.root
+}
+
+// windowShortcuts are the shortcuts registered on the window's canvas
+var windowShortcuts []fyne.Shortcut
+
+// registerWindowShortcuts registers the shortcuts on the window's canvas too.
+// A focused pane gets the keys itself, the canvas gets them when no pane has
+// the focus, e.g. on a markdown tab or after a click outside the panes. Only
+// keys with Ctrl, Alt or Super come to the canvas as shortcuts. Call it again
+// when the shortcuts change.
+func registerWindowShortcuts() {
+	if win == nil {
+		return
+	}
+	c := win.Canvas()
+	for _, sc := range windowShortcuts {
+		c.RemoveShortcut(sc)
+	}
+	windowShortcuts = nil
+
+	for act, b := range bindings {
+		if b.none() || b.Mods&(fyne.KeyModifierControl|fyne.KeyModifierAlt|fyne.KeyModifierSuper) == 0 {
+			continue
+		}
+		sc := &desktop.CustomShortcut{KeyName: b.Key, Modifier: b.Mods}
+		c.AddShortcut(sc, func(fyne.Shortcut) { runWindowAction(act) })
+		windowShortcuts = append(windowShortcuts, sc)
+	}
+}
+
+// runWindowAction runs an action that came to the window: the tab actions
+// anywhere, the pane actions on the last focused pane of the shown tab
+func runWindowAction(act action) {
+	switch act {
+	case actNextTab:
+		switchTab(1)
+		return
+	case actPrevTab:
+		switchTab(-1)
+		return
+	}
+
+	if p := shownPane(); p != nil {
+		p.runAction(act)
+	}
+}
+
+// shownPane is the last focused pane of the shown tab, nil when the shown
+// tab has no panes, e.g. a markdown tab
+func shownPane() *Pane {
+	if tabControl == nil {
+		return nil
+	}
+	i := tabControl.SelectedIndex
+	if i < 0 || i >= len(tabControl.Items) {
+		return nil
+	}
+	root, ok := tabControl.Items[i].Content.(*Pane)
+	if !ok {
+		return nil
+	}
+	p := root.lastFocus
+	if p == nil {
+		p = root
+	}
+	for p.split != splitNone {
+		p = p.first
+	}
+	return p
 }
 
 // switchTab selects the tab by steps from the selected one, round the ends
