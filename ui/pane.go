@@ -42,7 +42,7 @@ const (
 )
 
 var paneBorderWidth = float32(1)
-var panePadding = (paneBorderWidth * 2)
+var panePadding = (paneBorderWidth * 3)
 
 var id int = 0
 
