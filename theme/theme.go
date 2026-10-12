@@ -532,6 +532,75 @@ var Ottosson = Scheme{
 	},
 }
 
+// Ubuntu is the "Ubuntu" scheme of Ubuntu on WSL, which WSL gives to Windows
+// Terminal. It is not from Windows Terminal: it comes from Canonical's
+// wsl-setup package (https://github.com/ubuntu/wsl-setup), file
+// /usr/share/wsl/terminal-profile.json, Copyright 2021 Canonical Ltd., GPL-3.
+// Only its color values are used, see THIRD_PARTY_NOTICES.
+var Ubuntu = Scheme{
+	Name: "Ubuntu",
+
+	ANSI: [16]color.Color{
+		color.RGBA{R: 0x17, G: 0x14, B: 0x21, A: 0xff}, // black
+		color.RGBA{R: 0xC2, G: 0x1A, B: 0x23, A: 0xff}, // red
+		color.RGBA{R: 0x26, G: 0xA2, B: 0x69, A: 0xff}, // green
+		color.RGBA{R: 0xA2, G: 0x73, B: 0x4C, A: 0xff}, // yellow
+		color.RGBA{R: 0x00, G: 0x37, B: 0xDA, A: 0xff}, // blue
+		color.RGBA{R: 0x88, G: 0x17, B: 0x98, A: 0xff}, // purple (magenta)
+		color.RGBA{R: 0x3A, G: 0x96, B: 0xDD, A: 0xff}, // cyan
+		color.RGBA{R: 0xCC, G: 0xCC, B: 0xCC, A: 0xff}, // white
+		color.RGBA{R: 0x76, G: 0x76, B: 0x76, A: 0xff}, // bright black
+		color.RGBA{R: 0xC0, G: 0x1C, B: 0x28, A: 0xff}, // bright red
+		color.RGBA{R: 0x26, G: 0xA2, B: 0x69, A: 0xff}, // bright green
+		color.RGBA{R: 0xA2, G: 0x73, B: 0x4C, A: 0xff}, // bright yellow
+		color.RGBA{R: 0x08, G: 0x45, B: 0x8F, A: 0xff}, // bright blue
+		color.RGBA{R: 0xA3, G: 0x47, B: 0xBA, A: 0xff}, // bright purple (magenta)
+		color.RGBA{R: 0x2C, G: 0x9F, B: 0xB3, A: 0xff}, // bright cyan
+		color.RGBA{R: 0xF2, G: 0xF2, B: 0xF2, A: 0xff}, // bright white
+	},
+
+	Colors: map[fyne.ThemeColorName]color.Color{
+		ColorBackground:          color.RGBA{R: 0x30, G: 0x0A, B: 0x24, A: 0xff},
+		ColorForeground:          color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
+		ColorCursor:              color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
+		ColorSelectionBackground: color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
+	},
+}
+
+// UbuntuClassic is the classic Ubuntu GNOME Terminal look, the Tango colors
+// on the aubergine background, named "Ubuntu" in the iTerm2-Color-Schemes
+// collection (https://github.com/mbadolato/iTerm2-Color-Schemes, file
+// windowsterminal/Ubuntu.json), MIT License, see THIRD_PARTY_NOTICES.
+var UbuntuClassic = Scheme{
+	Name: "Ubuntu Classic",
+
+	ANSI: [16]color.Color{
+		color.RGBA{R: 0x2E, G: 0x34, B: 0x36, A: 0xff}, // black
+		color.RGBA{R: 0xCC, G: 0x00, B: 0x00, A: 0xff}, // red
+		color.RGBA{R: 0x4E, G: 0x9A, B: 0x06, A: 0xff}, // green
+		color.RGBA{R: 0xC4, G: 0xA0, B: 0x00, A: 0xff}, // yellow
+		color.RGBA{R: 0x34, G: 0x65, B: 0xA4, A: 0xff}, // blue
+		color.RGBA{R: 0x75, G: 0x50, B: 0x7B, A: 0xff}, // purple (magenta)
+		color.RGBA{R: 0x06, G: 0x98, B: 0x9A, A: 0xff}, // cyan
+		color.RGBA{R: 0xD3, G: 0xD7, B: 0xCF, A: 0xff}, // white
+		color.RGBA{R: 0x55, G: 0x57, B: 0x53, A: 0xff}, // bright black
+		color.RGBA{R: 0xEF, G: 0x29, B: 0x29, A: 0xff}, // bright red
+		color.RGBA{R: 0x8A, G: 0xE2, B: 0x34, A: 0xff}, // bright green
+		color.RGBA{R: 0xFC, G: 0xE9, B: 0x4F, A: 0xff}, // bright yellow
+		color.RGBA{R: 0x72, G: 0x9F, B: 0xCF, A: 0xff}, // bright blue
+		color.RGBA{R: 0xAD, G: 0x7F, B: 0xA8, A: 0xff}, // bright purple (magenta)
+		color.RGBA{R: 0x34, G: 0xE2, B: 0xE2, A: 0xff}, // bright cyan
+		color.RGBA{R: 0xEE, G: 0xEE, B: 0xEC, A: 0xff}, // bright white
+	},
+
+	Colors: map[fyne.ThemeColorName]color.Color{
+		ColorBackground:          color.RGBA{R: 0x30, G: 0x0A, B: 0x24, A: 0xff},
+		ColorForeground:          color.RGBA{R: 0xEE, G: 0xEE, B: 0xEC, A: 0xff},
+		ColorCursor:              color.RGBA{R: 0xBB, G: 0xBB, B: 0xBB, A: 0xff},
+		ColorSelectionBackground: color.RGBA{R: 0xB5, G: 0xD5, B: 0xFF, A: 0xff},
+	},
+}
+
 // Schemes are all the schemes, by their name
 var Schemes = map[string]*Scheme{
 	"Campbell":            &Campbell,
@@ -550,6 +619,8 @@ var Schemes = map[string]*Scheme{
 	"IBM 5153":            &IBM5153,
 	"Dimidium":            &Dimidium,
 	"Ottosson":            &Ottosson,
+	"Ubuntu":              &Ubuntu,
+	"Ubuntu Classic":      &UbuntuClassic,
 }
 
 // DefaultScheme is the scheme a new theme starts with

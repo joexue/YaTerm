@@ -332,7 +332,7 @@ func shortcutsPage(s *settings, w fyne.Window) fyne.CanvasObject {
 		{"Copy", "Ctrl+Shift+C, Ctrl+Insert, or select with the mouse"},
 		{"Paste", "Ctrl+Shift+V, Shift+Insert, middle click"},
 		{"Select a word", "Double click"},
-		{"Search", "Right click > Search"},
+		{"Search", "Right click -> Search"},
 		{"Scroll back", "Mouse wheel"},
 	} {
 		builtIn.Append(k.action, widget.NewLabel(k.keys))
@@ -343,7 +343,7 @@ func shortcutsPage(s *settings, w fyne.Window) fyne.CanvasObject {
 		l.TextStyle = fyne.TextStyle{Bold: true}
 		return l
 	}
-	content := container.NewVBox(title("Actions"), actionsForm, note, widget.NewSeparator(), title("Built in"), builtIn)
+	content := container.NewVBox(title("Actions:"), actionsForm, note, widget.NewSeparator(), title("Built in:"), builtIn)
 	return container.NewVScroll(content)
 }
 
