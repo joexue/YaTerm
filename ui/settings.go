@@ -26,6 +26,7 @@ const (
 	prefFontSize    = "fontSize"
 	prefCursorShape = "cursorShape"
 	prefProgram     = "program"
+	prefTmux        = "tmuxControl"
 )
 
 // The font sizes the setting offers
@@ -45,6 +46,7 @@ func LoadSettings(a fyne.App, th *yatheme.YatermTheme) {
 	th.SetCursorShape(yatheme.CursorShape(p.StringWithFallback(prefCursorShape, string(yatheme.DefaultCursorShape))))
 	bindings = loadBindings(a)
 	program = p.String(prefProgram)
+	allowTmux = p.BoolWithFallback(prefTmux, true)
 }
 
 // program is the command line new tabs and panes run, "" for the platform's
@@ -58,6 +60,7 @@ type settings struct {
 	cursorShape yatheme.CursorShape
 	bindings    map[action]keyBinding
 	program     string
+	allowTmux   bool
 }
 
 // cursorShapeNames are the cursor shapes as the settings show them
@@ -83,6 +86,7 @@ func ShowSettings(w fyne.Window) {
 		cursorShape: th.CursorShape(),
 		bindings:    copyBindings(bindings),
 		program:     program,
+		allowTmux:   allowTmux,
 	}
 
 	var d dialog.Dialog
@@ -180,8 +184,14 @@ func generalPage(s *settings) fyne.CanvasObject {
 	hint.Wrapping = fyne.TextWrapWord
 	hint.Importance = widget.LowImportance
 
+	tmux := widget.NewCheck("Allow tmux control mode (tmux -CC)", func(on bool) { s.allowTmux = on })
+	tmux.SetChecked(s.allowTmux)
+	tmuxHint := widget.NewLabel("Run \"tmux -CC\" in a pane: its windows open as tabs and its panes as panes.")
+	tmuxHint.Wrapping = fyne.TextWrapWord
+	tmuxHint.Importance = widget.LowImportance
+
 	form := widget.NewForm(widget.NewFormItem("Default program", container.NewBorder(nil, nil, nil, reset, prog)))
-	return container.NewVBox(form, hint)
+	return container.NewVBox(form, hint, widget.NewSeparator(), tmux, tmuxHint)
 }
 
 // appearancePage has the color scheme with a preview and the font size
@@ -455,6 +465,8 @@ func applySettings(s *settings, th *yatheme.YatermTheme) {
 	a.Preferences().SetString(prefCursorShape, string(s.cursorShape))
 	a.Preferences().SetString(prefProgram, s.program)
 	program = s.program
+	a.Preferences().SetBool(prefTmux, s.allowTmux)
+	allowTmux = s.allowTmux
 	if s.bindings != nil {
 		bindings = copyBindings(s.bindings)
 		saveBindings(a, bindings)

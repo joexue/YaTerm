@@ -279,8 +279,10 @@ func (t *Tabs) Refresh() {
 	}
 
 	addBtn := widget.NewButtonWithIcon("", theme.ContentAddIcon(), func() {
-		it := t.CreateTab()
-		t.Append(it)
+		// No tab when the new one comes later, e.g. a tmux window
+		if it := t.CreateTab(); it != nil {
+			t.Append(it)
+		}
 
 	})
 

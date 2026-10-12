@@ -82,7 +82,7 @@ func (p *Pane) typeAgentMenu() *fyne.Menu {
 // typeText types text into the terminal like a paste: new lines are sent as
 // Enter, so a command saved with a new line at its end runs right away
 func (p *Pane) typeText(text string) {
-	if p.term == nil || text == "" {
+	if p.term == nil || text == "" || p.tmuxControl != nil {
 		return
 	}
 

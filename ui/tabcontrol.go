@@ -48,9 +48,20 @@ func NewTabControl(_ fyne.App, w fyne.Window) fyne.CanvasObject {
 	t := NewTabItem()
 	tabControl = NewTabs(t)
 
-	tabControl.CreateTab = NewTabItem
+	// On a tmux window the + makes a tmux window, its tab comes from tmux
+	tabControl.CreateTab = func() *container.TabItem {
+		if s := activeTmux(); s != nil && tabControl.SelectedIndex >= 0 && s.ownsTab(tabControl.Items[tabControl.SelectedIndex]) {
+			s.newWindow()
+			return nil
+		}
+		return NewTabItem()
+	}
 
 	tabControl.OnClosed = func(tab *container.TabItem) {
+		// A tmux window ends in tmux when its tab is closed
+		if s := activeTmux(); s != nil {
+			s.tabClosed(tab)
+		}
 		switch tab.Content.(type) {
 		case *Pane:
 			tab.Content.(*Pane).TearDown()

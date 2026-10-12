@@ -78,6 +78,11 @@ type Pane struct {
 	// The find box at the top right, nil until first opened
 	search *searchBar
 
+	// tmux control mode: the tmux pane this pane shows, or the session this
+	// pane runs (tmux -CC), nil otherwise
+	tmux        *tmuxPane
+	tmuxControl *tmuxSession
+
 	// Where the drag is, in screen coordinates, and the stop for the timer
 	// that scrolls while it is past the top or bottom
 	dragPos        fyne.Position
@@ -162,7 +167,11 @@ func (p *Pane) TearDown() {
 // Called by TabControl
 func (p *Pane) TryFocus() {
 	fyne.Do(func() {
+		// A tree built from outside, e.g. a tmux layout, may have none yet
 		focusPane := p.root.lastFocus
+		if focusPane == nil {
+			focusPane = p.root
+		}
 		for {
 			if focusPane.split == splitNone {
 				break
@@ -233,6 +242,14 @@ func (p *Pane) TryClose() {
 }
 
 func (p *Pane) Split(direction int, ratio float32) {
+	// tmux splits its pane, the layout change makes the new one here
+	if p.tmux != nil {
+		if s := activeTmux(); s != nil {
+			s.split(p.tmux, direction)
+		}
+		return
+	}
+
 	// The screen moves to the first child, the search bar does not follow
 	if p.search != nil {
 		p.hideSearch()
@@ -278,9 +295,14 @@ func (p *Pane) Resize(size fyne.Size) {
 	row, col := int(screenSize.Height/cellSize.Height), int(screenSize.Width/cellSize.Width)
 	p.row, p.col = row, col
 
-	// The screen Resize() will be called by UI frame, just handle terminal here
-	if p.term != nil {
+	// The screen Resize() will be called by UI frame, just handle terminal
+	// here. A tmux pane has the size tmux gives it, the tab area of tmux is
+	// told to tmux instead.
+	if p.term != nil && p.tmux == nil {
 		p.term.Resize(p.row, p.col)
+	}
+	if s := activeTmux(); s != nil && p.parent == nil && (p.tmux != nil || p.split != splitNone) && s.ownsRoot(p) {
+		s.sendClientSize(size)
 	}
 
 	// Cann't skip it, This will triage the renderer to call Layout
@@ -294,6 +316,9 @@ func (p *Pane) Resize(size fyne.Size) {
  */
 func (p *Pane) FocusGained() {
 	p.root.lastFocus = p
+	if s := activeTmux(); s != nil && p.tmux != nil {
+		s.paneFocused(p.tmux)
+	}
 	p.screen.SetFocused(true)
 	if p.term != nil {
 		p.root.showTitle(p.term.Title())
@@ -461,6 +486,7 @@ func (p *Pane) hideSearch() {
 // the terminal moves to another pane on a split or a close
 func (p *Pane) connectTerm() {
 	p.term.OnTitleChange = p.titleChanged
+	p.term.OnTmuxControl = func() terminal.TmuxHandler { return startTmux(p) }
 	p.term.OnClipboard = func(text string) {
 		fyne.Do(func() { fyne.CurrentApp().Clipboard().SetContent(text) })
 	}
@@ -503,4 +529,30 @@ func queryThemeColor(code int) color.Color {
 func currentTheme() *yatheme.YatermTheme {
 	th, _ := theme.Current().(*yatheme.YatermTheme)
 	return th
+}
+
+// newSplitPane makes a pane split in two, e.g. for a tmux layout, the caller
+// sets its first and second pane
+func newSplitPane(parent *Pane, direction int, ratio float32) *Pane {
+	b := canvas.NewRectangle(color.Transparent)
+	b.StrokeWidth = paneBorderWidth
+	b.StrokeColor = color.Transparent
+
+	p := &Pane{
+		id:       id,
+		border:   b,
+		split:    direction,
+		ratio:    ratio,
+		parent:   parent,
+		cellSize: measureCell(),
+	}
+	if parent == nil {
+		p.root = p
+	} else {
+		p.root = parent.root
+	}
+	p.divider = NewDivider(p)
+	p.ExtendBaseWidget(p)
+	id++
+	return p
 }

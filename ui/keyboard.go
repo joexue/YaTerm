@@ -210,6 +210,15 @@ func metaChar(name fyne.KeyName, shift bool) int {
 }
 
 func (p *Pane) TypedRune(r rune) {
+	// The pane running tmux -CC takes commands for tmux, typing would send
+	// them, only q detaches
+	if s := p.tmuxControl; s != nil {
+		if r == 'q' || r == 'Q' {
+			s.detach()
+		}
+		return
+	}
+
 	p.screen.ScrollToBottom()
 	b := make([]byte, utf8.UTFMax)
 	size := utf8.EncodeRune(b, r)
@@ -220,6 +229,9 @@ func (p *Pane) TypedRune(r rune) {
 // It is called for printable keys too, which send nothing here as their
 // character comes through TypedRune.
 func (p *Pane) TypedKey(ke *fyne.KeyEvent) {
+	if p.tmuxControl != nil {
+		return
+	}
 	if seq := keySequence(ke.Name, p.mods); seq != nil {
 		p.screen.ScrollToBottom()
 		_, _ = p.term.Write(seq)
@@ -276,6 +288,9 @@ func (p *Pane) TypedShortcut(sc fyne.Shortcut) {
 
 	// YaTerm's own shortcuts come first, a key set to none goes on below
 	if p.runShortcut(name, mods) {
+		return
+	}
+	if p.tmuxControl != nil {
 		return
 	}
 
@@ -338,7 +353,7 @@ func shortcutChars(name fyne.KeyName, mods fyne.KeyModifier) []byte {
 
 // paste sends the clipboard text, new lines are sent as Enter (CR) like typing
 func (p *Pane) paste(cb fyne.Clipboard) {
-	if cb == nil {
+	if cb == nil || p.tmuxControl != nil {
 		return
 	}
 

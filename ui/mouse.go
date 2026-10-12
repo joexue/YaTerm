@@ -32,11 +32,20 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 		separatorItem := fyne.NewMenuItemSeparator()
 
 		closePaneItem := fyne.NewMenuItemWithIcon("Close Pane", theme.Icon(theme.IconNameWindowClose), func() {
+			// tmux closes its pane, the layout change removes it here
+			if s := activeTmux(); s != nil && p.tmux != nil {
+				s.killPane(p.tmux)
+				return
+			}
 			p.term.OnExit = nil
 			p.term.Exit()
 			p.TryClose()
 		})
 		closeTabItem := fyne.NewMenuItemWithIcon("Close Tab", theme.Icon(theme.IconNameWindowClose), func() {
+			if s := activeTmux(); s != nil && p.tmux != nil {
+				s.killWindow(p.tmux.window)
+				return
+			}
 			p.root.TearDown()
 			if f := p.root.OnTearDown; f != nil {
 				f()

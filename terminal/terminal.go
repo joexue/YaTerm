@@ -1,6 +1,7 @@
 package terminal
 
 import (
+	"strings"
 	//"fmt"
 	"image/color"
 	"sync"
@@ -98,6 +99,14 @@ type Terminal struct {
 	OnQueryColor  func(code int) color.Color
 
 	OnExit func()
+
+	// OnTmuxControl is asked for a handler when tmux starts its control mode
+	// (tmux -CC), nil or a nil handler means it is not allowed. Called on the
+	// reader goroutine with the state lock held.
+	OnTmuxControl func() TmuxHandler
+
+	tmux     TmuxHandler     // the control mode in use, nil when none
+	tmuxLine strings.Builder // the line being read
 }
 
 // Title is the title the program set with OSC 0 or 2, empty if none
@@ -165,6 +174,13 @@ func (t *Terminal) RunCmd(cmd string) {
 		}
 
 	}
+
+	// The program ended inside the tmux control mode, e.g. its pane closed
+	t.stateMu.Lock()
+	if t.tmux != nil {
+		t.endTmux()
+	}
+	t.stateMu.Unlock()
 
 	if f := t.OnExit; f != nil {
 		f()

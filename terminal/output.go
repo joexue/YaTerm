@@ -24,6 +24,7 @@ const (
 	stateAPC
 	stateDEC
 	stateTEST
+	stateTMUX // tmux control mode, see tmux.go
 )
 
 // ref: https://wezterm.org/escape-sequences.html#c1-control-codes
@@ -162,6 +163,12 @@ func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 
 // processRune runs one character of the output through the state machine
 func (t *Terminal) processRune(r rune) {
+	// In tmux control mode all is text for tmux, until it ends
+	if t.state == stateTMUX {
+		t.processTmux(r)
+		return
+	}
+
 	if r == asciiEscape {
 		t.escape = true
 		return
