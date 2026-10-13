@@ -22,7 +22,8 @@ const (
 	stateOSC
 	stateDCS
 	stateAPC
-	stateDEC
+	stateDECCharSet0
+	stateDECCharSet1
 	stateTEST
 	stateTMUX // tmux control mode, see tmux.go
 )
@@ -104,12 +105,10 @@ func (t *Terminal) parseEscState(r rune) {
 	// "(B" Disables stateDEC Line Drawing character translation
 	// "(A" Alternative character
 	case '(':
-		t.state = stateDEC
-		t.decState = decStateCONTROL0
+		t.state = stateDECCharSet0
 
 	case ')':
-		t.state = stateDEC
-		t.decState = decStateCONTROL1
+		t.state = stateDECCharSet1
 
 	// Operating System Command Sequences
 	case ']':
@@ -188,16 +187,25 @@ func (t *Terminal) processRune(r rune) {
 	switch t.state {
 	case stateCSI:
 		t.processCsi(r)
+
 	case stateOSC:
 		t.processOsc(r)
+
 	case stateAPC:
 		t.processApc(r)
+
 	case stateDCS:
 		t.processDcs(r)
-	case stateDEC:
-		t.processDec(r)
+
+	case stateDECCharSet0:
+		t.processDec(0, r)
+
+	case stateDECCharSet1:
+		t.processDec(1, r)
+
 	case stateTEST:
 		t.processTest(r)
+
 	default:
 		t.processGround(r)
 	}

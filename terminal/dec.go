@@ -1,11 +1,5 @@
 package terminal
 
-// Which character set "ESC ( X" or "ESC ) X" designates: G0 or G1
-const (
-	decStateCONTROL0 = iota
-	decStateCONTROL1
-)
-
 const (
 	asciiShiftOut = 0x0e // SO: use G1
 	asciiShiftIn  = 0x0f // SI: use G0
@@ -27,25 +21,6 @@ var decGraphics = [...]rune{
 	'┬', '│', '≤', '≥', 'π', '≠', '£', '·', // w x y z { | } ~
 }
 
-// processDec takes the final character of "ESC ( X" (G0) or "ESC ) X" (G1).
-// It is one character, then the terminal goes back to normal output.
-func (t *Terminal) processDec(r rune) {
-	t.state = stateGROUND
-
-	g := 0
-	if t.decState == decStateCONTROL1 {
-		g = 1
-	}
-
-	switch r {
-	case charsetDECGraphics, charsetUK:
-		t.charsets[g] = r
-	default:
-		// ASCII, and the national sets that are not supported
-		t.charsets[g] = charsetASCII
-	}
-}
-
 // translateChar maps a character through the character set in use, G0 or
 // G1 as chosen by SI and SO
 func (t *Terminal) translateChar(r rune) rune {
@@ -60,4 +35,18 @@ func (t *Terminal) translateChar(r rune) rune {
 		}
 	}
 	return r
+}
+
+// processDec takes the final character of "ESC ( X" (G0) or "ESC ) X" (G1).
+// It is one character, then the terminal goes back to normal output.
+func (t *Terminal) processDec(set int, r rune) {
+	switch r {
+	case charsetDECGraphics, charsetUK:
+		t.charsets[set] = r
+	default:
+		// ASCII, and the national sets that are not supported
+		t.charsets[set] = charsetASCII
+	}
+
+	t.state = stateGROUND
 }
