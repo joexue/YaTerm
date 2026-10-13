@@ -155,7 +155,12 @@ func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 			continue
 		}
 
-		t.processRune(r)
+		if isC1ControlCharacter(r) {
+			t.processRune(asciiEscape)
+			t.processRune(c1ToC0ControlCharacter(r))
+		} else {
+			t.processRune(r)
+		}
 	}
 
 	t.screen.Flush(t.cursorShown())
@@ -171,11 +176,6 @@ func (t *Terminal) processRune(r rune) {
 
 	if r == asciiEscape {
 		t.escape = true
-		return
-	}
-
-	if isC1(r) {
-		t.processC1(r)
 		return
 	}
 
