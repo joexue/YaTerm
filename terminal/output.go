@@ -32,6 +32,10 @@ const (
 	stateTEST
 )
 
+const (
+	StringTerminator = 0x9c
+)
+
 // ref: https://wezterm.org/escape-sequences.html#c1-control-codes
 // ref: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
 func (t *Terminal) parseEscState(r rune) {
@@ -128,8 +132,17 @@ func (t *Terminal) parseEscState(r rune) {
 // processRune runs one character of the output through the state machine
 func (t *Terminal) processRune(r rune) {
 	// For OSC DCS APC, they accept ST(String terminator) which is: ESC '\\'
-	if r == asciiEscape && t.state != stateOSC && t.state != stateDCS && t.state != stateAPC {
-		t.state = stateESC
+	if r == asciiEscape {
+		switch t.state {
+		case stateOSC:
+			t.state = stateOSCTermination
+		case stateDCS:
+			t.state = stateDCSTermination
+		case stateAPC:
+			t.state = stateAPCTermination
+		default:
+			t.state = stateESC
+		}
 		return
 	}
 
@@ -143,9 +156,10 @@ func (t *Terminal) processRune(r rune) {
 	case stateOSC:
 		t.processOsc(r)
 
+	// If it is 'ESC ST' pattern then let it go otherwise fallback to escape mode
 	case stateOSCTermination:
 		if r == '\\' {
-			t.processOsc(r)
+			t.processOsc(StringTerminator)
 		} else {
 			t.state = stateESC
 			t.parseEscState(r)
@@ -156,7 +170,7 @@ func (t *Terminal) processRune(r rune) {
 
 	case stateAPCTermination:
 		if r == '\\' {
-			t.processApc(r)
+			t.processApc(StringTerminator)
 		} else {
 			t.state = stateESC
 			t.parseEscState(r)
@@ -167,7 +181,7 @@ func (t *Terminal) processRune(r rune) {
 
 	case stateDCSTermination:
 		if r == '\\' {
-			t.processDcs(r)
+			t.processDcs(StringTerminator)
 		} else {
 			t.state = stateESC
 			t.parseEscState(r)

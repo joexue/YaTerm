@@ -14,17 +14,10 @@ func (t *Terminal) handleApc() {
 // CAN and SUB cancel it.
 func (t *Terminal) processApc(r rune) {
 	switch r {
-	case asciiEscape:
-		t.state = stateAPCTermination
-
-	case '\\':
-		if t.state == stateAPCTermination {
-			t.handleApc()
-			t.param = nil
-			t.state = stateGROUND
-		} else {
-			t.param = append(t.param, r)
-		}
+	case StringTerminator:
+		t.handleApc()
+		t.param = nil
+		t.state = stateGROUND
 
 	case asciiCancel, asciiSubstitute: //CAN, SUB
 		t.param = nil

@@ -139,17 +139,10 @@ func (t *Terminal) handleDcs() {
 // else inside a DCS is kept as text (see parseEscState). CAN or SUB cancel it.
 func (t *Terminal) processDcs(r rune) {
 	switch r {
-	case '\\':
-		if t.state == stateDCSTermination {
-			t.handleDcs()
-			t.param = nil
-			t.state = stateGROUND
-		} else {
-			t.param = append(t.param, r)
-		}
-
-	case asciiEscape: // ESC ST
-		t.state = stateDCSTermination
+	case StringTerminator:
+		t.handleDcs()
+		t.param = nil
+		t.state = stateGROUND
 
 	case asciiCancel, asciiSubstitute:
 		t.state = stateGROUND

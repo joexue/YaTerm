@@ -105,17 +105,10 @@ func (t *Terminal) processOsc(r rune) {
 		t.param = nil
 		t.state = stateGROUND
 
-	case asciiEscape: // ESC ST
-		t.state = stateOSCTermination
-
-	case '\\':
-		if t.state == stateOSCTermination {
-			t.handleOsc()
-			t.param = nil
-			t.state = stateGROUND
-		} else {
-			t.param = append(t.param, r)
-		}
+	case StringTerminator:
+		t.handleOsc()
+		t.param = nil
+		t.state = stateGROUND
 
 	default:
 		if len(t.param) < oscMaxLen {
