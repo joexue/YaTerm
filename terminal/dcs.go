@@ -148,15 +148,18 @@ func (t *Terminal) processDcs(r rune) {
 		t.state = stateGROUND
 		t.param = nil
 
+	// Tmux control mode
+	case 'p':
+		if len(t.param) == 4 && string(t.param) == "1000" {
+			t.param = nil
+			t.state = stateDCSTmux
+		} else {
+			t.param = append(t.param, r)
+		}
+
 	default:
 		if len(t.param) < dcsMaxLen {
 			t.param = append(t.param, r)
 		}
-		/*
-			// "DCS 1000 p" starts the tmux control mode
-			if len(t.param) == 5 && string(t.param) == "1000p" && t.startTmux() {
-				return
-			}
-		*/
 	}
 }
