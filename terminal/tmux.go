@@ -37,7 +37,7 @@ func (t *Terminal) startTmux() bool {
 	t.tmux = h
 	t.tmuxLine.Reset()
 	t.param = []rune{}
-	t.state = stateTMUX
+	t.state = stateDCSTmux
 	return true
 }
 
@@ -47,10 +47,12 @@ func (t *Terminal) processTmux(r rune) {
 	switch r {
 	case asciiEscape, 0x9c: // ESC of "ESC \", or the C1 ST
 		t.endTmux()
-		if r == asciiEscape {
-			// The "\" that follows ends the escape sequence
-			t.escape = true
-		}
+		/*
+			if r == asciiEscape {
+				// The "\" that follows ends the escape sequence
+				t.escape = true
+			}
+		*/
 	case '\n':
 		line := t.tmuxLine.String()
 		t.tmuxLine.Reset()

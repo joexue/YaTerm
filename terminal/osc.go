@@ -12,61 +12,6 @@ import (
 // Large enough for OSC 52 clipboard text.
 const oscMaxLen = 1 << 20
 
-// processOsc collects an OSC ("ESC ] code ; text") until BEL or the C1 ST.
-// The 7 bit ST "ESC \" ends it too, see the '\\' case of parseEscState.
-// A '\' alone is text, e.g. ConPTY sends a title like "C:\WINDOWS\...".
-func (t *Terminal) processOsc(r rune) {
-	switch r {
-	case asciiBell:
-		t.handleOSC("\x07")
-		t.state = stateGROUND
-		t.param = []rune{}
-	case 0x9c: // C1 ST
-		t.handleOSC("\x1b\\")
-		t.state = stateGROUND
-		t.param = []rune{}
-	case asciiNull:
-		t.state = stateGROUND
-		t.param = []rune{}
-		// Ignored, as xterm does
-	default:
-		if len(t.param) < oscMaxLen {
-			t.param = append(t.param, r)
-		}
-	}
-}
-
-// handleOSC runs a complete OSC, st is how it ended, a reply ends the same way
-func (t *Terminal) handleOSC(st string) {
-	data := string(t.param)
-
-	code, arg, _ := strings.Cut(data, ";")
-	switch code {
-	// Window title, shown in the tab
-	case "0", "2":
-		t.setTitle(cleanTitle(arg))
-
-	case "7":
-		t.setCwd(arg)
-
-	// Icon name, there are no icons
-	case "1":
-
-	// Query the text, background and cursor color, "10;?" or "10;?;?" for
-	// 10 and 11. vim and others ask to know if the background is dark.
-	case "10", "11", "12":
-		t.queryColors(code, arg, st)
-
-	// Set the clipboard: "52;c;<base64>"
-	case "52":
-		t.setClipboard(arg)
-
-	// 7 working directory, 8 hyperlinks, 133 and 633 shell integration marks,
-	// 4 and 104 palette, 9 notifications: not supported, ignored
-	default:
-	}
-}
-
 // cleanTitle drops control characters a title must not have
 func cleanTitle(s string) string {
 	return strings.Map(func(r rune) rune {
@@ -117,4 +62,64 @@ func (t *Terminal) setClipboard(arg string) {
 		return
 	}
 	t.OnClipboard(string(text))
+}
+
+// handleOsc runs a complete OSC, st is how it ended, a reply ends the same way
+func (t *Terminal) handleOsc() {
+	data := string(t.param)
+
+	code, arg, _ := strings.Cut(data, ";")
+	switch code {
+	// Window title, shown in the tab
+	case "0", "2":
+		t.setTitle(cleanTitle(arg))
+
+	case "7":
+		t.setCwd(arg)
+
+	// Icon name, there are no icons
+	case "1":
+		/*
+			// Query the text, background and cursor color, "10;?" or "10;?;?" for
+			// 10 and 11. vim and others ask to know if the background is dark.
+			case "10", "11", "12":
+				t.queryColors(code, arg, st)
+		*/
+	// Set the clipboard: "52;c;<base64>"
+	case "52":
+		t.setClipboard(arg)
+
+	// 7 working directory, 8 hyperlinks, 133 and 633 shell integration marks,
+	// 4 and 104 palette, 9 notifications: not supported, ignored
+	default:
+	}
+}
+
+// processOsc collects an OSC ("ESC ] code ; text") until BEL or the C1 ST.
+// The 7 bit ST "ESC \" ends it too, see the '\\' case of parseEscState.
+// A '\' alone is text, e.g. ConPTY sends a title like "C:\WINDOWS\...".
+func (t *Terminal) processOsc(r rune) {
+	switch r {
+	case asciiBell, asciiNull:
+		t.handleOsc()
+		t.param = nil
+		t.state = stateGROUND
+
+	case asciiEscape: // ESC ST
+		t.state = stateOSCTermination
+
+	case '\\':
+		if t.state == stateOSCTermination {
+			t.handleOsc()
+			t.param = nil
+			t.state = stateGROUND
+		} else {
+			t.param = append(t.param, r)
+		}
+
+	default:
+		if len(t.param) < oscMaxLen {
+			t.param = append(t.param, r)
+		}
+	}
 }

@@ -48,6 +48,8 @@ type Style struct {
 }
 
 type Terminal struct {
+	state int
+
 	pty    Pty
 	screen Screen
 
@@ -70,16 +72,12 @@ type Terminal struct {
 	// Full screen when unset, bottom 0 means the last row.
 	scrollTop, scrollBottom int
 
-	state    int
-	decState int
-
 	// Character sets of G0 and G1 ("ESC ( X", "ESC ) X"), 0 means ASCII,
 	// and which one is in use, 0 for G0 (SI) or 1 for G1 (SO)
 	charsets [2]rune
 	shifted  int
-	escape   bool
 	param    []rune
-	pending  []byte // the start of a UTF-8 character the last read ended in
+	leftOver []byte // the start of a UTF-8 character the last read ended in
 
 	fg, bg color.Color
 	style  Style

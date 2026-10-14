@@ -15,68 +15,14 @@ const (
 	asciiSubstitute = 0x1a // SUB
 )
 
-// processDcs collects a DCS ("ESC P ... ESC \") until the ST. The 7 bit
-// "ESC \" comes through the '\\' case of parseEscState, an ESC with anything
-// else inside a DCS is kept as text (see parseEscState). CAN or SUB cancel it.
-func (t *Terminal) processDcs(r rune) {
-	switch r {
-	case 0x9c: // C1 ST
-		t.handleDCS()
-		t.state = stateGROUND
-		t.param = []rune{}
-	case asciiCancel, asciiSubstitute:
-		t.state = stateGROUND
-		t.param = []rune{}
-	default:
-		if len(t.param) < dcsMaxLen {
-			t.param = append(t.param, r)
-		}
-		// "DCS 1000 p" starts the tmux control mode
-		if len(t.param) == 5 && string(t.param) == "1000p" && t.startTmux() {
-			return
-		}
-	}
-}
-
-// handleDCS answers the requests programs send to learn about the terminal,
-// anything else (sixel, tmux passthrough, ...) is dropped without showing
-func (t *Terminal) handleDCS() {
-	data := string(t.param)
-
-	switch {
-	// DECRQSS: ask for a setting, "$q" and the setting's final characters
-	case strings.HasPrefix(data, "$q"):
-		t.requestSetting(data[2:])
-
-	// XTGETTCAP: ask for terminfo capabilities, "+q" and hex names
-	case strings.HasPrefix(data, "+q"):
-		t.requestCapabilities(data[2:])
-	}
-}
-
-// requestSetting answers DECRQSS with "DCS 1 $ r <setting> ST", or with
-// "DCS 0 $ r ST" for a setting it does not know
-func (t *Terminal) requestSetting(setting string) {
-	var value string
-	switch setting {
-	// The current colors and attributes (SGR)
-	case "m":
-		value = t.sgrString() + "m"
-
-	// The scroll region (DECSTBM)
-	case "r":
-		value = fmt.Sprintf("%d;%dr", t.scrollTop+1, t.regionBottom()+1)
-
-	// The cursor style (DECSCUSR): 2 is a steady block, the only one drawn
-	case " q":
-		value = "2 q"
-
-	default:
-		t.reply("\x1bP0$r\x1b\\")
+// reply sends an answer to the program. Not while holding the state lock: if
+// the program is busy writing output, writing to it could block until that
+// output is read, which needs the lock.
+func (t *Terminal) reply(s string) {
+	if s == "" {
 		return
 	}
-
-	t.reply("\x1bP1$r" + value + "\x1b\\")
+	go func() { _, _ = t.Write([]byte(s)) }()
 }
 
 // sgrString is the SGR parameters that set the current colors and attributes
@@ -147,12 +93,77 @@ func (t *Terminal) requestCapabilities(names string) {
 	t.reply(reply.String())
 }
 
-// reply sends an answer to the program. Not while holding the state lock: if
-// the program is busy writing output, writing to it could block until that
-// output is read, which needs the lock.
-func (t *Terminal) reply(s string) {
-	if s == "" {
+// requestSetting answers DECRQSS with "DCS 1 $ r <setting> ST", or with
+// "DCS 0 $ r ST" for a setting it does not know
+func (t *Terminal) requestSetting(setting string) {
+	var value string
+	switch setting {
+	// The current colors and attributes (SGR)
+	case "m":
+		value = t.sgrString() + "m"
+
+	// The scroll region (DECSTBM)
+	case "r":
+		value = fmt.Sprintf("%d;%dr", t.scrollTop+1, t.regionBottom()+1)
+
+	// The cursor style (DECSCUSR): 2 is a steady block, the only one drawn
+	case " q":
+		value = "2 q"
+
+	default:
+		t.reply("\x1bP0$r\x1b\\")
 		return
 	}
-	go func() { _, _ = t.Write([]byte(s)) }()
+
+	t.reply("\x1bP1$r" + value + "\x1b\\")
+}
+
+// handleDcs answers the requests programs send to learn about the terminal,
+// anything else (sixel, tmux passthrough, ...) is dropped without showing
+func (t *Terminal) handleDcs() {
+	data := string(t.param)
+
+	switch {
+	// DECRQSS: ask for a setting, "$q" and the setting's final characters
+	case strings.HasPrefix(data, "$q"):
+		t.requestSetting(data[2:])
+
+	// XTGETTCAP: ask for terminfo capabilities, "+q" and hex names
+	case strings.HasPrefix(data, "+q"):
+		t.requestCapabilities(data[2:])
+	}
+}
+
+// processDcs collects a DCS ("ESC P ... ESC \") until the ST. The 7 bit
+// "ESC \" comes through the '\\' case of parseEscState, an ESC with anything
+// else inside a DCS is kept as text (see parseEscState). CAN or SUB cancel it.
+func (t *Terminal) processDcs(r rune) {
+	switch r {
+	case '\\':
+		if t.state == stateDCSTermination {
+			t.handleDcs()
+			t.param = nil
+			t.state = stateGROUND
+		} else {
+			t.param = append(t.param, r)
+		}
+
+	case asciiEscape: // ESC ST
+		t.state = stateDCSTermination
+
+	case asciiCancel, asciiSubstitute:
+		t.state = stateGROUND
+		t.param = nil
+
+	default:
+		if len(t.param) < dcsMaxLen {
+			t.param = append(t.param, r)
+		}
+		/*
+			// "DCS 1000 p" starts the tmux control mode
+			if len(t.param) == 5 && string(t.param) == "1000p" && t.startTmux() {
+				return
+			}
+		*/
+	}
 }

@@ -18,35 +18,71 @@ const (
 
 const (
 	stateGROUND = iota
+	stateESC
 	stateCSI
 	stateOSC
+	stateOSCTermination
 	stateDCS
+	stateDCSTmux
+	stateDCSTermination
 	stateAPC
+	stateAPCTermination
 	stateDECCharSet0
 	stateDECCharSet1
 	stateTEST
-	stateTMUX // tmux control mode, see tmux.go
 )
 
 // ref: https://wezterm.org/escape-sequences.html#c1-control-codes
+// ref: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
 func (t *Terminal) parseEscState(r rune) {
-	// Inside a DCS only "ESC \" ends it, any other ESC is part of its text,
-	// e.g. tmux passthrough doubles the ESC of the sequences it carries
-	if t.state == stateDCS && r != '\\' {
-		if len(t.param) < dcsMaxLen {
-			t.param = append(t.param, asciiEscape, r)
-		}
-		return
-	}
-
-	// Inside an APC, SOS or PM, an ESC with anything but '\' aborts it and
-	// starts a new escape sequence, so a string that is never ended does not
-	// swallow all the output after it
-	if t.state == stateAPC && r != '\\' {
-		t.state = stateGROUND
-	}
-
 	switch r {
+	// ================================
+	//  State transition sets
+	// ================================
+	case '[':
+		t.state = stateCSI
+		t.param = nil
+		return
+
+	// Operating System Command Sequences
+	case ']':
+		t.state = stateOSC
+		t.param = nil
+		return
+
+	case 'P':
+		t.state = stateDCS
+		t.param = nil
+		return
+
+	// APC, SOS and PM: strings that are read and ignored, see processApc
+	case '_', 'X', '^':
+		t.state = stateAPC
+		t.param = nil
+		return
+
+	// "(0" Translate characters j-x to line drawing glyphs
+	// "(B" Disables stateDEC Line Drawing character translation
+	// "(A" Alternative character
+	case '(':
+		t.state = stateDECCharSet0
+		t.param = nil
+		return
+
+	case ')':
+		t.state = stateDECCharSet1
+		t.param = nil
+		return
+
+	// "#8" Fills the display with E characters for diagnostic/test purposes (for vttest)
+	case '#':
+		t.state = stateTEST
+		t.param = nil
+		return
+
+	// ================================
+	//  Execute directly sets
+	// ================================
 	// Moves the cursor down one line in the same column. If the cursor is at the bottom margin, the page scrolls up
 	case 'D':
 		t.wrapPending = false
@@ -59,30 +95,12 @@ func (t *Terminal) parseEscState(r rune) {
 		t.lineFeed()
 
 	// Sets a horizontal tab stop at the column where the cursor is
-	case 'H':
+	case 'H', 'f':
 
 	// Move the cursor up one line. If the cursor is at the top margin, scroll the region down
 	case 'M':
 		t.wrapPending = false
 		t.reverseIndex()
-
-	case 'P':
-		t.state = stateDCS
-		t.param = []rune{}
-
-	case '[':
-		t.state = stateCSI
-		t.param = []rune{}
-
-	// No direct effect; ST is used to delimit the end of stateOSC style escape sequences
-	case '\\':
-		if t.state == stateOSC {
-			t.processOsc(0x9c)
-		} else if t.state == stateDCS {
-			t.processDcs(0x9c)
-		} else {
-			t.state = stateGROUND
-		}
 
 	// Resets tab stops, margins, modes, graphic rendition, palette, activates primary screen, erases the display and moves cursor to home position
 	case 'c':
@@ -101,31 +119,71 @@ func (t *Terminal) parseEscState(r rune) {
 	// Set Normal Keypad Mode
 	case '>':
 
-	// "(0" Translate characters j-x to line drawing glyphs
-	// "(B" Disables stateDEC Line Drawing character translation
-	// "(A" Alternative character
-	case '(':
-		t.state = stateDECCharSet0
-
-	case ')':
-		t.state = stateDECCharSet1
-
-	// Operating System Command Sequences
-	case ']':
-		t.state = stateOSC
-		t.param = []rune{}
-
-	// "#8" Fills the display with E characters for diagnostic/test purposes (for vttest)
-	case '#':
-		t.state = stateTEST
-
-	// APC, SOS and PM: strings that are read and ignored, see processApc
-	case '_', 'X', '^':
-		t.state = stateAPC
-
-	// Just reset the sate to ground if we don't recognize it, may not right or never happen?
 	default:
-		t.state = stateGROUND
+	}
+
+	t.state = stateGROUND
+}
+
+// processRune runs one character of the output through the state machine
+func (t *Terminal) processRune(r rune) {
+	// For OSC DCS APC, they accept ST(String terminator) which is: ESC '\\'
+	if r == asciiEscape && t.state != stateOSC && t.state != stateDCS && t.state != stateAPC {
+		t.state = stateESC
+		return
+	}
+
+	switch t.state {
+	case stateESC:
+		t.parseEscState(r)
+
+	case stateCSI:
+		t.processCsi(r)
+
+	case stateOSC:
+		t.processOsc(r)
+
+	case stateOSCTermination:
+		if r == '\\' {
+			t.processOsc(r)
+		} else {
+			t.state = stateESC
+			t.parseEscState(r)
+		}
+
+	case stateAPC:
+		t.processApc(r)
+
+	case stateAPCTermination:
+		if r == '\\' {
+			t.processApc(r)
+		} else {
+			t.state = stateESC
+			t.parseEscState(r)
+		}
+
+	case stateDCS:
+		t.processDcs(r)
+
+	case stateDCSTermination:
+		if r == '\\' {
+			t.processDcs(r)
+		} else {
+			t.state = stateESC
+			t.parseEscState(r)
+		}
+
+	case stateDECCharSet0:
+		t.processDec(0, r)
+
+	case stateDECCharSet1:
+		t.processDec(1, r)
+
+	case stateTEST:
+		t.processTest(r)
+
+	default:
+		t.processGround(r)
 	}
 }
 
@@ -133,16 +191,18 @@ func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 	t.stateMu.Lock()
 	defer t.stateMu.Unlock()
 
-	data := bytes[:num]
-	if len(t.pending) > 0 {
-		data = append(t.pending, data...)
-		t.pending = nil
+	var data []byte
+	if len(t.leftOver) > 0 {
+		data = append(t.leftOver, bytes...)
+		t.leftOver = nil
+	} else {
+		data = bytes[:num]
 	}
 
 	for len(data) > 0 {
 		// A character split over two reads is finished with the next read
-		if !utf8.FullRune(data) {
-			t.pending = append([]byte(nil), data...)
+		if len(data) < 4 && !utf8.FullRune(data) {
+			t.leftOver = append(t.leftOver, data...)
 			break
 		}
 
@@ -163,50 +223,4 @@ func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 	}
 
 	t.screen.Flush(t.cursorShown())
-}
-
-// processRune runs one character of the output through the state machine
-func (t *Terminal) processRune(r rune) {
-	// In tmux control mode all is text for tmux, until it ends
-	if t.state == stateTMUX {
-		t.processTmux(r)
-		return
-	}
-
-	if r == asciiEscape {
-		t.escape = true
-		return
-	}
-
-	if t.escape {
-		t.parseEscState(r)
-		t.escape = false
-		return
-	}
-
-	switch t.state {
-	case stateCSI:
-		t.processCsi(r)
-
-	case stateOSC:
-		t.processOsc(r)
-
-	case stateAPC:
-		t.processApc(r)
-
-	case stateDCS:
-		t.processDcs(r)
-
-	case stateDECCharSet0:
-		t.processDec(0, r)
-
-	case stateDECCharSet1:
-		t.processDec(1, r)
-
-	case stateTEST:
-		t.processTest(r)
-
-	default:
-		t.processGround(r)
-	}
 }

@@ -1,5 +1,8 @@
 package terminal
 
+func (t *Terminal) handleApc() {
+}
+
 // processApc reads an APC ("ESC _ ... ESC \"), and the SOS ("ESC X") and PM
 // ("ESC ^") strings, which are handled the same: their content is ignored.
 // APC carries the kitty graphics protocol ("ESC _ G ... ESC \"), images are
@@ -11,7 +14,23 @@ package terminal
 // CAN and SUB cancel it.
 func (t *Terminal) processApc(r rune) {
 	switch r {
-	case 0x9c, asciiCancel, asciiSubstitute: // C1 ST, CAN, SUB
+	case asciiEscape:
+		t.state = stateAPCTermination
+
+	case '\\':
+		if t.state == stateAPCTermination {
+			t.handleApc()
+			t.param = nil
+			t.state = stateGROUND
+		} else {
+			t.param = append(t.param, r)
+		}
+
+	case asciiCancel, asciiSubstitute: //CAN, SUB
+		t.param = nil
 		t.state = stateGROUND
+
+	default:
+		t.param = append(t.param, r)
 	}
 }
