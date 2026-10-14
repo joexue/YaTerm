@@ -95,10 +95,10 @@ func (t *Terminal) processRune(r rune) {
 		}
 
 	case stateDECCharSet0:
-		t.processDec(0, r)
+		t.processDec(r, 0)
 
 	case stateDECCharSet1:
-		t.processDec(1, r)
+		t.processDec(r, 1)
 
 	case stateTEST:
 		t.processTest(r)

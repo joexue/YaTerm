@@ -39,7 +39,7 @@ func (t *Terminal) translateChar(r rune) rune {
 
 // processDec takes the final character of "ESC ( X" (G0) or "ESC ) X" (G1).
 // It is one character, then the terminal goes back to normal output.
-func (t *Terminal) processDec(set int, r rune) {
+func (t *Terminal) processDec(r rune, set int) {
 	switch r {
 	case charsetDECGraphics, charsetUK:
 		t.charsets[set] = r

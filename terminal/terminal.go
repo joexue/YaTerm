@@ -53,7 +53,7 @@ type Terminal struct {
 	pty    Pty
 	screen Screen
 
-	mu sync.Mutex // guards writing to the pty
+	writeMu sync.Mutex // guards writing to the pty
 
 	// stateMu guards the terminal state below, output is processed on the
 	// reader goroutine and Resize comes from the UI thread.
@@ -192,8 +192,8 @@ func (t *Terminal) Exit() {
 }
 
 func (t *Terminal) Write(bytes []byte) (int, error) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+	t.writeMu.Lock()
+	defer t.writeMu.Unlock()
 	return t.pty.Write(bytes)
 }
 

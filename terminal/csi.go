@@ -9,141 +9,9 @@ import (
 // A CSI longer than this is not a real one, the rest is dropped
 const csiMaxLen = 256
 
-// processCsi collects a CSI: "ESC [", parameter bytes 0x30..0x3f (digits and
-// ; : < = > ?), intermediate bytes 0x20..0x2f (space ! " # $ % & ' ( ) * + ,
-// - . /), and a final byte 0x40..0x7e that ends it. vim sends e.g.
-// "CSI 0 % m" and "CSI 2 SP q", their final byte must not be printed.
-func (t *Terminal) processCsi(r rune) {
-	switch {
-	case r >= 0x20 && r <= 0x3f:
-		if len(t.param) < csiMaxLen {
-			t.param = append(t.param, r)
-		}
-
-	case r >= 0x40 && r <= 0x7e:
-		t.param = append(t.param, r)
-		t.handleCsi()
-		t.param = []rune{}
-		t.state = stateGROUND
-
-	case r < 0x20:
-		// A C0 control inside a CSI is run right away, the CSI goes on
-		t.processGround(r)
-
-	case r == 0x7f:
-		// DEL is ignored
-
-	default:
-		// Not part of a CSI, it is dropped
-		t.param = []rune{}
-		t.state = stateGROUND
-	}
-}
-
 // isIntermediate tells if r is a CSI intermediate byte
 func isIntermediate(r rune) bool {
 	return r >= 0x20 && r <= 0x2f
-}
-
-func (t *Terminal) handleCsi() {
-	runes := t.param
-
-	if len(runes) == 0 {
-		return
-	}
-
-	final := runes[len(runes)-1]
-	body := runes[:len(runes)-1]
-
-	// The parameters come first, then the intermediate bytes
-	n := 0
-	for n < len(body) && !isIntermediate(body[n]) {
-		n++
-	}
-	message, inter := string(body[:n]), body[n:]
-	for _, r := range inter {
-		if !isIntermediate(r) {
-			return // a parameter after an intermediate: not a valid CSI
-		}
-	}
-	if len(inter) > 0 {
-		t.handleCsiIntermediate(message, string(inter), final)
-		return
-	}
-
-	// Queries the program sends to learn about the terminal, most of them
-	// with a private prefix, so they are answered before those are skipped
-	switch final {
-	case 'c':
-		t.deviceAttributes(message)
-		return
-	case 'n':
-		t.deviceStatus(message)
-		return
-	}
-
-	// Private sequences such as "?25l" are not cursor or erase commands
-	if message != "" && (message[0] == '?' || message[0] == '>' || message[0] == '=' || message[0] == '<') {
-		return
-	}
-
-	params := parseParams(message)
-
-	switch final {
-	case 'm':
-		t.handleColorMode(message)
-	case '@':
-		t.screen.InsertCells(t.cursorY, t.cursorX, param(params, 0, 1), t.bg)
-		t.wrapPending = false
-	case 'A':
-		t.moveCursor(t.cursorY-param(params, 0, 1), t.cursorX)
-	case 'B':
-		t.moveCursor(t.cursorY+param(params, 0, 1), t.cursorX)
-	case 'C':
-		t.moveCursor(t.cursorY, t.cursorX+param(params, 0, 1))
-	case 'D':
-		t.moveCursor(t.cursorY, t.cursorX-param(params, 0, 1))
-	case 'd':
-		t.moveCursor(param(params, 0, 1)-1, t.cursorX)
-	case 'H', 'f':
-		t.moveCursor(param(params, 0, 1)-1, param(params, 1, 1)-1)
-	case 'G':
-		t.moveCursor(t.cursorY, param(params, 0, 1)-1)
-	case 'h':
-	//escapePrivateModeOn,
-	case 'L':
-		t.insertLines(param(params, 0, 1))
-	case 'l':
-	//escapePrivateModeOff,
-	case 'J':
-		t.eraseInScreen(param(params, 0, 0))
-	case 'K':
-		t.eraseInLine(param(params, 0, 0))
-	case 'P':
-		t.screen.DeleteCells(t.cursorY, t.cursorX, param(params, 0, 1), t.bg)
-		t.wrapPending = false
-	case 'r':
-		t.setScrollRegion(param(params, 0, 1), param(params, 1, 0))
-	case 's':
-		t.saveCursor()
-	case 'S':
-		t.scrollRegion(param(params, 0, 1))
-	case 'u':
-		t.restoreCursor()
-	case 'i':
-	//escapePrinterMode,
-	case 'X':
-		n := param(params, 0, 1)
-		t.eraseCells(t.cursorY, t.cursorX, t.cursorX+n)
-	case 'M':
-		t.deleteLines(param(params, 0, 1))
-	case 'T':
-		t.scrollRegion(-param(params, 0, 1))
-	case 'b':
-	//escapeRepeatChar,
-	case 't':
-		//escapeWindowOps,
-	}
 }
 
 // parseParams splits "1;2" into numbers, an empty or invalid field becomes -1
@@ -279,5 +147,137 @@ func (t *Terminal) deviceStatus(message string) {
 		t.reply(fmt.Sprintf("\x1b[%d;%dR", t.cursorY+1, t.cursorX+1))
 	case "?6":
 		t.reply(fmt.Sprintf("\x1b[?%d;%dR", t.cursorY+1, t.cursorX+1))
+	}
+}
+
+func (t *Terminal) handleCsi() {
+	runes := t.param
+
+	if len(runes) == 0 {
+		return
+	}
+
+	final := runes[len(runes)-1]
+	body := runes[:len(runes)-1]
+
+	// The parameters come first, then the intermediate bytes
+	n := 0
+	for n < len(body) && !isIntermediate(body[n]) {
+		n++
+	}
+	message, inter := string(body[:n]), body[n:]
+	for _, r := range inter {
+		if !isIntermediate(r) {
+			return // a parameter after an intermediate: not a valid CSI
+		}
+	}
+	if len(inter) > 0 {
+		t.handleCsiIntermediate(message, string(inter), final)
+		return
+	}
+
+	// Queries the program sends to learn about the terminal, most of them
+	// with a private prefix, so they are answered before those are skipped
+	switch final {
+	case 'c':
+		t.deviceAttributes(message)
+		return
+	case 'n':
+		t.deviceStatus(message)
+		return
+	}
+
+	// Private sequences such as "?25l" are not cursor or erase commands
+	if message != "" && (message[0] == '?' || message[0] == '>' || message[0] == '=' || message[0] == '<') {
+		return
+	}
+
+	params := parseParams(message)
+
+	switch final {
+	case 'm':
+		t.handleColorMode(message)
+	case '@':
+		t.screen.InsertCells(t.cursorY, t.cursorX, param(params, 0, 1), t.bg)
+		t.wrapPending = false
+	case 'A':
+		t.moveCursor(t.cursorY-param(params, 0, 1), t.cursorX)
+	case 'B':
+		t.moveCursor(t.cursorY+param(params, 0, 1), t.cursorX)
+	case 'C':
+		t.moveCursor(t.cursorY, t.cursorX+param(params, 0, 1))
+	case 'D':
+		t.moveCursor(t.cursorY, t.cursorX-param(params, 0, 1))
+	case 'd':
+		t.moveCursor(param(params, 0, 1)-1, t.cursorX)
+	case 'H', 'f':
+		t.moveCursor(param(params, 0, 1)-1, param(params, 1, 1)-1)
+	case 'G':
+		t.moveCursor(t.cursorY, param(params, 0, 1)-1)
+	case 'h':
+	//escapePrivateModeOn,
+	case 'L':
+		t.insertLines(param(params, 0, 1))
+	case 'l':
+	//escapePrivateModeOff,
+	case 'J':
+		t.eraseInScreen(param(params, 0, 0))
+	case 'K':
+		t.eraseInLine(param(params, 0, 0))
+	case 'P':
+		t.screen.DeleteCells(t.cursorY, t.cursorX, param(params, 0, 1), t.bg)
+		t.wrapPending = false
+	case 'r':
+		t.setScrollRegion(param(params, 0, 1), param(params, 1, 0))
+	case 's':
+		t.saveCursor()
+	case 'S':
+		t.scrollRegion(param(params, 0, 1))
+	case 'u':
+		t.restoreCursor()
+	case 'i':
+	//escapePrinterMode,
+	case 'X':
+		n := param(params, 0, 1)
+		t.eraseCells(t.cursorY, t.cursorX, t.cursorX+n)
+	case 'M':
+		t.deleteLines(param(params, 0, 1))
+	case 'T':
+		t.scrollRegion(-param(params, 0, 1))
+	case 'b':
+	//escapeRepeatChar,
+	case 't':
+		//escapeWindowOps,
+	}
+}
+
+// processCsi collects a CSI: "ESC [", parameter bytes 0x30..0x3f (digits and
+// ; : < = > ?), intermediate bytes 0x20..0x2f (space ! " # $ % & ' ( ) * + ,
+// - . /), and a final byte 0x40..0x7e that ends it. vim sends e.g.
+// "CSI 0 % m" and "CSI 2 SP q", their final byte must not be printed.
+func (t *Terminal) processCsi(r rune) {
+	switch {
+	case r >= 0x20 && r <= 0x3f:
+		if len(t.param) < csiMaxLen {
+			t.param = append(t.param, r)
+		}
+
+	case r >= 0x40 && r <= 0x7e:
+		t.param = append(t.param, r)
+		t.handleCsi()
+		t.param = nil
+		t.state = stateGROUND
+
+	case r < 0x20:
+		// A C0 control inside a CSI is run right away, the CSI goes on
+		t.processGround(r)
+
+	case r == 0x7f:
+		// DEL is ignored
+
+	default:
+		// Not part of a CSI, it is dropped
+		t.param = nil
+		t.state = stateGROUND
 	}
 }
