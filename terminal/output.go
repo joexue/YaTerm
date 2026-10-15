@@ -7,6 +7,7 @@ import (
 const (
 	stateGROUND = iota
 	stateESC
+	stateESCIntermediate
 	stateCSI
 	stateOSC
 	stateOSCTermination
@@ -15,9 +16,6 @@ const (
 	stateDCSTermination
 	stateAPC
 	stateAPCTermination
-	stateDECCharSet0
-	stateDECCharSet1
-	stateTEST
 )
 
 const (
@@ -44,6 +42,9 @@ func (t *Terminal) processRune(r rune) {
 	switch t.state {
 	case stateESC:
 		t.processEsc(r)
+
+	case stateESCIntermediate:
+		t.processEscIntermediate(r)
 
 	case stateCSI:
 		t.processCsi(r)
@@ -81,15 +82,6 @@ func (t *Terminal) processRune(r rune) {
 			t.state = stateESC
 			t.processEsc(r)
 		}
-
-	case stateDECCharSet0:
-		t.processDec(r, 0)
-
-	case stateDECCharSet1:
-		t.processDec(r, 1)
-
-	case stateTEST:
-		t.processTest(r)
 
 	default:
 		t.processGround(r)

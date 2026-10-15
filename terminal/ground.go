@@ -12,6 +12,38 @@ const (
 	WidePad  rune = -2
 )
 
+// Character sets, the final character of the designation
+const (
+	charsetASCII       = 'B'
+	charsetUK          = 'A' // '#' is '£'
+	charsetDECGraphics = '0' // line drawing
+)
+
+// decGraphics is the DEC Special Graphics set for 0x5f..0x7e, used by
+// ncurses programs (htop, mc, dialog) to draw boxes: "lqk" is "┌─┐"
+var decGraphics = [...]rune{
+	' ', '◆', '▒', '␉', '␌', '␍', '␊', '°', // _ ` a b c d e f
+	'±', '␤', '␋', '┘', '┐', '┌', '└', '┼', // g h i j k l m n
+	'⎺', '⎻', '─', '⎼', '⎽', '├', '┤', '┴', // o p q r s t u v
+	'┬', '│', '≤', '≥', 'π', '≠', '£', '·', // w x y z { | } ~
+}
+
+// translateChar maps a character through the character set in use, G0 or
+// G1 as chosen by SI and SO
+func (t *Terminal) translateChar(r rune) rune {
+	switch t.charsets[t.shifted] {
+	case charsetDECGraphics:
+		if r >= 0x5f && r <= 0x7e {
+			return decGraphics[r-0x5f]
+		}
+	case charsetUK:
+		if r == '#' {
+			return '£'
+		}
+	}
+	return r
+}
+
 // widthCond measures characters like the C library's wcwidth that shells and
 // vim use. Ambiguous ones like box drawing are 1 wide, even in a CJK locale,
 // where go-runewidth would make them 2 by default.
@@ -185,16 +217,9 @@ func (t *Terminal) restoreCursor() {
 }
 
 func (t *Terminal) processGround(r rune) {
+	// First handle the single-character functions
 	switch r {
-	// Switch between the G0 and G1 character sets
-	case asciiShiftIn:
-		t.shifted = 0
-		return
-	case asciiShiftOut:
-		t.shifted = 1
-		return
-
-	// Ignore for now
+	// Ignore for now, we don't generate the anoy sound
 	case asciiBell:
 		return
 
@@ -202,9 +227,14 @@ func (t *Terminal) processGround(r rune) {
 		t.moveCursor(t.cursorY, t.cursorX-1)
 		return
 
-	case asciiTab:
-		// Move to the next tab stop (every 8 columns), stopping at the last column.
-		t.moveCursor(t.cursorY, (t.cursorX/8+1)*8)
+	case asciiReturn:
+		t.moveCursor(t.cursorY, 0)
+		return
+
+	// Return Terminal Status (ENQ  is Ctrl-E).  Default response is an empty
+	// string, but may be overridden by a resource answerbackString.
+	// We don't support this for now
+	case asciiEnq:
 		return
 
 	case asciiLineFeed, asciiVertTab, asciiFormFeed:
@@ -213,8 +243,23 @@ func (t *Terminal) processGround(r rune) {
 		t.lineFeed()
 		return
 
-	case asciiReturn:
-		t.moveCursor(t.cursorY, 0)
+	// Switch between the G0 and G1 character sets
+	case asciiShiftIn:
+		t.shifted = 0
+		return
+
+	case asciiShiftOut:
+		t.shifted = 1
+		return
+
+	// According to the https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
+	// here should have a space case byt it can be handled by outputChar
+	// case asciiSpace:
+	//	return
+
+	case asciiTab:
+		// Move to the next tab stop (every 8 columns), stopping at the last column.
+		t.moveCursor(t.cursorY, (t.cursorX/8+1)*8)
 		return
 	}
 

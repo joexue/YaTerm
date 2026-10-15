@@ -42,6 +42,55 @@ func (t *Terminal) handleEscAction(r rune) {
 	}
 }
 
+func (t *Terminal) testAlign() {
+	for i := 0; i < t.row; i++ {
+		for j := 0; j < t.col; j++ {
+			t.screen.Project('E', i, j, t.fg, t.bg, t.style)
+		}
+	}
+
+	t.cursorX = 0
+	t.cursorY = 0
+	t.screen.Flush(t.cursorY, t.cursorX)
+}
+
+// processDec takes the final character of "ESC ( X" (G0) or "ESC ) X" (G1).
+// It is one character, then the terminal goes back to normal output.
+func (t *Terminal) handleCharacterSet(r rune, set int) {
+	switch r {
+	case charsetDECGraphics, charsetUK:
+		t.charsets[set] = r
+	default:
+		// ASCII, and the national sets that are not supported
+		t.charsets[set] = charsetASCII
+	}
+
+	t.state = stateGROUND
+}
+
+func (t *Terminal) handleTest(r rune) {
+	switch r {
+	case '8':
+		t.testAlign()
+	}
+}
+
+func (t *Terminal) processEscIntermediate(r rune) {
+	interMediate := t.param[0]
+
+	switch interMediate {
+	case '#':
+		t.handleTest(r)
+	case '(':
+		t.handleCharacterSet(r, 0)
+	case ')':
+		t.handleCharacterSet(r, 1)
+	}
+
+	t.param = nil
+	t.state = stateGROUND
+}
+
 // ref: https://wezterm.org/escape-sequences.html#c1-control-codes
 // ref: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
 func (t *Terminal) processEsc(r rune) {
@@ -60,23 +109,15 @@ func (t *Terminal) processEsc(r rune) {
 	case '_', 'X', '^':
 		t.state = stateAPC
 
-	// "(0" Translate characters j-x to line drawing glyphs
-	// "(B" Disables stateDEC Line Drawing character translation
-	// "(A" Alternative character
-	case '(':
-		t.state = stateDECCharSet0
-
-	// ")0" ")B" ")A" same as abover for character set1
-	case ')':
-		t.state = stateDECCharSet1
-
-	// "#8" Fills the display with E characters for diagnostic/test purposes (for vttest)
-	case '#':
-		t.state = stateTEST
-
 	default:
-		t.handleEscAction(r)
-		t.state = stateGROUND
+		if isIntermediate(r) {
+			t.param = append(t.param, r)
+			t.state = stateESCIntermediate
+			return
+		} else {
+			t.handleEscAction(r)
+			t.state = stateGROUND
+		}
 	}
 
 	t.param = nil
