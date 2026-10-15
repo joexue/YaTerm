@@ -103,13 +103,19 @@ You need to select text from terminal then show them
 	if len(content) == 0 {
 		content = defaultText
 	}
-	rt := widget.NewRichTextFromMarkdown(content)
-	// A scroll container, not rt.Scroll: Fyne drops the renderer of a widget
-	// not drawn for a minute (e.g. in a tab in the background), and RichText
-	// with its own scroll makes a new one that draws nothing, the tab would
-	// be empty when shown again
-	mtab := container.NewTabItemWithIcon(fmt.Sprintf("MD %d", markdownTabId), assert.MarkdownIconRes, container.NewScroll(rt))
-	fyne.Do(func() {
-		tabControl.Append(mtab)
-	})
+
+	// Put it in gorotinue, since the large content may use lots of time, don't
+	// let it block the main thread
+	go func() {
+		rt := widget.NewRichTextFromMarkdown(content)
+		// A scroll container, not rt.Scroll: Fyne drops the renderer of a widget
+		// not drawn for a minute (e.g. in a tab in the background), and RichText
+		// with its own scroll makes a new one that draws nothing, the tab would
+		// be empty when shown again
+
+		mtab := container.NewTabItemWithIcon(fmt.Sprintf("MD %d", markdownTabId), assert.MarkdownIconRes, container.NewScroll(rt))
+		fyne.Do(func() {
+			tabControl.Append(mtab)
+		})
+	}()
 }
