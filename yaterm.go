@@ -1,7 +1,6 @@
 package main
 
 import (
-	_ "embed"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"yaterm/assert"
