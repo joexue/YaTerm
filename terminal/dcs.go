@@ -10,11 +10,6 @@ import (
 // than this is dropped, the sequence is still read to its end
 const dcsMaxLen = 1 << 16
 
-const (
-	asciiCancel     = 0x18 // CAN
-	asciiSubstitute = 0x1a // SUB
-)
-
 // reply sends an answer to the program. Not while holding the state lock: if
 // the program is busy writing output, writing to it could block until that
 // output is read, which needs the lock.
@@ -144,7 +139,7 @@ func (t *Terminal) processDcs(r rune) {
 		t.param = nil
 		t.state = stateGROUND
 
-	case asciiCancel, asciiSubstitute:
+	case asciiCancel, asciiSub:
 		t.state = stateGROUND
 		t.param = nil
 

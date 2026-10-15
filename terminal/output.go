@@ -5,18 +5,6 @@ import (
 )
 
 const (
-	asciiNull      = 0
-	asciiBell      = 7
-	asciiBackspace = 8
-	asciiTab       = 9
-	asciiLineFeed  = 10
-	asciiVertTab   = 11
-	asciiFormFeed  = 12
-	asciiReturn    = 13
-	asciiEscape    = 27
-)
-
-const (
 	stateGROUND = iota
 	stateESC
 	stateCSI

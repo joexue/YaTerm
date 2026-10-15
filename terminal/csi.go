@@ -9,11 +9,6 @@ import (
 // A CSI longer than this is not a real one, the rest is dropped
 const csiMaxLen = 256
 
-// isIntermediate tells if r is a CSI intermediate byte
-func isIntermediate(r rune) bool {
-	return r >= 0x20 && r <= 0x2f
-}
-
 // parseParams splits "1;2" into numbers, an empty or invalid field becomes -1
 func parseParams(message string) []int {
 	if message == "" {
@@ -31,19 +26,6 @@ func parseParams(message string) []int {
 	}
 
 	return params
-}
-
-// param returns the i-th parameter, or def when it is missing or zero for counts
-func param(params []int, i, def int) int {
-	if i >= len(params) || params[i] < 0 {
-		return def
-	}
-
-	if def > 0 && params[i] == 0 {
-		return def
-	}
-
-	return params[i]
 }
 
 // eraseInLine: 0 cursor to end, 1 start to cursor, 2 whole line.

@@ -19,7 +19,7 @@ func (t *Terminal) processApc(r rune) {
 		t.param = nil
 		t.state = stateGROUND
 
-	case asciiCancel, asciiSubstitute: //CAN, SUB
+	case asciiCancel, asciiSub: //CAN, SUB
 		t.param = nil
 		t.state = stateGROUND
 

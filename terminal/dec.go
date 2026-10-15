@@ -1,10 +1,5 @@
 package terminal
 
-const (
-	asciiShiftOut = 0x0e // SO: use G1
-	asciiShiftIn  = 0x0f // SI: use G0
-)
-
 // Character sets, the final character of the designation
 const (
 	charsetASCII       = 'B'

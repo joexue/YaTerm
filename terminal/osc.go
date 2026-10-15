@@ -72,12 +72,7 @@ func (t *Terminal) handleOsc() {
 // A '\' alone is text, e.g. ConPTY sends a title like "C:\WINDOWS\...".
 func (t *Terminal) processOsc(r rune) {
 	switch r {
-	case asciiBell, asciiNull:
-		t.handleOsc()
-		t.param = nil
-		t.state = stateGROUND
-
-	case StringTerminator:
+	case asciiBell, asciiNull, StringTerminator:
 		t.handleOsc()
 		t.param = nil
 		t.state = stateGROUND

@@ -2,7 +2,6 @@ package terminal
 
 import (
 	"image/color"
-	"strconv"
 	"strings"
 )
 
@@ -37,6 +36,51 @@ func (t *Terminal) resetGraphics() {
 	t.fg = nil
 	t.bg = nil
 	t.style = Style{}
+}
+
+// handleExtendedColor sets the 256 or RGB color for 38 (fg) / 48 (bg) and
+// returns how many of args it used.
+func (t *Terminal) handleExtendedColor(mode int, args []string, colon bool) int {
+	if len(args) == 0 {
+		return 0
+	}
+
+	var (
+		c    color.Color
+		used int
+	)
+
+	switch atoi(args[0]) {
+	case 5:
+		if len(args) < 2 {
+			return len(args)
+		}
+		c = t.indexedColor(atoi(args[1]))
+		used = 2
+
+	case 2:
+		rgb := args[1:]
+		// The colon form may have a color space id before r:g:b ("38:2::r:g:b")
+		if colon && len(rgb) >= 4 {
+			rgb = rgb[1:]
+		}
+		if len(rgb) < 3 {
+			return len(args)
+		}
+		c = color.RGBA{R: clampByte(atoi(rgb[0])), G: clampByte(atoi(rgb[1])), B: clampByte(atoi(rgb[2])), A: 0xff}
+		used = 4
+
+	default:
+		return 1
+	}
+
+	if mode == 38 {
+		t.fg = c
+	} else if mode == 48 {
+		t.bg = c
+	}
+
+	return used
 }
 
 // handleColorMode handles SGR "CSI ... m", ref: https://wezterm.org/escape-sequences.html#graphic-rendition-sgr
@@ -116,68 +160,4 @@ func (t *Terminal) handleColorMode(message string) {
 			i += t.handleExtendedColor(mode, modes[i+1:], false)
 		}
 	}
-}
-
-// handleExtendedColor sets the 256 or RGB color for 38 (fg) / 48 (bg) and
-// returns how many of args it used.
-func (t *Terminal) handleExtendedColor(mode int, args []string, colon bool) int {
-	if len(args) == 0 {
-		return 0
-	}
-
-	var (
-		c    color.Color
-		used int
-	)
-
-	switch atoi(args[0]) {
-	case 5:
-		if len(args) < 2 {
-			return len(args)
-		}
-		c = t.indexedColor(atoi(args[1]))
-		used = 2
-
-	case 2:
-		rgb := args[1:]
-		// The colon form may have a color space id before r:g:b ("38:2::r:g:b")
-		if colon && len(rgb) >= 4 {
-			rgb = rgb[1:]
-		}
-		if len(rgb) < 3 {
-			return len(args)
-		}
-		c = color.RGBA{R: clampByte(atoi(rgb[0])), G: clampByte(atoi(rgb[1])), B: clampByte(atoi(rgb[2])), A: 0xff}
-		used = 4
-
-	default:
-		return 1
-	}
-
-	if mode == 38 {
-		t.fg = c
-	} else if mode == 48 {
-		t.bg = c
-	}
-
-	return used
-}
-
-// atoi treats an empty or invalid field as 0, as terminals do
-func atoi(s string) int {
-	n, err := strconv.Atoi(s)
-	if err != nil {
-		return 0
-	}
-	return n
-}
-
-func clampByte(n int) uint8 {
-	if n < 0 {
-		return 0
-	}
-	if n > 255 {
-		return 255
-	}
-	return uint8(n)
 }
