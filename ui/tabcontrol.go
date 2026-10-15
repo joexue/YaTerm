@@ -112,7 +112,7 @@ You need to select text from terminal then show them
 		// with its own scroll makes a new one that draws nothing, the tab would
 		// be empty when shown again
 
-		mtab := container.NewTabItemWithIcon(fmt.Sprintf("MD %d", markdownTabId), assert.MarkdownIconRes, container.NewScroll(rt))
+		mtab := container.NewTabItemWithIcon(fmt.Sprintf("MD %d", markdownTabId), assert.MarkdownIconColorRes, container.NewScroll(rt))
 		fyne.Do(func() {
 			tabControl.Append(mtab)
 		})

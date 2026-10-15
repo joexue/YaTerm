@@ -29,11 +29,19 @@ var VSplitIconRes = &fyne.StaticResource{
 	StaticContent: vsplitIcon,
 }
 
-//go:embed Resource/icons/markdown_solid.svg
+//go:embed Resource/icons/markdown_color.svg
+var markdownIconColor []byte
+
+var MarkdownIconColorRes = &fyne.StaticResource{
+	StaticName:    "markdown_color.svg",
+	StaticContent: markdownIconColor,
+}
+
+//go:embed Resource/icons/markdown.svg
 var markdownIcon []byte
 
 var MarkdownIconRes = &fyne.StaticResource{
-	StaticName:    "markdown_solid.svg",
+	StaticName:    "markdown.svg",
 	StaticContent: markdownIcon,
 }
 
