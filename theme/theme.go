@@ -18,6 +18,26 @@ const (
 	ColorSelectionBackground fyne.ThemeColorName = "selectionBackground"
 )
 
+// SizeNameTerminalText is the size of the terminal's text. It is apart from
+// theme.SizeNameText, so the font size setting changes the terminal only, not
+// the tabs, menus and dialogs, like in Windows Terminal.
+const SizeNameTerminalText fyne.ThemeSizeName = "yatermTerminalText"
+
+// DefaultFontSize is the terminal text size a new theme starts with
+const DefaultFontSize float32 = 14
+
+// CursorShape is how the terminal cursor is drawn
+type CursorShape string
+
+const (
+	CursorBlock     CursorShape = "block"     // the whole cell, the character inverted
+	CursorBar       CursorShape = "bar"       // a thin line on the left of the cell
+	CursorUnderline CursorShape = "underline" // a thin line at the bottom of the cell
+)
+
+// CursorShapes are all the cursor shapes
+var CursorShapes = []CursorShape{CursorBlock, CursorBar, CursorUnderline}
+
 // Scheme is a terminal color scheme. The 16 regular colors are found by
 // number, in the order of the terminal's SGR colors (30..37, then the bright
 // 90..97), the same as basicColors in terminal/color.go. The others are found
@@ -626,26 +646,6 @@ var Schemes = map[string]*Scheme{
 // DefaultScheme is the scheme a new theme starts with
 const DefaultScheme = "Campbell"
 
-// SizeNameTerminalText is the size of the terminal's text. It is apart from
-// theme.SizeNameText, so the font size setting changes the terminal only, not
-// the tabs, menus and dialogs, like in Windows Terminal.
-const SizeNameTerminalText fyne.ThemeSizeName = "yatermTerminalText"
-
-// DefaultFontSize is the terminal text size a new theme starts with
-const DefaultFontSize float32 = 14
-
-// CursorShape is how the terminal cursor is drawn
-type CursorShape string
-
-const (
-	CursorBlock     CursorShape = "block"     // the whole cell, the character inverted
-	CursorBar       CursorShape = "bar"       // a thin line on the left of the cell
-	CursorUnderline CursorShape = "underline" // a thin line at the bottom of the cell
-)
-
-// CursorShapes are all the cursor shapes
-var CursorShapes = []CursorShape{CursorBlock, CursorBar, CursorUnderline}
-
 // DefaultCursorShape is the cursor shape a new theme starts with
 const DefaultCursorShape = CursorBlock
 
@@ -660,53 +660,6 @@ type YatermTheme struct {
 	cursorShape CursorShape
 }
 
-func (f *YatermTheme) Color(name fyne.ThemeColorName, _ fyne.ThemeVariant) color.Color {
-	if c, ok := f.SchemeColor(name); ok {
-		return c
-	}
-
-	return f.Theme.Color(name, f.variant)
-}
-
-// Scheme is the color scheme in use
-func (f *YatermTheme) Scheme() *Scheme {
-	return f.scheme
-}
-
-// SetScheme picks the scheme by its name, see Schemes. The theme becomes
-// dark or light after the scheme's background. An unknown name changes
-// nothing and returns false.
-func (f *YatermTheme) SetScheme(name string) bool {
-	s, ok := Schemes[name]
-	if !ok {
-		return false
-	}
-
-	f.scheme = s
-	f.variant = theme.VariantDark
-	if !isDark(s.Colors[ColorBackground]) {
-		f.variant = theme.VariantLight
-	}
-	return true
-}
-
-// ANSIColor returns one of the 16 regular colors of the scheme by number,
-// in the order of the SGR colors (30..37, then the bright 90..97), nil when
-// out of range
-func (f *YatermTheme) ANSIColor(i int) color.Color {
-	if i < 0 || i >= len(f.scheme.ANSI) {
-		return nil
-	}
-	return f.scheme.ANSI[i]
-}
-
-// SchemeColor returns one of the other colors of the scheme by name, e.g.
-// ColorBackground, and false when the scheme has no such color
-func (f *YatermTheme) SchemeColor(name fyne.ThemeColorName) (color.Color, bool) {
-	c, ok := f.scheme.Colors[name]
-	return c, ok
-}
-
 // isDark tells if a background is dark, by its luminance
 func isDark(c color.Color) bool {
 	r, g, b, _ := c.RGBA()
@@ -714,15 +667,12 @@ func isDark(c color.Color) bool {
 	return 0.2126*float64(r)+0.7152*float64(g)+0.0722*float64(b) < 0.5*0xffff
 }
 
-func (f *YatermTheme) Size(name fyne.ThemeSizeName) float32 {
-	switch name {
-	case theme.SizeNameSplitThickness:
-		return 4
-	case SizeNameTerminalText:
-		return f.fontSize
+func (t *YatermTheme) Color(name fyne.ThemeColorName, _ fyne.ThemeVariant) color.Color {
+	if c, ok := t.scheme.Colors[name]; ok {
+		return c
 	}
 
-	return f.Theme.Size(name)
+	return t.Theme.Color(name, t.variant)
 }
 
 func (t *YatermTheme) Font(s fyne.TextStyle) fyne.Resource {
@@ -739,35 +689,62 @@ func (t *YatermTheme) Font(s fyne.TextStyle) fyne.Resource {
 	return assert.ResourceJetBrainsMonoRegularTtf
 }
 
+func (t *YatermTheme) Size(name fyne.ThemeSizeName) float32 {
+	switch name {
+	case SizeNameTerminalText:
+		return t.fontSize
+	}
+
+	return t.Theme.Size(name)
+}
+
+// Scheme is the color scheme in use
+func (t *YatermTheme) Scheme() *Scheme {
+	return t.scheme
+}
+
+// SetScheme picks the scheme by its name, see Schemes. The theme becomes
+// dark or light after the scheme's background. An unknown name changes
+// nothing and returns false.
+func (t *YatermTheme) SetScheme(name string) bool {
+	s, ok := Schemes[name]
+	if !ok {
+		return false
+	}
+
+	t.scheme = s
+
+	t.variant = theme.VariantDark
+	if !isDark(s.Colors[ColorBackground]) {
+		t.variant = theme.VariantLight
+	}
+	return true
+}
+
 // FontSize is the size of the terminal's text
-func (f *YatermTheme) FontSize() float32 {
-	return f.fontSize
+func (t *YatermTheme) FontSize() float32 {
+	return t.fontSize
 }
 
 // SetFontSize sets the size of the terminal's text, a size of 0 or less
 // changes nothing
-func (f *YatermTheme) SetFontSize(size float32) {
+func (t *YatermTheme) SetFontSize(size float32) {
 	if size > 0 {
-		f.fontSize = size
+		t.fontSize = size
 	}
 }
 
-// CursorColor is the color of the terminal cursor, from the scheme
-func (f *YatermTheme) CursorColor() color.Color {
-	return f.scheme.Colors[ColorCursor]
-}
-
 // CursorShape is how the terminal cursor is drawn
-func (f *YatermTheme) CursorShape() CursorShape {
-	return f.cursorShape
+func (t *YatermTheme) CursorShape() CursorShape {
+	return t.cursorShape
 }
 
 // SetCursorShape sets how the terminal cursor is drawn, an unknown shape
 // changes nothing and returns false
-func (f *YatermTheme) SetCursorShape(shape CursorShape) bool {
+func (t *YatermTheme) SetCursorShape(shape CursorShape) bool {
 	for _, s := range CursorShapes {
 		if s == shape {
-			f.cursorShape = shape
+			t.cursorShape = shape
 			return true
 		}
 	}

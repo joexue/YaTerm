@@ -145,7 +145,7 @@ type Screen struct {
 
 func NewScreen() *Screen {
 	s := &Screen{
-		cursor:     canvas.NewRectangle(cursorColor()),
+		cursor:     canvas.NewRectangle(theme.Color(yatheme.ColorCursor)),
 		cursorText: canvas.NewText("", color.Transparent),
 		cellSize:   measureCell(),
 		hist:       newHistory(HistoryLines),
@@ -470,15 +470,6 @@ func (s *Screen) Flush(row, col int) {
 		s.render()
 		s.updateCursor()
 	})
-}
-
-// cursorColor is the cursor color of the YaTerm theme, or the primary color
-// with another theme (e.g. Fyne's own, which has no cursor color)
-func cursorColor() color.Color {
-	if th := currentTheme(); th != nil {
-		return th.CursorColor()
-	}
-	return theme.Color(theme.ColorNamePrimary)
 }
 
 // cursorThickness is the width of the bar cursor and the height of the
@@ -980,7 +971,7 @@ func (r *screenRenderer) Objects() []fyne.CanvasObject {
 func (r *screenRenderer) Refresh() {
 	s := r.screen
 	s.cellSize = measureCell()
-	s.cursor.FillColor = cursorColor()
+	s.cursor.FillColor = theme.Color(yatheme.ColorCursor)
 	s.cursor.Resize(s.cellSize)
 	s.cursor.Refresh()
 

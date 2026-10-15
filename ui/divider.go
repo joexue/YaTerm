@@ -165,11 +165,7 @@ func DividerTheme(d *Divider) fyne.Theme {
 }
 
 func DividerThickness(d *Divider) float32 {
-	th := DividerTheme(d)
-	pad := th.Size(theme.SizeNameSplitThickness)
-	if pad == 0 {
-		pad = SplitDefaultThickness
-	}
+	pad := SplitDefaultThickness
 	return pad
 }
 
