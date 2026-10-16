@@ -216,8 +216,7 @@ func (t *Terminal) restoreCursor() {
 	t.charsets, t.shifted = t.savedCharsets, t.savedShifted
 }
 
-func (t *Terminal) processGround(r rune) {
-	// First handle the single-character functions
+func (t *Terminal) handleAction(r rune) {
 	switch r {
 	// Ignore for now, we don't generate the anoy sound
 	case asciiBell:
@@ -260,6 +259,13 @@ func (t *Terminal) processGround(r rune) {
 	case asciiTab:
 		// Move to the next tab stop (every 8 columns), stopping at the last column.
 		t.moveCursor(t.cursorY, (t.cursorX/8+1)*8)
+		return
+	}
+}
+
+func (t *Terminal) processGround(r rune) {
+	if isC0ControlCharacter(r) {
+		t.handleAction(r)
 		return
 	}
 
