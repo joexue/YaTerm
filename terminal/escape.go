@@ -186,7 +186,7 @@ func (t *Terminal) processEsc(r rune) {
 
 	default:
 		if isIntermediate(r) {
-			t.param = append(t.param, r)
+			t.param = []rune{r}
 			t.state = stateESCIntermediate
 		} else {
 			t.handleEscAction(r)
