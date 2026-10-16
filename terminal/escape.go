@@ -1,6 +1,11 @@
 package terminal
 
 func (t *Terminal) handleEscAction(r rune) {
+	if isC0ControlCharacter(r) {
+		t.handleAction(r)
+		return
+	}
+
 	switch r {
 	// Moves the cursor down one line in the same column. If the cursor is at the bottom margin, the page scrolls up
 	case 'D':
@@ -118,8 +123,6 @@ func (t *Terminal) handleCharacterSet(r rune, set int) {
 		// ASCII, and the national sets that are not supported
 		t.charsets[set] = charsetASCII
 	}
-
-	t.state = stateGROUND
 }
 
 func (t *Terminal) handleTest(r rune) {
@@ -130,8 +133,16 @@ func (t *Terminal) handleTest(r rune) {
 }
 
 func (t *Terminal) processEscIntermediate(r rune) {
-	interMediate := t.param[0]
+	if isC0ControlCharacter(r) {
+		t.handleAction(r)
+		return
+	}
 
+	if r == asciiDelete {
+		return
+	}
+
+	interMediate := t.param[0]
 	switch interMediate {
 	case '#':
 		t.handleTest(r)
@@ -145,26 +156,30 @@ func (t *Terminal) processEscIntermediate(r rune) {
 	t.state = stateGROUND
 }
 
-// ref: https://wezterm.org/escape-sequences.html#c1-control-codes
 // ref: https://invisible-island.net/xterm/ctlseqs/ctlseqs.html
+// ref: https://wezterm.org/escape-sequences.html#c1-control-codes
 // ref: https://github.com/microsoft/terminal
 func (t *Terminal) processEsc(r rune) {
 	switch r {
 	// Control Sequence Introducer
 	case '[':
 		t.state = stateCSI
+		t.param = nil
 
 	// Operating System Command Sequences
 	case ']':
 		t.state = stateOSC
+		t.param = nil
 
 	// Device Control String
 	case 'P':
 		t.state = stateDCS
+		t.param = nil
 
 	// Application Program Command
 	case '_':
 		t.state = stateAPC
+		t.param = nil
 
 	// ignore it
 	case asciiDelete:
@@ -173,15 +188,10 @@ func (t *Terminal) processEsc(r rune) {
 		if isIntermediate(r) {
 			t.param = append(t.param, r)
 			t.state = stateESCIntermediate
-			return
-		} else if isC0ControlCharacter(r) {
-			t.handleAction(r)
-			return
 		} else {
 			t.handleEscAction(r)
 			t.state = stateGROUND
+			t.param = nil
 		}
 	}
-
-	t.param = nil
 }
