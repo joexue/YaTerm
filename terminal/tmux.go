@@ -1,7 +1,5 @@
 package terminal
 
-import "strings"
-
 /*
  * ================================
  *  tmux control mode (tmux -CC). tmux starts it with the DCS "ESC P 1000 p",
@@ -74,25 +72,4 @@ func (t *Terminal) endTmux() {
 	if h != nil {
 		h.TmuxEnd()
 	}
-}
-
-// Print shows a message of YaTerm on the screen, plain text and new lines.
-// It goes past the parser, which may be in the middle of something, e.g. the
-// tmux control mode would take it as a line for tmux. Not for the reader
-// goroutine while it holds the state lock.
-func (t *Terminal) Print(text string) {
-	text = strings.ReplaceAll(text, "\n", "\r\n")
-
-	t.stateMu.Lock()
-	defer t.stateMu.Unlock()
-	for _, r := range text {
-		t.processGround(r)
-	}
-	t.screen.Flush(t.cursorShown())
-}
-
-// NewWithPty makes a terminal on a given pty, e.g. one that sends the input
-// to a tmux pane, its output is given with ProcessOutput, RunCmd is not used
-func NewWithPty(screen Screen, p Pty) *Terminal {
-	return &Terminal{pty: p, screen: screen}
 }

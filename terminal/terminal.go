@@ -107,14 +107,6 @@ type Terminal struct {
 	tmuxLine strings.Builder // the line being read
 }
 
-// Title is the title the program set with OSC 0 or 2, empty if none
-func (t *Terminal) Title() string {
-	t.stateMu.Lock()
-	defer t.stateMu.Unlock()
-
-	return t.title
-}
-
 func New(screen Screen) *Terminal {
 	t := &Terminal{
 		pty:    pty.New(),
@@ -123,6 +115,15 @@ func New(screen Screen) *Terminal {
 	}
 
 	return t
+}
+
+// NewWithPty makes a terminal on a given pty, e.g. one that sends the input
+// to a tmux pane, its output is given with ProcessOutput, RunCmd is not used
+func NewWithPty(screen Screen, p Pty) *Terminal {
+	return &Terminal{
+		pty:    p,
+		screen: screen,
+	}
 }
 
 func (t *Terminal) Resize(row, col int) {
@@ -218,4 +219,25 @@ func (t *Terminal) setCwd(cwd string) {
 
 func (t *Terminal) SetColors(schema [16]color.Color) {
 	t.colorSchema = schema
+}
+
+// Print shows a message of YaTerm on the screen, plain text and new lines.
+// It goes past the parser, which may be in the middle of something, e.g. the
+// tmux control mode would take it as a line for tmux. Not for the reader
+// goroutine while it holds the state lock.
+func (t *Terminal) Print(text string) {
+	text = strings.ReplaceAll(text, "\n", "\r\n")
+
+	for _, r := range text {
+		t.processGround(r)
+	}
+	t.screen.Flush(t.cursorShown())
+}
+
+// Title is the title the program set with OSC 0 or 2, empty if none
+func (t *Terminal) Title() string {
+	t.stateMu.Lock()
+	defer t.stateMu.Unlock()
+
+	return t.title
 }
