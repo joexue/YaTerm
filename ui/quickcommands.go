@@ -17,81 +17,82 @@ import (
 
 /*
  * ================================
- *  Type Agent: saved commands typed into the terminal from the menu, for the
+ *  Quick Commands: saved commands typed into the terminal from the menu, for the
  *  long commands people use often and would copy and paste otherwise, but
  *  the clipboard changes in between
  * ================================
  */
 
-// agentNameWidth is the width of the name column in the command editor
-const agentNameWidth = 160
+// quickNameWidth is the width of the name column in the command editor
+const quickNameWidth = 160
 
-// prefTypeAgent is the preference key of the saved commands, kept as JSON
-const prefTypeAgent = "typeAgent"
+// prefQuickCommands is the preference key of the saved commands, kept as
+// JSON. Its name is from when the feature was called Type Agent.
+const prefQuickCommands = "typeAgent"
 
-// agentCommand is a saved command, shown in the menu by its name, or a
+// quickCommand is a saved command, shown in the menu by its name, or a
 // folder of commands, shown as a submenu. Folders are only at the top level.
-type agentCommand struct {
+type quickCommand struct {
 	Name     string         `json:"name"`
 	Command  string         `json:"command,omitempty"`
 	Folder   bool           `json:"folder,omitempty"`
-	Commands []agentCommand `json:"commands,omitempty"`
+	Commands []quickCommand `json:"commands,omitempty"`
 }
 
-// loadAgentCommands returns the saved commands, none if there are none or
+// loadQuickCommands returns the saved commands, none if there are none or
 // they can not be read
-func loadAgentCommands() []agentCommand {
-	var cmds []agentCommand
-	data := fyne.CurrentApp().Preferences().String(prefTypeAgent)
+func loadQuickCommands() []quickCommand {
+	var cmds []quickCommand
+	data := fyne.CurrentApp().Preferences().String(prefQuickCommands)
 	if data == "" {
 		return nil
 	}
 	if err := json.Unmarshal([]byte(data), &cmds); err != nil {
-		fyne.LogError("Type Agent: can not read the saved commands", err)
+		fyne.LogError("Quick Commands: can not read the saved commands", err)
 		return nil
 	}
 	return cmds
 }
 
-// saveAgentCommands keeps the commands
-func saveAgentCommands(cmds []agentCommand) {
+// saveQuickCommands keeps the commands
+func saveQuickCommands(cmds []quickCommand) {
 	data, err := json.Marshal(cmds)
 	if err != nil {
-		fyne.LogError("Type Agent: can not save the commands", err)
+		fyne.LogError("Quick Commands: can not save the commands", err)
 		return
 	}
-	fyne.CurrentApp().Preferences().SetString(prefTypeAgent, string(data))
+	fyne.CurrentApp().Preferences().SetString(prefQuickCommands, string(data))
 }
 
-// typeAgentMenu is the Type Agent submenu: the editor of the commands, then
+// quickCommandsMenu is the Quick Commands submenu: the editor of the commands, then
 // one item for each saved command, which types it into this pane's terminal,
 // and a submenu for each folder
-func (p *Pane) typeAgentMenu() *fyne.Menu {
+func (p *Pane) quickCommandsMenu() *fyne.Menu {
 	items := []*fyne.MenuItem{
 		fyne.NewMenuItemWithIcon("Manage commands...", theme.Icon(theme.IconNameSettings), func() {
-			showAgentCommands(win)
+			showQuickCommands(win)
 		}),
 	}
 
-	cmds := loadAgentCommands()
+	cmds := loadQuickCommands()
 	if len(cmds) > 0 {
 		items = append(items, fyne.NewMenuItemSeparator())
 	}
-	return fyne.NewMenu("", append(items, p.agentItems(cmds)...)...)
+	return fyne.NewMenu("", append(items, p.quickItems(cmds)...)...)
 }
 
-// agentItems are the menu items of commands and folders
-func (p *Pane) agentItems(cmds []agentCommand) []*fyne.MenuItem {
+// quickItems are the menu items of commands and folders
+func (p *Pane) quickItems(cmds []quickCommand) []*fyne.MenuItem {
 	var items []*fyne.MenuItem
 	for _, c := range cmds {
 		if !c.Folder {
-			items = append(items, fyne.NewMenuItemWithIcon(c.Name, agentCommandIcon(), func() {
+			items = append(items, fyne.NewMenuItemWithIcon(c.Name, quickCommandIcon(), func() {
 				p.typeText(c.Command)
 			}))
 			continue
 		}
 
-		sub := p.agentItems(c.Commands)
+		sub := p.quickItems(c.Commands)
 		if len(sub) == 0 {
 			empty := fyne.NewMenuItem("No commands", nil)
 			empty.Disabled = true
@@ -104,8 +105,8 @@ func (p *Pane) agentItems(cmds []agentCommand) []*fyne.MenuItem {
 	return items
 }
 
-// agentCommandIcon is the icon of a saved command, a shell prompt
-func agentCommandIcon() fyne.Resource {
+// quickCommandIcon is the icon of a saved command, a shell prompt
+func quickCommandIcon() fyne.Resource {
 	return theme.NewThemedResource(assert.CommandIconRes)
 }
 
@@ -128,27 +129,27 @@ func (p *Pane) typeText(text string) {
 	}
 }
 
-// agentPath is where a command or folder is: its index at the top level,
+// quickPath is where a command or folder is: its index at the top level,
 // and its index in that folder for a command in one (-1 otherwise)
-type agentPath struct {
+type quickPath struct {
 	top, sub int
 }
 
-// noAgentPath is a command not saved yet
-var noAgentPath = agentPath{-1, -1}
+// noQuickPath is a command not saved yet
+var noQuickPath = quickPath{-1, -1}
 
 // The tree of the editor has a node ID for each path: "3" at the top level,
 // "3/1" in a folder, the root is ""
-func (a agentPath) id() widget.TreeNodeID {
+func (a quickPath) id() widget.TreeNodeID {
 	if a.sub < 0 {
 		return strconv.Itoa(a.top)
 	}
 	return strconv.Itoa(a.top) + "/" + strconv.Itoa(a.sub)
 }
 
-func parseAgentPath(id widget.TreeNodeID) agentPath {
+func parseQuickPath(id widget.TreeNodeID) quickPath {
 	top, sub, inFolder := strings.Cut(id, "/")
-	a := noAgentPath
+	a := noQuickPath
 	a.top, _ = strconv.Atoi(top)
 	if inFolder {
 		a.sub, _ = strconv.Atoi(sub)
@@ -157,25 +158,25 @@ func parseAgentPath(id widget.TreeNodeID) agentPath {
 }
 
 // at is the command or folder at a path
-func agentAt(cmds []agentCommand, a agentPath) *agentCommand {
+func quickAt(cmds []quickCommand, a quickPath) *quickCommand {
 	if a.sub < 0 {
 		return &cmds[a.top]
 	}
 	return &cmds[a.top].Commands[a.sub]
 }
 
-// setAgentCommand puts c at its path, in folder (a top level index, -1 for
+// setQuickCommand puts c at its path, in folder (a top level index, -1 for
 // none). One that changes folder, or is new, goes to the end of the folder.
 // Returns the commands and where the folder is now, it moves up when the
 // command leaves the top level before it.
-func setAgentCommand(cmds []agentCommand, at agentPath, c agentCommand, folder int) ([]agentCommand, int) {
-	if at != noAgentPath {
+func setQuickCommand(cmds []quickCommand, at quickPath, c quickCommand, folder int) ([]quickCommand, int) {
+	if at != noQuickPath {
 		cur := -1
 		if at.sub >= 0 {
 			cur = at.top
 		}
 		if cur == folder {
-			*agentAt(cmds, at) = c
+			*quickAt(cmds, at) = c
 			return cmds, folder
 		}
 
@@ -199,25 +200,25 @@ func setAgentCommand(cmds []agentCommand, at agentPath, c agentCommand, folder i
 	return cmds, folder
 }
 
-// showAgentCommands opens the editor of the saved commands: a tree of the
+// showQuickCommands opens the editor of the saved commands: a tree of the
 // folders and commands with Add, Edit and Delete. Every change is saved right
 // away.
-func showAgentCommands(w fyne.Window) {
-	cmds := loadAgentCommands()
-	selected := noAgentPath
+func showQuickCommands(w fyne.Window) {
+	cmds := loadQuickCommands()
+	selected := noQuickPath
 
 	tree := widget.NewTree(
 		func(id widget.TreeNodeID) []widget.TreeNodeID {
 			var ids []widget.TreeNodeID
 			if id == "" {
 				for i := range cmds {
-					ids = append(ids, agentPath{i, -1}.id())
+					ids = append(ids, quickPath{i, -1}.id())
 				}
 				return ids
 			}
-			a := parseAgentPath(id)
+			a := parseQuickPath(id)
 			for j := range cmds[a.top].Commands {
-				ids = append(ids, agentPath{a.top, j}.id())
+				ids = append(ids, quickPath{a.top, j}.id())
 			}
 			return ids
 		},
@@ -225,7 +226,7 @@ func showAgentCommands(w fyne.Window) {
 			if id == "" {
 				return true
 			}
-			a := parseAgentPath(id)
+			a := parseQuickPath(id)
 			return a.sub < 0 && cmds[a.top].Folder
 		},
 		func(bool) fyne.CanvasObject {
@@ -239,7 +240,7 @@ func showAgentCommands(w fyne.Window) {
 
 			// The row is made empty, so the name gets a fixed width column,
 			// sized to its empty text it would be drawn over the command
-			nameCol := container.NewGridWrap(fyne.NewSize(agentNameWidth, name.MinSize().Height), name)
+			nameCol := container.NewGridWrap(fyne.NewSize(quickNameWidth, name.MinSize().Height), name)
 			return container.NewBorder(nil, nil, container.NewHBox(icon, nameCol), nil, command)
 		},
 		func(id widget.TreeNodeID, branch bool, o fyne.CanvasObject) {
@@ -250,7 +251,7 @@ func showAgentCommands(w fyne.Window) {
 			icon := left.Objects[0].(*widget.Icon)
 			name := left.Objects[1].(*fyne.Container).Objects[0].(*widget.Label)
 
-			c := agentAt(cmds, parseAgentPath(id))
+			c := quickAt(cmds, parseQuickPath(id))
 			name.SetText(c.Name)
 			if c.Folder {
 				icon.SetResource(theme.FolderIcon())
@@ -258,7 +259,7 @@ func showAgentCommands(w fyne.Window) {
 				command.TextStyle = fyne.TextStyle{}
 				command.SetText(countCommands(len(c.Commands)))
 			} else {
-				icon.SetResource(agentCommandIcon())
+				icon.SetResource(quickCommandIcon())
 				command.Importance = widget.MediumImportance
 				command.TextStyle = fyne.TextStyle{Monospace: true}
 				command.SetText(firstLine(c.Command))
@@ -266,12 +267,12 @@ func showAgentCommands(w fyne.Window) {
 		},
 	)
 
-	empty := widget.NewLabel("No commands yet, add one to type it from the Type Agent menu.")
+	empty := widget.NewLabel("No commands yet, add one to type it from the Quick Commands menu.")
 	empty.Importance = widget.LowImportance
 
 	var edit, del, up, down *widget.Button
 	update := func() {
-		if selected != noAgentPath {
+		if selected != noQuickPath {
 			edit.Enable()
 			del.Enable()
 		} else {
@@ -281,8 +282,8 @@ func showAgentCommands(w fyne.Window) {
 		// Up and down within the list the selection is in
 		up.Disable()
 		down.Disable()
-		if selected != noAgentPath {
-			i, n := agentSiblings(cmds, selected)
+		if selected != noQuickPath {
+			i, n := quickSiblings(cmds, selected)
 			if i > 0 {
 				up.Enable()
 			}
@@ -297,11 +298,11 @@ func showAgentCommands(w fyne.Window) {
 		}
 	}
 	tree.OnSelected = func(id widget.TreeNodeID) {
-		selected = parseAgentPath(id)
+		selected = parseQuickPath(id)
 		update()
 	}
 	tree.OnUnselected = func(widget.TreeNodeID) {
-		selected = noAgentPath
+		selected = noQuickPath
 		update()
 	}
 
@@ -309,11 +310,11 @@ func showAgentCommands(w fyne.Window) {
 	// index of what left the top level, -1 for none: the tree knows the open
 	// folders by ID, which is the index, so the ones after it move up.
 	changed := func(removed int) {
-		saveAgentCommands(cmds)
+		saveQuickCommands(cmds)
 
 		var open []int
 		for i := 0; i <= len(cmds); i++ {
-			if !tree.IsBranchOpen(agentPath{i, -1}.id()) || i == removed {
+			if !tree.IsBranchOpen(quickPath{i, -1}.id()) || i == removed {
 				continue
 			}
 			if removed >= 0 && i > removed {
@@ -325,12 +326,12 @@ func showAgentCommands(w fyne.Window) {
 		tree.CloseAllBranches()
 		for _, i := range open {
 			if i < len(cmds) && cmds[i].Folder {
-				tree.OpenBranch(agentPath{i, -1}.id())
+				tree.OpenBranch(quickPath{i, -1}.id())
 			}
 		}
 
 		tree.UnselectAll()
-		selected = noAgentPath
+		selected = noQuickPath
 		tree.Refresh()
 		update()
 	}
@@ -350,24 +351,24 @@ func showAgentCommands(w fyne.Window) {
 	}
 
 	// editCommand opens the form of the command at a path, in folder
-	editCommand := func(at agentPath, c agentCommand, folder int) {
+	editCommand := func(at quickPath, c quickCommand, folder int) {
 		names, idx := folders()
 		choice := slices.Index(idx, folder)
-		editAgentCommand(w, c, names, choice, func(c agentCommand, choice int) {
+		editQuickCommand(w, c, names, choice, func(c quickCommand, choice int) {
 			folder := -1
 			if choice >= 0 {
 				folder = idx[choice]
 			}
 			// A command at the top level that goes into a folder leaves it
 			removed := -1
-			if at != noAgentPath && at.sub < 0 && folder >= 0 {
+			if at != noQuickPath && at.sub < 0 && folder >= 0 {
 				removed = at.top
 			}
-			cmds, folder = setAgentCommand(cmds, at, c, folder)
+			cmds, folder = setQuickCommand(cmds, at, c, folder)
 			changed(removed)
 			// Show the command in its folder
 			if folder >= 0 {
-				tree.OpenBranch(agentPath{folder, -1}.id())
+				tree.OpenBranch(quickPath{folder, -1}.id())
 			}
 		})
 	}
@@ -375,23 +376,23 @@ func showAgentCommands(w fyne.Window) {
 	// A new command goes into the folder of the selection, if any
 	addCmd := widget.NewButtonWithIcon("Add command", theme.ContentAddIcon(), func() {
 		folder := -1
-		if selected != noAgentPath && (selected.sub >= 0 || cmds[selected.top].Folder) {
+		if selected != noQuickPath && (selected.sub >= 0 || cmds[selected.top].Folder) {
 			folder = selected.top
 		}
-		editCommand(noAgentPath, agentCommand{}, folder)
+		editCommand(noQuickPath, quickCommand{}, folder)
 	})
 	addFolder := widget.NewButtonWithIcon("Add folder", theme.FolderNewIcon(), func() {
-		editAgentFolder(w, "", func(name string) {
-			cmds = append(cmds, agentCommand{Name: name, Folder: true})
+		editQuickFolder(w, "", func(name string) {
+			cmds = append(cmds, quickCommand{Name: name, Folder: true})
 			changed(-1)
 		})
 	})
 	edit = widget.NewButtonWithIcon("Edit", theme.DocumentCreateIcon(), func() {
 		at := selected
-		c := agentAt(cmds, at)
+		c := quickAt(cmds, at)
 		if c.Folder {
-			editAgentFolder(w, c.Name, func(name string) {
-				agentAt(cmds, at).Name = name
+			editQuickFolder(w, c.Name, func(name string) {
+				quickAt(cmds, at).Name = name
 				changed(-1)
 			})
 			return
@@ -404,7 +405,7 @@ func showAgentCommands(w fyne.Window) {
 	})
 	del = widget.NewButtonWithIcon("Delete", theme.DeleteIcon(), func() {
 		at := selected
-		c := agentAt(cmds, at)
+		c := quickAt(cmds, at)
 		title, msg := "Delete command", "Delete \""+c.Name+"\"?"
 		if c.Folder {
 			title = "Delete folder"
@@ -431,9 +432,9 @@ func showAgentCommands(w fyne.Window) {
 	// its list, it stays selected to move again
 	move := func(d int) {
 		at := selected
-		i, n := agentSiblings(cmds, at)
+		i, n := quickSiblings(cmds, at)
 		j := i + d
-		if at == noAgentPath || j < 0 || j >= n {
+		if at == noQuickPath || j < 0 || j >= n {
 			return
 		}
 
@@ -446,12 +447,12 @@ func showAgentCommands(w fyne.Window) {
 			cmds[i], cmds[j] = cmds[j], cmds[i]
 			to.top = j
 			// The tree knows the open folders by index, they swap too
-			a, b := agentPath{i, -1}.id(), agentPath{j, -1}.id()
+			a, b := quickPath{i, -1}.id(), quickPath{j, -1}.id()
 			aOpen, bOpen := tree.IsBranchOpen(a), tree.IsBranchOpen(b)
 			setBranchOpen(tree, a, bOpen)
 			setBranchOpen(tree, b, aOpen)
 		}
-		saveAgentCommands(cmds)
+		saveQuickCommands(cmds)
 		tree.Refresh()
 		tree.Select(to.id())
 		tree.ScrollTo(to.id())
@@ -464,14 +465,14 @@ func showAgentCommands(w fyne.Window) {
 	buttons := container.NewBorder(nil, nil, container.NewHBox(addCmd, addFolder, edit, del), container.NewHBox(up, down))
 	content := container.NewBorder(nil, buttons, nil, nil, body)
 
-	d := dialog.NewCustom("Type Agent", "Close", content, w)
+	d := dialog.NewCustom("Quick Commands", "Close", content, w)
 	d.Resize(fyne.NewSize(600, 400))
 	d.Show()
 }
 
-// agentSiblings is the index of a path in its list, the top level or its
+// quickSiblings is the index of a path in its list, the top level or its
 // folder, and the length of that list
-func agentSiblings(cmds []agentCommand, a agentPath) (int, int) {
+func quickSiblings(cmds []quickCommand, a quickPath) (int, int) {
 	if a.sub >= 0 {
 		return a.sub, len(cmds[a.top].Commands)
 	}
@@ -504,9 +505,9 @@ func firstLine(s string) string {
 	return line
 }
 
-// editAgentCommand opens a form for a command, done gets it when saved
+// editQuickCommand opens a form for a command, done gets it when saved
 // with the folder it is in, an index of folders or -1 for none
-func editAgentCommand(w fyne.Window, c agentCommand, folders []string, folder int, done func(agentCommand, int)) {
+func editQuickCommand(w fyne.Window, c quickCommand, folders []string, folder int, done func(quickCommand, int)) {
 	name := widget.NewEntry()
 	name.SetText(c.Name)
 	name.SetPlaceHolder("e.g. deploy")
@@ -559,7 +560,7 @@ func editAgentCommand(w fyne.Window, c agentCommand, folders []string, folder in
 		if folderSel != nil {
 			folder = folderSel.SelectedIndex() - 1
 		}
-		done(agentCommand{Name: strings.TrimSpace(name.Text), Command: command.Text}, folder)
+		done(quickCommand{Name: strings.TrimSpace(name.Text), Command: command.Text}, folder)
 	}, func() {
 		d.Hide()
 	})
@@ -582,9 +583,9 @@ func editAgentCommand(w fyne.Window, c agentCommand, folders []string, folder in
 	d.Show()
 }
 
-// editAgentFolder opens a form for the name of a folder, "" for a new one,
+// editQuickFolder opens a form for the name of a folder, "" for a new one,
 // done gets it when saved
-func editAgentFolder(w fyne.Window, current string, done func(string)) {
+func editQuickFolder(w fyne.Window, current string, done func(string)) {
 	name := widget.NewEntry()
 	name.SetText(current)
 	name.SetPlaceHolder("e.g. servers")

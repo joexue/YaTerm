@@ -60,10 +60,10 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 			p.showSearch()
 		})
 
-		typeAgentItem := fyne.NewMenuItemWithIcon("Type Agent", theme.Icon(theme.IconNameAccount), nil)
-		typeAgentItem.ChildMenu = p.typeAgentMenu()
+		quickCommandsItem := fyne.NewMenuItemWithIcon("Quick Commands", quickCommandIcon(), nil)
+		quickCommandsItem.ChildMenu = p.quickCommandsMenu()
 
-		menuItems := []*fyne.MenuItem{splitRightItem, splitDownItem, separatorItem, showMarkDownItem, separatorItem, searchItem, typeAgentItem, separatorItem, closePaneItem, closeTabItem}
+		menuItems := []*fyne.MenuItem{splitRightItem, splitDownItem, separatorItem, showMarkDownItem, separatorItem, searchItem, quickCommandsItem, separatorItem, closePaneItem, closeTabItem}
 		popUpMenu := widget.NewPopUpMenu(fyne.NewMenu("", menuItems...), c)
 		popUpMenu.ShowAtRelativePosition(pe.Position, p)
 	}
