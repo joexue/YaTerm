@@ -341,6 +341,27 @@ func (p *Pane) FocusLost() {
 	p.border.Refresh()
 }
 
+// applyTheme gives the theme's colors to the terminals of the pane and its
+// children, and fits them again to their size, as a new font size changes how
+// many rows and columns fit
+func (p *Pane) applyTheme(th *yatheme.YatermTheme) {
+	if p.split != splitNone {
+		p.first.applyTheme(th)
+		p.second.applyTheme(th)
+		return
+	}
+
+	if p.term != nil {
+		p.term.SetColors(th.Scheme().ANSI)
+	}
+	p.screen.SetCursorShape(th.CursorShape())
+
+	// Resize returns early for the same size, so forget it first
+	p.size = fyne.Size{}
+	p.Resize(p.Size())
+	p.screen.Refresh()
+}
+
 /*
  * ================================
  *  Renderer
