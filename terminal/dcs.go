@@ -34,10 +34,26 @@ const tmuxMaxLine = 1 << 20
 // "1000p" is read. With no handler the DCS goes on as any other, its text is
 // dropped.
 func (t *Terminal) startTmux() bool {
+	if t.OnTmuxControl == nil {
+		return false
+	}
+	h := t.OnTmuxControl()
+	if h == nil {
+		return false
+	}
+
+	t.tmux = h
+	return true
 }
 
-// endTmux ends the control mode, called with the state lock held
+// endTmux ends the control mode, called with the state lock held: at the ST,
+// or when the program ended inside it
 func (t *Terminal) endTmux() {
+	h := t.tmux
+	if h != nil {
+		h.TmuxEnd()
+	}
+	t.tmux = nil
 }
 
 // processDcsTmux collects the lines of the control mode. An ESC ends it, tmux
@@ -46,8 +62,8 @@ func (t *Terminal) processDcsTmux(r rune) {
 	switch r {
 	case '\n':
 		line := string(t.param)
-		t.tmux.HandleLine(line)
 		t.param = []rune{}
+		t.tmux.TmuxLine(line)
 
 	// Ignore
 	case '\r':
@@ -184,7 +200,8 @@ func (t *Terminal) handleDcs() {
 func (t *Terminal) processDcs(r rune) {
 	switch r {
 	case StringTerminator:
-		if t.state == stateDCSTmux {
+		// Not by the state: the "ESC \" of tmux comes in stateDCSTermination
+		if t.tmux != nil {
 			t.endTmux()
 		} else {
 			t.handleDcs()
@@ -198,13 +215,9 @@ func (t *Terminal) processDcs(r rune) {
 
 	// Tmux control mode
 	case 'p':
-		if len(t.param) == 4 && string(t.param) == "1000" {
-			if t.startTmux() {
-				t.param = nil
-				t.state = stateDCSTmux
-			} else {
-				t.Print("Tmux control is in use\n")
-			}
+		if len(t.param) == 4 && string(t.param) == "1000" && t.startTmux() {
+			t.param = nil
+			t.state = stateDCSTmux
 		} else {
 			t.param = append(t.param, r)
 		}

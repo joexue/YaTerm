@@ -84,6 +84,8 @@ func startTmux(control *Pane) terminal.TmuxHandler {
 	tmuxMu.Lock()
 	defer tmuxMu.Unlock()
 	if tmuxActive != nil {
+		control.term.Print("YaTerm runs one tmux control mode session at a time\n")
+		control.term.Write([]byte("detach\n"))
 		return &tmuxRefuser{term: control.term}
 	}
 
@@ -105,14 +107,10 @@ type tmuxRefuser struct {
 }
 
 func (r *tmuxRefuser) TmuxLine(string) {
-	if !r.done {
-		r.done = true
-		go func() { _, _ = r.term.Write([]byte("detach\n")) }()
-	}
+	// Do nothing, just consume the lines we don't want
 }
 
 func (r *tmuxRefuser) TmuxEnd() {
-	go r.term.Print("\n[YaTerm runs one tmux control mode session at a time]\n")
 }
 
 // TmuxLine and TmuxEnd come on the reader goroutine with the terminal's
@@ -286,7 +284,7 @@ func tmuxID(s string, prefix byte) (int, bool) {
 func (s *tmuxSession) attach() {
 	s.attached = true
 	s.control.tmuxControl = s
-	s.control.term.Print("\n[tmux control mode: the tmux windows are tabs, press q here to detach]\n")
+	s.control.term.Print("Tmux control mode, press q to detach\n")
 
 	s.sendClientSize(s.control.root.Size())
 	s.send("list-windows -F '#{window_id} #{window_active} #{window_layout} #{window_name}'", func(lines []string, failed bool) {
@@ -323,7 +321,7 @@ func (s *tmuxSession) end() {
 
 	s.control.tmuxControl = nil
 	if s.attached {
-		s.control.term.Print("\n[tmux control mode ended]\n")
+		s.control.term.Print("tmux control mode ended")
 		s.control.term.Write([]byte{'\n'})
 	}
 
