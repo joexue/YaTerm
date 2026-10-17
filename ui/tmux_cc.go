@@ -164,7 +164,7 @@ func (s *tmuxSession) work() {
 }
 
 // send writes a command to tmux, done gets its reply, done may be nil
-func (s *tmuxSession) send(cmd string, done func(lines []string, failed bool)) {
+func (s *tmuxSession) sendCommand(cmd string, done func(lines []string, failed bool)) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.pending = append(s.pending, done)
@@ -288,7 +288,7 @@ func (s *tmuxSession) attach() {
 	s.control.term.Print("Tmux control mode, press q to detach\n")
 
 	s.sendClientSize()
-	s.send("list-windows -F '#{window_id} #{window_active} #{window_layout} #{window_name}'", func(lines []string, failed bool) {
+	s.sendCommand("list-windows -F '#{window_id} #{window_active} #{window_layout} #{window_name}'", func(lines []string, failed bool) {
 		if failed {
 			return
 		}
@@ -306,7 +306,7 @@ func (s *tmuxSession) attach() {
 
 // detach ends the session, tmux goes on
 func (s *tmuxSession) detach() {
-	s.send("detach", nil)
+	s.sendCommand("detach", nil)
 }
 
 // end is the end of the session: its tabs close, the control pane is a
@@ -337,7 +337,7 @@ func (s *tmuxSession) end() {
 // every tmux window
 func (s *tmuxSession) sendClientSize() {
 	col, row := s.control.root.col, s.control.root.row
-	s.send(fmt.Sprintf("refresh-client -C %dx%d", col, row), nil)
+	s.sendCommand(fmt.Sprintf("refresh-client -C %dx%d", col, row), nil)
 }
 
 // windowFromLine makes the tab of a window from a line of
@@ -363,7 +363,7 @@ func (s *tmuxSession) windowAdded(id int) {
 	if s.windows[id] != nil {
 		return
 	}
-	s.send(fmt.Sprintf("display-message -p -t @%d '#{window_id} #{window_active} #{window_layout} #{window_name}'", id),
+	s.sendCommand(fmt.Sprintf("display-message -p -t @%d '#{window_id} #{window_active} #{window_layout} #{window_name}'", id),
 		func(lines []string, failed bool) {
 			if !failed && len(lines) > 0 {
 				if tab, _ := s.windowFromLine(lines[0]); tab != nil {
@@ -511,12 +511,12 @@ func (s *tmuxSession) leaf(n *tmuxLayout, parent *Pane, window int, used map[int
 // and puts the cursor where it is
 func (s *tmuxSession) syncPane(tp *tmuxPane) {
 	var captured []string
-	s.send(fmt.Sprintf("capture-pane -p -e -C -t %%%d -S -%d", tp.id, HistoryLines), func(lines []string, failed bool) {
+	s.sendCommand(fmt.Sprintf("capture-pane -p -e -C -t %%%d -S -%d", tp.id, HistoryLines), func(lines []string, failed bool) {
 		if !failed {
 			captured = lines
 		}
 	})
-	s.send(fmt.Sprintf("display-message -p -t %%%d '#{cursor_x} #{cursor_y}'", tp.id), func(lines []string, failed bool) {
+	s.sendCommand(fmt.Sprintf("display-message -p -t %%%d '#{cursor_x} #{cursor_y}'", tp.id), func(lines []string, failed bool) {
 		if failed || captured == nil {
 			return
 		}
@@ -570,7 +570,7 @@ func (s *tmuxSession) tabClosed(tab *container.TabItem) {
 	for id, w := range s.windows {
 		if w.tab == tab {
 			delete(s.windows, id)
-			s.send(fmt.Sprintf("kill-window -t @%d", id), nil)
+			s.sendCommand(fmt.Sprintf("kill-window -t @%d", id), nil)
 			return
 		}
 	}
@@ -602,7 +602,7 @@ func (s *tmuxSession) paneFocused(tp *tmuxPane) {
 		return
 	}
 	s.active = tp.id
-	s.send(fmt.Sprintf("select-pane -t %%%d", tp.id), nil)
+	s.sendCommand(fmt.Sprintf("select-pane -t %%%d", tp.id), nil)
 }
 
 // paneActivated focuses the pane tmux made active, if its tab is shown
@@ -637,19 +637,19 @@ func (s *tmuxSession) split(tp *tmuxPane, direction int) {
 	if direction == splitDown {
 		flag = "-v"
 	}
-	s.send(fmt.Sprintf("split-window %s -t %%%d", flag, tp.id), nil)
+	s.sendCommand(fmt.Sprintf("split-window %s -t %%%d", flag, tp.id), nil)
 }
 
 func (s *tmuxSession) killPane(tp *tmuxPane) {
-	s.send(fmt.Sprintf("kill-pane -t %%%d", tp.id), nil)
+	s.sendCommand(fmt.Sprintf("kill-pane -t %%%d", tp.id), nil)
 }
 
 func (s *tmuxSession) killWindow(window int) {
-	s.send(fmt.Sprintf("kill-window -t @%d", window), nil)
+	s.sendCommand(fmt.Sprintf("kill-window -t @%d", window), nil)
 }
 
 func (s *tmuxSession) newWindow() {
-	s.send("new-window", nil)
+	s.sendCommand("new-window", nil)
 }
 
 // sendKeys types into a tmux pane: text as it is (-l), other bytes like ESC
@@ -661,7 +661,7 @@ func (s *tmuxSession) sendKeys(pane int, data []byte) {
 			n++
 		}
 		if n > 0 {
-			s.send(fmt.Sprintf("send-keys -t %%%d -l %s", pane, tmuxQuote(string(data[:n]))), nil)
+			s.sendCommand(fmt.Sprintf("send-keys -t %%%d -l %s", pane, tmuxQuote(string(data[:n]))), nil)
 			data = data[n:]
 			continue
 		}
@@ -673,7 +673,7 @@ func (s *tmuxSession) sendKeys(pane int, data []byte) {
 		for _, c := range data[:n] {
 			fmt.Fprintf(&hex, " %02x", c)
 		}
-		s.send(fmt.Sprintf("send-keys -t %%%d -H%s", pane, hex.String()), nil)
+		s.sendCommand(fmt.Sprintf("send-keys -t %%%d -H%s", pane, hex.String()), nil)
 		data = data[n:]
 	}
 }
