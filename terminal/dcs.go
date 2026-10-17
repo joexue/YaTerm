@@ -10,6 +10,55 @@ import (
 // than this is dropped, the sequence is still read to its end
 const dcsMaxLen = 1 << 16
 
+/*
+ * ================================
+ *  tmux control mode (tmux -CC). tmux starts it with the DCS "ESC P 1000 p",
+ *  then sends lines of text, notifications like "%output %1 ..." and the
+ *  replies to commands between "%begin" and "%end", and ends it with ST.
+ *  The terminal hands each line to a TmuxHandler, the UI does the rest.
+ * ================================
+ */
+
+// TmuxHandler gets the lines of a tmux control mode session. Both are
+// called on the reader goroutine with the state lock held, so they must not
+// call back into the terminal, e.g. hand the work to the UI thread.
+type TmuxHandler interface {
+	TmuxLine(line string)
+	TmuxEnd()
+}
+
+// A line longer than this is not tmux, the rest is dropped
+const tmuxMaxLine = 1 << 20
+
+// startTmux starts the control mode if the UI allows it, called when the DCS
+// "1000p" is read. With no handler the DCS goes on as any other, its text is
+// dropped.
+func (t *Terminal) startTmux() bool {
+}
+
+// endTmux ends the control mode, called with the state lock held
+func (t *Terminal) endTmux() {
+}
+
+// processDcsTmux collects the lines of the control mode. An ESC ends it, tmux
+// escapes all of them in its text, so it is the start of the final ST.
+func (t *Terminal) processDcsTmux(r rune) {
+	switch r {
+	case '\n':
+		line := string(t.param)
+		t.tmux.HandleLine(line)
+		t.param = []rune{}
+
+	// Ignore
+	case '\r':
+
+	default:
+		if len(t.param) < tmuxMaxLine {
+			t.param = append(t.param, r)
+		}
+	}
+}
+
 // reply sends an answer to the program. Not while holding the state lock: if
 // the program is busy writing output, writing to it could block until that
 // output is read, which needs the lock.
@@ -135,7 +184,11 @@ func (t *Terminal) handleDcs() {
 func (t *Terminal) processDcs(r rune) {
 	switch r {
 	case StringTerminator:
-		t.handleDcs()
+		if t.state == stateDCSTmux {
+			t.endTmux()
+		} else {
+			t.handleDcs()
+		}
 		t.param = nil
 		t.state = stateGROUND
 
@@ -146,8 +199,12 @@ func (t *Terminal) processDcs(r rune) {
 	// Tmux control mode
 	case 'p':
 		if len(t.param) == 4 && string(t.param) == "1000" {
-			t.param = nil
-			t.state = stateDCSTmux
+			if t.startTmux() {
+				t.param = nil
+				t.state = stateDCSTmux
+			} else {
+				t.Print("Tmux control is in use\n")
+			}
 		} else {
 			t.param = append(t.param, r)
 		}

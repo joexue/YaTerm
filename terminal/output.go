@@ -29,7 +29,7 @@ func (t *Terminal) processRune(r rune) {
 		switch t.state {
 		case stateOSC:
 			t.state = stateOSCTermination
-		case stateDCS:
+		case stateDCS, stateDCSTmux:
 			t.state = stateDCSTermination
 		case stateAPC:
 			t.state = stateAPCTermination
@@ -74,6 +74,9 @@ func (t *Terminal) processRune(r rune) {
 
 	case stateDCS:
 		t.processDcs(r)
+
+	case stateDCSTmux:
+		t.processDcsTmux(r)
 
 	case stateDCSTermination:
 		if r == '\\' {

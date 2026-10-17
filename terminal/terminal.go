@@ -103,8 +103,7 @@ type Terminal struct {
 	// reader goroutine with the state lock held.
 	OnTmuxControl func() TmuxHandler
 
-	tmux     TmuxHandler     // the control mode in use, nil when none
-	tmuxLine strings.Builder // the line being read
+	tmux TmuxHandler // the control mode in use, nil when none
 }
 
 func New(screen Screen) *Terminal {
