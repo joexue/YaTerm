@@ -52,15 +52,14 @@ type tmuxSession struct {
 	wake  chan struct{}
 
 	// UI thread only
-	attached  bool
-	gotFirst  bool // tmux starts with a reply to no command
-	inBlock   bool
-	block     []string
-	windows   map[int]*tmuxWindow
-	panes     map[int]*tmuxPane
-	removing  bool // a tab is removed by the session, not closed by the user
-	active    int  // the pane tmux has active
-	cols, rws int  // the client size sent to tmux
+	attached bool
+	gotFirst bool // tmux starts with a reply to no command
+	inBlock  bool
+	block    []string
+	windows  map[int]*tmuxWindow
+	panes    map[int]*tmuxPane
+	removing bool // a tab is removed by the session, not closed by the user
+	active   int  // the pane tmux has active
 }
 
 type tmuxWindow struct {
@@ -116,6 +115,8 @@ func (r *tmuxRefuser) TmuxEnd() {
 // TmuxLine and TmuxEnd come on the reader goroutine with the terminal's
 // lock held, the session works on the UI thread
 func (s *tmuxSession) TmuxLine(line string) {
+	s.control.term.Print(line)
+	s.control.term.Print("\n")
 	s.post(func() { s.line(line) })
 }
 
@@ -286,7 +287,7 @@ func (s *tmuxSession) attach() {
 	s.control.tmuxControl = s
 	s.control.term.Print("Tmux control mode, press q to detach\n")
 
-	s.sendClientSize(s.control.root.Size())
+	s.sendClientSize()
 	s.send("list-windows -F '#{window_id} #{window_active} #{window_layout} #{window_name}'", func(lines []string, failed bool) {
 		if failed {
 			return
@@ -334,15 +335,9 @@ func (s *tmuxSession) end() {
 
 // sendClientSize tells tmux the size of the tab area in cells, the size of
 // every tmux window
-func (s *tmuxSession) sendClientSize(size fyne.Size) {
-	cell := measureCell()
-	cols := int((size.Width - 2*panePadding) / cell.Width)
-	rows := int((size.Height - 2*panePadding) / cell.Height)
-	if cols < 2 || rows < 2 || (cols == s.cols && rows == s.rws) {
-		return
-	}
-	s.cols, s.rws = cols, rows
-	s.send(fmt.Sprintf("refresh-client -C %dx%d", cols, rows), nil)
+func (s *tmuxSession) sendClientSize() {
+	col, row := s.control.root.col, s.control.root.row
+	s.send(fmt.Sprintf("refresh-client -C %dx%d", col, row), nil)
 }
 
 // windowFromLine makes the tab of a window from a line of

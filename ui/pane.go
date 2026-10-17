@@ -302,7 +302,7 @@ func (p *Pane) Resize(size fyne.Size) {
 		p.term.Resize(p.row, p.col)
 	}
 	if s := activeTmux(); s != nil && p.parent == nil && (p.tmux != nil || p.split != splitNone) && s.ownsRoot(p) {
-		s.sendClientSize(size)
+		s.sendClientSize()
 	}
 
 	// Cann't skip it, This will triage the renderer to call Layout
