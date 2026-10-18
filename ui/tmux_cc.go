@@ -79,19 +79,6 @@ type tmuxPane struct {
 	leaf       *Pane
 }
 
-// post queues work for the UI thread. The queue has no limit, so the reader
-// never waits here while it holds the terminal's lock, which the UI thread
-// may need (e.g. to print a message), and the order stays.
-func (s *tmuxSession) post(f func()) {
-	s.qmu.Lock()
-	s.queue = append(s.queue, f)
-	s.qmu.Unlock()
-	select {
-	case s.wake <- struct{}{}:
-	default:
-	}
-}
-
 // work runs the queued work on the UI thread, all that is queued at once,
 // so a lot of output does not wait for the UI thread line by line
 func (s *tmuxSession) work() {
@@ -118,27 +105,6 @@ func (s *tmuxSession) work() {
 	}
 }
 
-// send writes a command to tmux, handler gets its reply, handler may be nil
-func (s *tmuxSession) sendCommand(cmd string, handler func(lines []string, failed bool)) {
-	s.control.term.Print("DEBUG COMMAND: " + cmd + "\n")
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.pending = append(s.pending, handler)
-	// For the first imply command
-	if len(cmd) > 0 {
-		_, _ = s.control.term.Write([]byte(cmd + "\n"))
-	}
-}
-
-// tmuxID reads an id like "%3" or "@1" or "$2"
-func tmuxID(s string, prefix byte) (int, bool) {
-	if len(s) < 2 || s[0] != prefix {
-		return 0, false
-	}
-	n, err := strconv.Atoi(s[1:])
-	return n, err == nil
-}
-
 // attach starts using the session: the control pane only takes q to detach,
 // tmux gets the client size, every window becomes a tab
 func (s *tmuxSession) attach(lines []string, failed bool) {
@@ -150,25 +116,6 @@ func (s *tmuxSession) attach(lines []string, failed bool) {
 	s.attached = true
 	s.control.tmuxControl = s
 	s.control.term.Print("Tmux control mode, press q to detach\n")
-/*
-	s.sendClientSize()
-	s.sendCommand("list-windows -F '#{window_id} #{window_active} #{window_layout} #{window_name}'", func(lines []string, failed bool) {
-		if failed {
-			// Output the error message
-			s.control.term.Print(strings.Join(lines, "\n") + "\n")
-			return
-		}
-		var activeTab *container.TabItem
-		for _, l := range lines {
-			if tab, active := s.windowFromLine(l); tab != nil && active {
-				activeTab = tab
-			}
-		}
-		if activeTab != nil {
-			s.selectTabItem(activeTab)
-		}
-	})
-	*/
 }
 
 // detach ends the session, tmux goes on
@@ -545,42 +492,212 @@ func (s *tmuxSession) sendKeys(pane int, data []byte) {
 	}
 }
 
-// tmuxQuote quotes text for a tmux command, in double quotes \, " and $ need
-// a backslash
-func tmuxQuote(s string) string {
-	r := strings.NewReplacer(`\`, `\\`, `"`, `\"`, `$`, `\$`)
-	return `"` + r.Replace(s) + `"`
+func (s *tmuxSession) discoveWindow() {
+	s.sendCommand(fmt.Sprintf("list-windows -F '#{window_id} #{window_active} #{window_layout} #{window_name}' -t $%d", s.sessionId), func(lines []string, failed bool) {
+		if failed {
+			// Output the error message
+			s.control.term.Print(strings.Join(lines, "\n") + "\n")
+			return
+		}
+		var activeTab *container.TabItem
+		for _, l := range lines {
+			if tab, active := s.windowFromLine(l); tab != nil && active {
+				activeTab = tab
+			}
+		}
+		if activeTab != nil {
+			s.selectTabItem(activeTab)
+		}
+	})
 }
 
-// decodeTmux undoes the escapes of tmux: "\ooo" (octal) is a byte, "\\" a
-// backslash. %output escapes the control characters and the backslash as
-// octal, capture-pane -C escapes the backslash as "\\".
-func decodeTmux(s string) []byte {
-	out := make([]byte, 0, len(s))
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c != '\\' || i+1 >= len(s) {
-			out = append(out, c)
-			continue
+// notification handles a line that is not in a reply
+func (s *tmuxSession) notification(line string) {
+	name, rest, _ := strings.Cut(line, " ")
+	switch name {
+	case "%session-changed":
+		session, _, _ := strings.Cut(rest, " ")
+		if id, ok := tmuxID(session, '$'); ok {
+			s.sessionId = id
+			s.sendClientSize()
+			s.discoveWindow()
 		}
-		if s[i+1] == '\\' {
-			out = append(out, '\\')
-			i++
-			continue
+
+	case "%output":
+		pane, data, _ := strings.Cut(rest, " ")
+		if id, ok := tmuxID(pane, '%'); ok {
+			s.output(id, decodeTmux(data))
 		}
-		if i+3 < len(s) && isOctal(s[i+1]) && isOctal(s[i+2]) && isOctal(s[i+3]) {
-			out = append(out, (s[i+1]-'0')<<6|(s[i+2]-'0')<<3|(s[i+3]-'0'))
-			i += 3
-			continue
+
+	// claud : please consider the checksum, that if the checksum is not changed, then ignore it
+	// also cisider the size, set the right ratio for splitted pane
+	case "%layout-change":
+		f := strings.Fields(rest)
+		if len(f) >= 2 {
+			if id, ok := tmuxID(f[0], '@'); ok {
+				s.layoutChanged(id, f[1])
+			}
 		}
-		out = append(out, c)
+
+	case "%window-add":
+		if id, ok := tmuxID(rest, '@'); ok {
+			s.windowAdded(id)
+		}
+
+	case "%window-close", "%unlinked-window-close":
+		if id, ok := tmuxID(rest, '@'); ok {
+			s.closeWindow(id)
+		}
+
+	case "%window-renamed":
+		w, name, _ := strings.Cut(rest, " ")
+		if id, ok := tmuxID(w, '@'); ok {
+			if win := s.windows[id]; win != nil {
+				win.tab.Text = name
+				tabControl.Refresh()
+			}
+		}
+/*
+	claud: don't handle them, we just support sync mode, async mode not supported
+	that, any notification not caused by our commands are ignored
+
+	case "%window-pane-changed":
+		f := strings.Fields(rest)
+		if len(f) == 2 {
+			if id, ok := tmuxID(f[1], '%'); ok {
+				s.paneActivated(id)
+			}
+		}
+	case "%session-window-changed":
+		f := strings.Fields(rest)
+		if len(f) == 2 {
+			if id, ok := tmuxID(f[1], '@'); ok {
+				s.selectTab(id)
+			}
+		}
+*/
+
+	case "%exit":
+		s.end()
 	}
-	return out
 }
 
-func isOctal(c byte) bool {
-	return c >= '0' && c <= '7'
+// reply hands a reply to its command, the first one is to no command
+func (s *tmuxSession) handleCommandResponse(lines []string, failed bool) {
+	s.mu.Lock()
+	var done func([]string, bool)
+	if len(s.pending) > 0 {
+		done = s.pending[0]
+		s.pending = s.pending[1:]
+	}
+	s.mu.Unlock()
+
+	if done != nil {
+		done(lines, failed)
+	}
 }
+
+// send writes a command to tmux, handler gets its reply, handler may be nil
+func (s *tmuxSession) sendCommand(cmd string, handler func(lines []string, failed bool)) {
+	s.control.term.Print("DEBUG COMMAND: " + cmd + "\n")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pending = append(s.pending, handler)
+	// For the first imply command
+	if len(cmd) > 0 {
+		_, _ = s.control.term.Write([]byte(cmd + "\n"))
+	}
+}
+
+// line handles a line from tmux: a reply to a command or a notification
+func (s *tmuxSession) line(line string) {
+	if s.inResponse {
+		if strings.HasPrefix(line, "%end ") || strings.HasPrefix(line, "%error ") {
+			lines, failed := s.response, strings.HasPrefix(line, "%error ")
+			s.handleCommandResponse(lines, failed)
+			s.inResponse, s.response = false, nil
+			return
+		}
+		s.response = append(s.response, line)
+		return
+	}
+
+	if strings.HasPrefix(line, "%begin ") {
+		s.inResponse = true
+		return
+	}
+
+	s.notification(line)
+}
+
+// TmuxLine and TmuxEnd come on the reader goroutine with the terminal's
+// lock held, the session works on the UI thread
+func (s *tmuxSession) TmuxLine(line string) {
+	s.control.term.Print("DEBUG: " + line)
+	s.control.term.Print("\n")
+	s.line(line)
+}
+
+func (s *tmuxSession) TmuxEnd() {
+}
+
+// startTmux is the control pane's OnTmuxControl: a session, or one that
+// detaches right away when another is in use
+func startTmux(control *Pane) terminal.TmuxHandler {
+	tmuxMu.Lock()
+	defer tmuxMu.Unlock()
+	if tmuxActive != nil {
+		control.term.Print("YaTerm runs one tmux control mode session at a time\n")
+		control.term.Write([]byte("detach\n"))
+		return &tmuxRefuser{term: control.term}
+	}
+
+	tmuxActive = &tmuxSession{
+		control: control,
+		windows: map[int]*tmuxWindow{},
+		panes:   map[int]*tmuxPane{},
+		active:  -1,
+		wake:    make(chan struct{}, 1),
+	}
+	go tmuxActive.work()
+
+	// the fist response from the outside command "attach", but we need to handle it
+	tmuxActive.sendCommand("", tmuxActive.attach)
+	return tmuxActive
+}
+
+// tmuxRefuser detaches a second session, YaTerm runs one at a time
+type tmuxRefuser struct {
+	term *terminal.Terminal
+	done bool
+}
+
+func (r *tmuxRefuser) TmuxLine(string) {
+	// Do nothing, just consume the lines we don't want
+}
+
+func (r *tmuxRefuser) TmuxEnd() {
+}
+
+// tmuxPty is the pty of a tmux pane: what is typed goes to tmux as keys, the
+// output comes from the session, the size from the tmux layout
+type tmuxPty struct {
+	session *tmuxSession
+	pane    int
+}
+
+func (p *tmuxPty) Write(b []byte) (int, error) {
+	// Replies of the terminal come from other goroutines, the keys go to
+	// tmux in order from the UI thread
+	data := append([]byte(nil), b...)
+	fyne.Do(func() { p.session.sendKeys(p.pane, data) })
+	return len(b), nil
+}
+
+func (p *tmuxPty) Resize(int, int)          {}
+func (p *tmuxPty) RunCmd(string) error      { return nil }
+func (p *tmuxPty) Read([]byte) (int, error) { return 0, io.EOF }
+func (p *tmuxPty) Close()                   {}
 
 // tmuxLayout is a cell of a tmux window layout: a pane, or cells side by
 // side ('{') or one over the other ('[')
@@ -714,194 +831,3 @@ func (p *layoutParser) cell() (*tmuxLayout, error) {
 	}
 }
 
-func (s *tmuxSession) discoveWindow() {
-	s.sendCommand(fmt.Sprintf("list-windows -F '#{window_id} #{window_active} #{window_layout} #{window_name}' -t $%d", s.sessionId), func(lines []string, failed bool) {
-		if failed {
-			// Output the error message
-			s.control.term.Print(strings.Join(lines, "\n") + "\n")
-			return
-		}
-		var activeTab *container.TabItem
-		for _, l := range lines {
-			if tab, active := s.windowFromLine(l); tab != nil && active {
-				activeTab = tab
-			}
-		}
-		if activeTab != nil {
-			s.selectTabItem(activeTab)
-		}
-	})
-}
-
-// notification handles a line that is not in a reply
-func (s *tmuxSession) notification(line string) {
-	name, rest, _ := strings.Cut(line, " ")
-	switch name {
-	case "%session-changed":
-		session, _, _ := strings.Cut(rest, " ")
-		if id, ok := tmuxID(session, '$'); ok {
-			s.sessionId = id
-			s.sendClientSize()
-			s.discoveWindow()
-		}
-
-	case "%output":
-		pane, data, _ := strings.Cut(rest, " ")
-		if id, ok := tmuxID(pane, '%'); ok {
-			s.output(id, decodeTmux(data))
-		}
-/*
-	case "%layout-change":
-		f := strings.Fields(rest)
-		if len(f) >= 2 {
-			if id, ok := tmuxID(f[0], '@'); ok {
-				s.layoutChanged(id, f[1])
-			}
-		}
-*/
-	case "%window-add":
-		if id, ok := tmuxID(rest, '@'); ok {
-			s.windowAdded(id)
-		}
-
-	case "%window-close", "%unlinked-window-close":
-		if id, ok := tmuxID(rest, '@'); ok {
-			s.closeWindow(id)
-		}
-
-	case "%window-renamed":
-		w, name, _ := strings.Cut(rest, " ")
-		if id, ok := tmuxID(w, '@'); ok {
-			if win := s.windows[id]; win != nil {
-				win.tab.Text = name
-				tabControl.Refresh()
-			}
-		}
-/*
-	case "%window-pane-changed":
-		f := strings.Fields(rest)
-		if len(f) == 2 {
-			if id, ok := tmuxID(f[1], '%'); ok {
-				s.paneActivated(id)
-			}
-		}
-	case "%session-window-changed":
-		f := strings.Fields(rest)
-		if len(f) == 2 {
-			if id, ok := tmuxID(f[1], '@'); ok {
-				s.selectTab(id)
-			}
-		}
-*/
-
-	case "%exit":
-		s.end()
-	}
-}
-
-// reply hands a reply to its command, the first one is to no command
-func (s *tmuxSession) handleCommandResponse(lines []string, failed bool) {
-	s.mu.Lock()
-	var done func([]string, bool)
-	if len(s.pending) > 0 {
-		done = s.pending[0]
-		s.pending = s.pending[1:]
-	}
-	s.mu.Unlock()
-
-	if done != nil {
-		done(lines, failed)
-	}
-}
-
-// line handles a line from tmux: a reply to a command or a notification
-func (s *tmuxSession) line(line string) {
-	if s.inResponse {
-		if strings.HasPrefix(line, "%end ") || strings.HasPrefix(line, "%error ") {
-			lines, failed := s.response, strings.HasPrefix(line, "%error ")
-			s.handleCommandResponse(lines, failed)
-			s.inResponse, s.response = false, nil
-			return
-		}
-		s.response = append(s.response, line)
-		return
-	}
-
-	if strings.HasPrefix(line, "%begin ") {
-		s.inResponse = true
-		return
-	}
-
-	s.notification(line)
-}
-
-// TmuxLine and TmuxEnd come on the reader goroutine with the terminal's
-// lock held, the session works on the UI thread
-func (s *tmuxSession) TmuxLine(line string) {
-	s.control.term.Print("DEBUG: " + line)
-	s.control.term.Print("\n")
-	//s.post(func() { s.line(line) })
-	s.line(line)
-}
-
-func (s *tmuxSession) TmuxEnd() {
-	//s.post(nil) // nil ends the work
-}
-
-// startTmux is the control pane's OnTmuxControl: a session, or one that
-// detaches right away when another is in use
-func startTmux(control *Pane) terminal.TmuxHandler {
-	tmuxMu.Lock()
-	defer tmuxMu.Unlock()
-	if tmuxActive != nil {
-		control.term.Print("YaTerm runs one tmux control mode session at a time\n")
-		control.term.Write([]byte("detach\n"))
-		return &tmuxRefuser{term: control.term}
-	}
-
-	tmuxActive = &tmuxSession{
-		control: control,
-		windows: map[int]*tmuxWindow{},
-		panes:   map[int]*tmuxPane{},
-		active:  -1,
-		wake:    make(chan struct{}, 1),
-	}
-	go tmuxActive.work()
-
-	// the fist response from the outside command "attach", but we need to handle it
-	tmuxActive.sendCommand("", tmuxActive.attach)
-	return tmuxActive
-}
-
-// tmuxRefuser detaches a second session, YaTerm runs one at a time
-type tmuxRefuser struct {
-	term *terminal.Terminal
-	done bool
-}
-
-func (r *tmuxRefuser) TmuxLine(string) {
-	// Do nothing, just consume the lines we don't want
-}
-
-func (r *tmuxRefuser) TmuxEnd() {
-}
-
-// tmuxPty is the pty of a tmux pane: what is typed goes to tmux as keys, the
-// output comes from the session, the size from the tmux layout
-type tmuxPty struct {
-	session *tmuxSession
-	pane    int
-}
-
-func (p *tmuxPty) Write(b []byte) (int, error) {
-	// Replies of the terminal come from other goroutines, the keys go to
-	// tmux in order from the UI thread
-	data := append([]byte(nil), b...)
-	fyne.Do(func() { p.session.sendKeys(p.pane, data) })
-	return len(b), nil
-}
-
-func (p *tmuxPty) Resize(int, int)          {}
-func (p *tmuxPty) RunCmd(string) error      { return nil }
-func (p *tmuxPty) Read([]byte) (int, error) { return 0, io.EOF }
-func (p *tmuxPty) Close()                   {}

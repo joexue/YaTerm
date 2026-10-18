@@ -5,6 +5,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"image/color"
 	"math"
+	"strconv"
 	"strings"
 	yatheme "yaterm/theme"
 )
@@ -67,4 +68,50 @@ func over(c, bg color.Color) color.Color {
 		return uint8((fg + back*(0xffff-ca)/0xffff) >> 8)
 	}
 	return color.RGBA{R: mix(cr, br), G: mix(cg, bgg), B: mix(cb, bb), A: 0xff}
+}
+
+// tmuxQuote quotes text for a tmux command, in double quotes \, " and $ need
+// a backslash
+func tmuxQuote(s string) string {
+	r := strings.NewReplacer(`\`, `\\`, `"`, `\"`, `$`, `\$`)
+	return `"` + r.Replace(s) + `"`
+}
+
+func isOctal(c byte) bool {
+	return c >= '0' && c <= '7'
+}
+
+// decodeTmux undoes the escapes of tmux: "\ooo" (octal) is a byte, "\\" a
+// backslash. %output escapes the control characters and the backslash as
+// octal, capture-pane -C escapes the backslash as "\\".
+func decodeTmux(s string) []byte {
+	out := make([]byte, 0, len(s))
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c != '\\' || i+1 >= len(s) {
+			out = append(out, c)
+			continue
+		}
+		if s[i+1] == '\\' {
+			out = append(out, '\\')
+			i++
+			continue
+		}
+		if i+3 < len(s) && isOctal(s[i+1]) && isOctal(s[i+2]) && isOctal(s[i+3]) {
+			out = append(out, (s[i+1]-'0')<<6|(s[i+2]-'0')<<3|(s[i+3]-'0'))
+			i += 3
+			continue
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
+// tmuxID reads an id like "%3" or "@1" or "$2"
+func tmuxID(s string, prefix byte) (int, bool) {
+	if len(s) < 2 || s[0] != prefix {
+		return 0, false
+	}
+	n, err := strconv.Atoi(s[1:])
+	return n, err == nil
 }
