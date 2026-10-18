@@ -65,9 +65,10 @@ type tmuxSession struct {
 }
 
 type tmuxWindow struct {
-	id   int
-	tab  *container.TabItem
-	root *Pane
+	id       int
+	tab      *container.TabItem
+	root     *Pane
+	checksum string // of the layout shown, the same one again is ignored
 }
 
 // tmuxPane is a tmux pane, its terminal and screen stay while the panes
@@ -193,23 +194,41 @@ func (s *tmuxSession) createWindow(id int, name, layout string) *container.TabIt
 	if s.windows[id] != nil {
 		return nil
 	}
-	root := s.buildWindow(id, layout)
-	if root == nil {
+	node := s.parseLayout(layout)
+	if node == nil {
 		return nil
 	}
+	root := s.buildWindow(id, node)
 
-	w := &tmuxWindow{id: id, root: root, tab: container.NewTabItemWithIcon(name, assert.TmuxIconRes, root)}
+	w := &tmuxWindow{id: id, root: root, checksum: layoutChecksum(layout),
+		tab: container.NewTabItemWithIcon(name, assert.TmuxIconRes, root)}
 	s.windows[id] = w
 	tabControl.Append(w.tab)
 	return w.tab
 }
 
-// layoutChanged makes the panes of a window again after its layout, e.g. a
-// split, a pane that ended or a new size. The terminals stay.
+// layoutChanged shows the new layout of a window. The same one again (by its
+// checksum) is ignored. New sizes only, e.g. a pane resized in tmux or a new
+// client size, go to the panes there are. Else, e.g. after a split or a pane
+// that ended, the panes are made again, the terminals stay.
 func (s *tmuxSession) layoutChanged(id int, layout string) {
 	w := s.windows[id]
 	if w == nil {
 		return // not shown yet, windowAdded makes it
+	}
+
+	checksum := layoutChecksum(layout)
+	if checksum != "" && checksum == w.checksum {
+		return
+	}
+	node := s.parseLayout(layout)
+	if node == nil {
+		return
+	}
+	w.checksum = checksum
+
+	if s.resizeNode(w.root, node) {
+		return
 	}
 
 	focused := -1
@@ -219,10 +238,7 @@ func (s *tmuxSession) layoutChanged(id int, layout string) {
 		}
 	}
 
-	root := s.buildWindow(id, layout)
-	if root == nil {
-		return
-	}
+	root := s.buildWindow(id, node)
 	w.root = root
 	w.tab.Content = root
 	tabControl.Refresh()
@@ -233,15 +249,27 @@ func (s *tmuxSession) layoutChanged(id int, layout string) {
 	}
 }
 
-// buildWindow makes the pane tree of a window from its layout, the panes not
-// in it any more are gone
-func (s *tmuxSession) buildWindow(window int, layout string) *Pane {
+// parseLayout reads a layout, nil when it can not
+func (s *tmuxSession) parseLayout(layout string) *tmuxLayout {
 	node, err := parseTmuxLayout(layout)
 	if err != nil {
 		fyne.LogError("tmux: can not read the layout "+layout, err)
 		return nil
 	}
+	return node
+}
 
+// layoutChecksum is the checksum at the start of a layout, "" if none
+func layoutChecksum(layout string) string {
+	if i := strings.IndexByte(layout, ','); i == 4 {
+		return layout[:i]
+	}
+	return ""
+}
+
+// buildWindow makes the pane tree of a window from its layout, the panes not
+// in it any more are gone
+func (s *tmuxSession) buildWindow(window int, node *tmuxLayout) *Pane {
 	used := map[int]bool{}
 	root := s.buildNode(node, nil, window, used)
 	for id, tp := range s.panes {
@@ -272,24 +300,36 @@ func (s *tmuxSession) buildNode(n *tmuxLayout, parent *Pane, window int, used ma
 		return s.buildNode(n.kids[0], parent, window, used)
 	}
 
-	direction := splitRight
-	if n.kind == '[' {
-		direction = splitDown
-	}
-
-	first := n.kids[0]
-	rest := &tmuxLayout{kind: n.kind, kids: n.kids[1:]}
-	if len(rest.kids) == 1 {
-		rest = rest.kids[0]
-	}
-
-	// The part of the first, by the size in units the parts need to show
-	// their cells, with the dividers and paddings of the panes
-	a, b := first.outer(direction), rest.outer(direction)
-	p := newSplitPane(parent, direction, a/(a+b))
+	direction, first, rest, ratio := n.split()
+	p := newSplitPane(parent, direction, ratio)
 	p.first = s.buildNode(first, p, window, used)
 	p.second = s.buildNode(rest, p, window, used)
 	return p
+}
+
+// resizeNode gives the panes of a tree the sizes of a layout of the same
+// shape: its ratios to the splits, its sizes to the terminals. False when the
+// shape is another, e.g. a pane was added, then the tree is made again.
+func (s *tmuxSession) resizeNode(p *Pane, n *tmuxLayout) bool {
+	if n.kind == 0 {
+		if p.split != splitNone || p.tmux == nil || p.tmux.id != n.pane {
+			return false
+		}
+		p.tmux.term.Resize(n.h, n.w)
+		return true
+	}
+	if len(n.kids) == 1 {
+		return s.resizeNode(p, n.kids[0])
+	}
+
+	direction, first, rest, ratio := n.split()
+	if p.split != direction || !s.resizeNode(p.first, first) || !s.resizeNode(p.second, rest) {
+		return false
+	}
+	if p.ratio != ratio {
+		p.SetRatio(ratio)
+	}
+	return true
 }
 
 // leaf makes the pane of a tmux pane, with its terminal at the size tmux
@@ -419,24 +459,6 @@ func (s *tmuxSession) paneFocused(tp *tmuxPane) {
 	s.sendCommand(fmt.Sprintf("select-pane -t %%%d", tp.id), nil)
 }
 
-// paneActivated focuses the pane tmux made active, if its tab is shown
-func (s *tmuxSession) paneActivated(id int) {
-	s.active = id
-	tp := s.panes[id]
-	if tp == nil || tp.leaf == nil || !tp.leaf.inShownTab() {
-		return
-	}
-	tp.leaf.root.lastFocus = tp.leaf
-	tp.leaf.TryFocus()
-}
-
-// selectTab shows the tab of a window tmux made current
-func (s *tmuxSession) selectTab(window int) {
-	if w := s.windows[window]; w != nil {
-		s.selectTabItem(w.tab)
-	}
-}
-
 func (s *tmuxSession) selectTabItem(tab *container.TabItem) {
 	for i, t := range tabControl.Items {
 		if t == tab && tabControl.SelectedIndex != i {
@@ -529,8 +551,7 @@ func (s *tmuxSession) notification(line string) {
 			s.output(id, decodeTmux(data))
 		}
 
-	// claud : please consider the checksum, that if the checksum is not changed, then ignore it
-	// also cisider the size, set the right ratio for splitted pane
+	// The window, its layout, then its visible layout and flags
 	case "%layout-change":
 		f := strings.Fields(rest)
 		if len(f) >= 2 {
@@ -557,25 +578,10 @@ func (s *tmuxSession) notification(line string) {
 				tabControl.Refresh()
 			}
 		}
-/*
-	claud: don't handle them, we just support sync mode, async mode not supported
-	that, any notification not caused by our commands are ignored
 
-	case "%window-pane-changed":
-		f := strings.Fields(rest)
-		if len(f) == 2 {
-			if id, ok := tmuxID(f[1], '%'); ok {
-				s.paneActivated(id)
-			}
-		}
-	case "%session-window-changed":
-		f := strings.Fields(rest)
-		if len(f) == 2 {
-			if id, ok := tmuxID(f[1], '@'); ok {
-				s.selectTab(id)
-			}
-		}
-*/
+	// Notifications not caused by YaTerm's own commands are ignored, e.g. a
+	// pane or window another tmux client selected (%window-pane-changed,
+	// %session-window-changed): YaTerm keeps its own focus and tab
 
 	case "%exit":
 		s.end()
@@ -708,6 +714,26 @@ type tmuxLayout struct {
 	kids       []*tmuxLayout
 }
 
+// split is how a cell of two or more cells is shown by panes, which split in
+// two: the direction, the first cell, the rest as one cell, and the part of
+// the first. The part is by the size in units the two need to show their
+// cells, with the dividers and paddings of the panes.
+func (n *tmuxLayout) split() (direction int, first, rest *tmuxLayout, ratio float32) {
+	direction = splitRight
+	if n.kind == '[' {
+		direction = splitDown
+	}
+
+	first = n.kids[0]
+	rest = &tmuxLayout{kind: n.kind, kids: n.kids[1:]}
+	if len(rest.kids) == 1 {
+		rest = rest.kids[0]
+	}
+
+	a, b := first.outer(direction), rest.outer(direction)
+	return direction, first, rest, a / (a + b)
+}
+
 // outer is how many units the cell needs in a direction to show its cells:
 // the cells, the paddings of the panes and the dividers between them
 func (n *tmuxLayout) outer(direction int) float32 {
@@ -830,4 +856,3 @@ func (p *layoutParser) cell() (*tmuxLayout, error) {
 		return nil, fmt.Errorf("unexpected %q at %d", c, p.i)
 	}
 }
-
