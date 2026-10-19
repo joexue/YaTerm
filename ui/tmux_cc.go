@@ -148,8 +148,7 @@ func (s *tmuxSession) end() {
 
 // sendClientSize tells tmux the size of the tab area in cells, the size of
 // every tmux window
-func (s *tmuxSession) sendClientSize() {
-	col, row := s.control.root.col, s.control.root.row
+func (s *tmuxSession) sendClientSize(row, col int) {
 	s.sendCommand(fmt.Sprintf("refresh-client -C %dx%d", col, row), nil)
 }
 
@@ -598,7 +597,7 @@ func (s *tmuxSession) notification(line string) {
 		session, _, _ := strings.Cut(rest, " ")
 		if id, ok := tmuxID(session, '$'); ok {
 			s.sessionId = id
-			s.sendClientSize()
+			s.sendClientSize(s.control.root.row, s.control.root.col)
 			s.discoveWindow()
 		}
 
