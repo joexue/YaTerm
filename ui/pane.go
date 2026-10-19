@@ -166,26 +166,25 @@ func (p *Pane) TearDown() {
 
 // Called by TabControl
 func (p *Pane) TryFocus() {
-	fyne.Do(func() {
-		// A tree built from outside, e.g. a tmux layout, may have none yet
-		focusPane := p.root.lastFocus
-		if focusPane == nil {
-			focusPane = p.root
-		}
-		for {
-			if focusPane.split == splitNone {
-				break
-			} else {
-				focusPane = focusPane.first
-			}
-		}
+	// A tree built from outside, e.g. a tmux layout, may have none yet
+	focusPane := p.root.lastFocus
+	if focusPane == nil {
+		focusPane = p.root
+	}
 
+	for {
 		if focusPane.split == splitNone {
-			if c := fyne.CurrentApp().Driver().CanvasForObject(focusPane); c != nil {
-				c.Focus(focusPane)
-			}
+			break
+		} else {
+			focusPane = focusPane.first
 		}
-	})
+	}
+
+	if focusPane.split == splitNone {
+		if c := fyne.CurrentApp().Driver().CanvasForObject(focusPane); c != nil {
+			c.Focus(focusPane)
+		}
+	}
 }
 
 func (p *Pane) Close() {

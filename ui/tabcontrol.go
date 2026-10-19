@@ -76,9 +76,9 @@ func NewTabControl(_ fyne.App, w fyne.Window) fyne.CanvasObject {
 		case *Pane:
 			if s := activeTmux(); s != nil {
 				s.tabFocus(tab)
-			} else {
-				tab.Content.(*Pane).TryFocus()
 			}
+			tab.Content.(*Pane).TryFocus()
+
 		default:
 			// A pane of the tab before would keep the focus while hidden and
 			// get the keys typed on this tab, so nothing has the focus here,

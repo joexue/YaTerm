@@ -80,32 +80,6 @@ type tmuxPane struct {
 	leaf       *Pane
 }
 
-// work runs the queued work on the UI thread, all that is queued at once,
-// so a lot of output does not wait for the UI thread line by line
-func (s *tmuxSession) work() {
-	for range s.wake {
-		s.qmu.Lock()
-		batch := s.queue
-		s.queue = nil
-		s.qmu.Unlock()
-
-		ended := false
-		fyne.DoAndWait(func() {
-			for _, f := range batch {
-				if f == nil {
-					s.end()
-					ended = true
-					return
-				}
-				f()
-			}
-		})
-		if ended {
-			return
-		}
-	}
-}
-
 // attach starts using the session: the control pane only takes q to detach,
 // tmux gets the client size, every window becomes a tab
 func (s *tmuxSession) attach(lines []string, failed bool) {
@@ -213,7 +187,7 @@ func (s *tmuxSession) createWindow(id int, name, layout string) *container.TabIt
 	w := &tmuxWindow{id: id, root: root, checksum: layoutChecksum(layout),
 		tab: container.NewTabItemWithIcon(name, assert.TmuxIconRes, root)}
 	s.windows[id] = w
-	fyne.Do(func() {
+	fyne.DoAndWait(func() {
 		tabControl.Append(w.tab)
 	})
 	return w.tab
@@ -583,8 +557,12 @@ func (s *tmuxSession) discoveWindow() {
 				activeTab = tab
 			}
 		}
+
 		if activeTab != nil {
 			s.selectTabItem(activeTab)
+			fyne.Do(func() {
+				activeTab.Content.(*Pane).TryFocus()
+			})
 		}
 	})
 }
@@ -723,7 +701,6 @@ func startTmux(control *Pane) terminal.TmuxHandler {
 		active:  -1,
 		wake:    make(chan struct{}, 1),
 	}
-	go tmuxActive.work()
 
 	// the fist response from the outside command "attach", but we need to handle it
 	tmuxActive.sendCommand("", tmuxActive.attach)
