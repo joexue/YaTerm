@@ -136,10 +136,6 @@ func (s *tmuxSession) end() {
 	s.panes = map[int]*tmuxPane{}
 
 	s.control.tmuxControl = nil
-	if s.attached {
-		s.control.term.Print("tmux control mode ended")
-		s.control.term.Write([]byte{'\n'})
-	}
 
 	tmuxMu.Lock()
 	if tmuxActive == s {
