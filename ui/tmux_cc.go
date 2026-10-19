@@ -129,7 +129,9 @@ func (s *tmuxSession) detach() {
 func (s *tmuxSession) end() {
 	s.removing = true
 	for id, w := range s.windows {
-		tabControl.Remove(w.tab)
+		fyne.Do(func() {
+			tabControl.Remove(w.tab)
+		})
 		delete(s.windows, id)
 	}
 	s.removing = false
@@ -212,7 +214,9 @@ func (s *tmuxSession) createWindow(id int, name, layout string) *container.TabIt
 	w := &tmuxWindow{id: id, root: root, checksum: layoutChecksum(layout),
 		tab: container.NewTabItemWithIcon(name, assert.TmuxIconRes, root)}
 	s.windows[id] = w
-	tabControl.Append(w.tab)
+	fyne.Do(func() {
+		tabControl.Append(w.tab)
+	})
 	return w.tab
 }
 
@@ -240,22 +244,24 @@ func (s *tmuxSession) layoutChanged(id int, layout string) {
 		return
 	}
 
-	focused := -1
-	if c := fyne.CurrentApp().Driver().CanvasForObject(w.root); c != nil {
-		if p, ok := c.Focused().(*Pane); ok && p.tmux != nil {
-			focused = p.tmux.id
+	fyne.Do(func() {
+		focused := -1
+		if c := fyne.CurrentApp().Driver().CanvasForObject(w.root); c != nil {
+			if p, ok := c.Focused().(*Pane); ok && p.tmux != nil {
+				focused = p.tmux.id
+			}
 		}
-	}
 
-	root := s.buildWindow(id, node)
-	w.root = root
-	w.tab.Content = root
-	tabControl.Refresh()
+		root := s.buildWindow(id, node)
+		w.root = root
+		w.tab.Content = root
+		tabControl.Refresh()
 
-	if tp := s.panes[focused]; tp != nil && tp.leaf != nil {
-		root.lastFocus = tp.leaf
-		root.TryFocus()
-	}
+		if tp := s.panes[focused]; tp != nil && tp.leaf != nil {
+			root.lastFocus = tp.leaf
+			root.TryFocus()
+		}
+	})
 }
 
 // parseLayout reads a layout, nil when it can not
@@ -336,7 +342,9 @@ func (s *tmuxSession) resizeNode(p *Pane, n *tmuxLayout) bool {
 		return false
 	}
 	if p.ratio != ratio {
-		p.SetRatio(ratio)
+		fyne.Do(func() {
+			p.SetRatio(ratio)
+		})
 	}
 	return true
 }
@@ -421,7 +429,9 @@ func (s *tmuxSession) closeWindow(id int) {
 		}
 	}
 	s.removing = true
-	tabControl.Remove(w.tab)
+	fyne.Do(func() {
+		tabControl.Remove(w.tab)
+	})
 	s.removing = false
 }
 
@@ -469,11 +479,13 @@ func (s *tmuxSession) paneFocused(tp *tmuxPane) {
 }
 
 func (s *tmuxSession) selectTabItem(tab *container.TabItem) {
-	for i, t := range tabControl.Items {
-		if t == tab && tabControl.SelectedIndex != i {
-			tabControl.Select(i)
+	fyne.Do(func() {
+		for i, t := range tabControl.Items {
+			if t == tab && tabControl.SelectedIndex != i {
+				tabControl.Select(i)
+			}
 		}
-	}
+	})
 }
 
 // dividerMoved tells tmux the size the user gave the panes of a split by its
@@ -607,7 +619,9 @@ func (s *tmuxSession) notification(line string) {
 		if id, ok := tmuxID(w, '@'); ok {
 			if win := s.windows[id]; win != nil {
 				win.tab.Text = name
-				tabControl.Refresh()
+				fyne.Do(func() {
+					tabControl.Refresh()
+				})
 			}
 		}
 
