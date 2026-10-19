@@ -128,7 +128,13 @@ type Screen struct {
 	// a fixed number (its absolute line) while the history and view scroll.
 	// The selection uses it to stay on the same text.
 	histTotal int
-	sel       selection
+
+	// The alternate screen (e.g. of vim) is shown in lines, the main screen
+	// waits in mainLines with its cursor. No history comes from it.
+	alt                    bool
+	mainLines              []line
+	mainCurRow, mainCurCol int
+	sel                    selection
 
 	// The search of the search bar, its matches are highlighted
 	find findState
@@ -264,6 +270,31 @@ func (s *Screen) Reflow(row, col, curRow, curCol int) (int, int) {
 		s.offset = min(s.offset, s.hist.len())
 	}()
 
+	if !s.alt {
+		return s.reflow(row, col, curRow, curCol)
+	}
+
+	// The main screen behind is reflowed as if shown, with its cursor
+	alt := s.lines
+	s.lines = s.mainLines
+	s.mainCurRow, s.mainCurCol = s.reflow(row, col, s.mainCurRow, s.mainCurCol)
+	s.mainLines = s.lines
+
+	// The alternate screen keeps no history, it is cut or padded, its
+	// program draws it again for the new size
+	s.lines = make([]line, row)
+	for i := range s.lines {
+		s.lines[i] = newLine(col)
+		if i < len(alt) {
+			copy(s.lines[i].cells, alt[i].cells)
+		}
+	}
+	return max(0, min(curRow, row-1)), max(0, min(curCol, col-1))
+}
+
+// reflow is Reflow of the screen in lines and the history, called with mu
+// held
+func (s *Screen) reflow(row, col, curRow, curCol int) (int, int) {
 	if row <= 0 || col <= 0 || len(s.lines) == 0 || s.col <= 0 {
 		// Nothing to keep yet
 		s.row, s.col = max(row, 0), max(col, 0)
@@ -615,6 +646,10 @@ func (s *Screen) ScrollToBottom() {
 // UI thread with mu held.
 func (s *Screen) scrollTo(offset int) {
 	offset = max(0, min(offset, s.hist.len()))
+	// The history is of the main screen, not shown over the alternate one
+	if s.alt {
+		offset = 0
+	}
 	if offset == s.offset {
 		return
 	}
@@ -626,6 +661,38 @@ func (s *Screen) scrollTo(offset int) {
 }
 
 func (s *Screen) MoveCursor(row, col int) {
+}
+
+// SetAlternate switches to the alternate screen or back, see terminal.Screen
+func (s *Screen) SetAlternate(on bool, curRow, curCol int) (int, int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if on == s.alt {
+		return curRow, curCol
+	}
+	s.alt = on
+	if on {
+		s.mainLines, s.mainCurRow, s.mainCurCol = s.lines, curRow, curCol
+		s.lines = make([]line, s.row)
+		for i := range s.lines {
+			s.lines[i] = newLine(s.col)
+		}
+	} else {
+		s.lines, s.mainLines = s.mainLines, nil
+		curRow, curCol = s.mainCurRow, s.mainCurCol
+	}
+
+	// Another screen: all of it is drawn again, at the end of the history
+	s.offset = 0
+	s.sel = selection{}
+	s.find.stale = true
+	s.scrolled = 0
+	for i := range s.dirty {
+		s.dirty[i] = true
+	}
+	s.viewDirty = true
+	return curRow, curCol
 }
 
 // ScrollUp rotates the buffer right away, the row objects are rotated on the
@@ -640,12 +707,16 @@ func (s *Screen) ScrollUp() {
 
 	last := s.row - 1
 
-	// Move the top line into the history, reuse the line it drops if any
+	// Move the top line into the history, reuse the line it drops if any.
+	// The alternate screen keeps no history, its top line is reused.
 	top := s.lines[0]
 	copy(s.lines, s.lines[1:])
 	copy(s.dirty, s.dirty[1:])
-	blank := s.hist.push(top)
-	s.histTotal++
+	blank := top
+	if !s.alt {
+		blank = s.hist.push(top)
+		s.histTotal++
+	}
 	if len(blank.cells) == s.col {
 		clear(blank.cells)
 		blank.wrapped = false

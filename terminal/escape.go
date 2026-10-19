@@ -75,6 +75,7 @@ func (t *Terminal) handleEscAction(r rune) {
 
 	// Resets tab stops, margins, modes, graphic rendition, palette, activates primary screen, erases the display and moves cursor to home position
 	case 'c':
+		t.setAlternate(false)
 
 	// Memory Lock (per HP terminals).  Locks memory above the cursor.
 	case 'l':

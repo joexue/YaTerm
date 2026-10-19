@@ -31,6 +31,12 @@ type Screen interface {
 	// Reflow fits the content to a new size, re-wrapping lines at the new
 	// width, and returns where the cursor moved to.
 	Reflow(row, col, curRow, curCol int) (int, int)
+
+	// SetAlternate switches to the alternate screen (on), a blank one with
+	// no history, e.g. for vim, keeping the main screen and the cursor on it
+	// (curRow, curCol). Back to the main screen it returns that cursor,
+	// moved by the reflows done meanwhile.
+	SetAlternate(on bool, curRow, curCol int) (int, int)
 }
 
 type Pty interface {
@@ -104,6 +110,9 @@ type Terminal struct {
 	OnTmuxControl func() TmuxHandler
 
 	tmux TmuxHandler // the control mode in use, nil when none
+
+	// alternate tells the alternate screen is shown, see setAlternate
+	alternate bool
 }
 
 func New(screen Screen) *Terminal {

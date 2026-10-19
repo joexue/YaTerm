@@ -169,6 +169,14 @@ func (t *Terminal) handleCsi() {
 		return
 	}
 
+	// DEC private modes, "?1049h" sets one, "?1049l" resets it
+	if strings.HasPrefix(message, "?") && (final == 'h' || final == 'l') {
+		for _, mode := range parseParams(message[1:]) {
+			t.setPrivateMode(mode, final == 'h')
+		}
+		return
+	}
+
 	// Private sequences such as "?25l" are not cursor or erase commands
 	if message != "" && (message[0] == '?' || message[0] == '>' || message[0] == '=' || message[0] == '<') {
 		return
@@ -262,4 +270,48 @@ func (t *Terminal) processCsi(r rune) {
 		t.param = nil
 		t.state = stateGROUND
 	}
+}
+
+// setPrivateMode sets or resets a DEC private mode, the ones not here are
+// ignored
+func (t *Terminal) setPrivateMode(mode int, on bool) {
+	switch mode {
+	// The alternate screen: 1049 saves the cursor and clears it, the older
+	// 47 and 1047 only switch
+	case 47, 1047:
+		t.setAlternate(on)
+	case 1049:
+		if on {
+			t.saveCursor()
+		}
+		t.setAlternate(on)
+		if !on {
+			// The cursor saved, at the place the main screen has it now
+			row, col := t.cursorY, t.cursorX
+			t.restoreCursor()
+			t.moveCursor(row, col)
+		}
+
+	// Save or restore the cursor, as DECSC and DECRC
+	case 1048:
+		if on {
+			t.saveCursor()
+		} else {
+			t.restoreCursor()
+		}
+	}
+}
+
+// setAlternate switches to the alternate screen or back to the main one,
+// the cursor goes to where it is on that screen
+func (t *Terminal) setAlternate(on bool) {
+	if on == t.alternate {
+		return
+	}
+	t.alternate = on
+	row, col := t.screen.SetAlternate(on, t.cursorY, t.cursorX)
+	t.wrapPending = false
+	// The scroll region belongs to the program of the screen left
+	t.scrollTop, t.scrollBottom = 0, 0
+	t.moveCursor(row, col)
 }
