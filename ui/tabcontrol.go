@@ -57,13 +57,14 @@ func NewTabControl(_ fyne.App, w fyne.Window) fyne.CanvasObject {
 	}
 
 	tabControl.OnClosed = func(tab *container.TabItem) {
-		// A tmux window ends in tmux when its tab is closed
-		if s := activeTmux(); s != nil {
-			s.tabClosed(tab)
-		}
 		switch tab.Content.(type) {
 		case *Pane:
-			tab.Content.(*Pane).TearDown()
+			// A tmux window ends in tmux when its tab is closed
+			if s := activeTmux(); s != nil {
+				s.tabClosed(tab)
+			} else {
+				tab.Content.(*Pane).TearDown()
+			}
 		}
 		if len(tabControl.Items) == 0 {
 			win.Close()
@@ -73,7 +74,11 @@ func NewTabControl(_ fyne.App, w fyne.Window) fyne.CanvasObject {
 	tabControl.OnSelected = func(tab *container.TabItem) {
 		switch tab.Content.(type) {
 		case *Pane:
-			tab.Content.(*Pane).TryFocus()
+			if s := activeTmux(); s != nil {
+				s.tabFocus(tab)
+			} else {
+				tab.Content.(*Pane).TryFocus()
+			}
 		default:
 			// A pane of the tab before would keep the focus while hidden and
 			// get the keys typed on this tab, so nothing has the focus here,

@@ -449,6 +449,19 @@ func (s *tmuxSession) tabClosed(tab *container.TabItem) {
 	}
 }
 
+// tabClosed is called when the user closed a tab, the window ends in tmux
+func (s *tmuxSession) tabFocus(tab *container.TabItem) {
+	if s.removing {
+		return
+	}
+	for id, w := range s.windows {
+		if w.tab == tab {
+			s.sendCommand(fmt.Sprintf("select-window -t @%d", id), nil)
+			return
+		}
+	}
+}
+
 // ownsRoot tells if a pane is the root of a tmux window's tab
 func (s *tmuxSession) ownsRoot(p *Pane) bool {
 	for _, w := range s.windows {
