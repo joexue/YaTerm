@@ -467,6 +467,29 @@ func (s *tmuxSession) selectTabItem(tab *container.TabItem) {
 	}
 }
 
+// dividerMoved tells tmux the size the user gave the panes of a split by its
+// divider: the size of the part before it, by its first pane. resize-pane
+// resizes the whole part the pane is in, along the split, the part after it
+// gets the rest. The layout change then gives the panes the sizes tmux has.
+func (s *tmuxSession) dividerMoved(p *Pane) {
+	if p.split == splitNone {
+		return
+	}
+	leaf := p.first
+	for leaf.split != splitNone {
+		leaf = leaf.first
+	}
+	if leaf.tmux == nil {
+		return
+	}
+
+	if p.split == splitRight {
+		s.sendCommand(fmt.Sprintf("resize-pane -t %%%d -x %d", leaf.tmux.id, leaf.col), nil)
+	} else {
+		s.sendCommand(fmt.Sprintf("resize-pane -t %%%d -y %d", leaf.tmux.id, leaf.row), nil)
+	}
+}
+
 // split splits a tmux pane, the layout change makes the new pane
 func (s *tmuxSession) split(tp *tmuxPane, direction int) {
 	flag := "-h"
@@ -700,7 +723,11 @@ func (p *tmuxPty) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
-func (p *tmuxPty) Resize(int, int)          {}
+// Resize does not tell tmux: the terminal of a tmux pane is only resized to
+// the size a layout from tmux gives it, which tmux has. A size the user gives
+// a pane by a divider goes to tmux by dividerMoved.
+func (p *tmuxPty) Resize(int, int) {}
+
 func (p *tmuxPty) RunCmd(string) error      { return nil }
 func (p *tmuxPty) Read([]byte) (int, error) { return 0, io.EOF }
 func (p *tmuxPty) Close()                   {}

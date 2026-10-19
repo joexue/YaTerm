@@ -60,6 +60,11 @@ func (d *Divider) DragEnd() {
 	d.startDragOff = nil
 	d.dragging = false
 	d.Refresh()
+
+	// In a tmux window tmux sizes the panes, it is told the new size
+	if s := activeTmux(); s != nil {
+		s.dividerMoved(d.pane)
+	}
 }
 
 func (d *Divider) Dragged(e *fyne.DragEvent) {
