@@ -628,7 +628,7 @@ func (s *tmuxSession) handleCommandResponse(lines []string, failed bool) {
 
 // send writes a command to tmux, handler gets its reply, handler may be nil
 func (s *tmuxSession) sendCommand(cmd string, handler func(lines []string, failed bool)) {
-	s.control.term.Print("DEBUG COMMAND: " + cmd + "\n")
+	//s.control.term.Print("DEBUG COMMAND: " + cmd + "\n")
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.pending = append(s.pending, handler)
@@ -662,8 +662,8 @@ func (s *tmuxSession) line(line string) {
 // TmuxLine and TmuxEnd come on the reader goroutine with the terminal's
 // lock held, the session works on the UI thread
 func (s *tmuxSession) TmuxLine(line string) {
-	s.control.term.Print("DEBUG: " + line)
-	s.control.term.Print("\n")
+	//s.control.term.Print("DEBUG: " + line)
+	//s.control.term.Print("\n")
 	s.line(line)
 }
 
