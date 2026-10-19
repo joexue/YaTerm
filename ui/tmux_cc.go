@@ -233,6 +233,10 @@ func (s *tmuxSession) layoutChanged(id int, layout string) {
 		if tp := s.panes[focused]; tp != nil && tp.leaf != nil {
 			root.lastFocus = tp.leaf
 			root.TryFocus()
+		} else if root.inShownTab() {
+			// The focused pane is gone (e.g. its shell exited): the one tmux
+			// has active, else the first, buildWindow set it
+			root.TryFocus()
 		}
 	})
 }

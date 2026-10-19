@@ -181,7 +181,13 @@ func (p *Pane) TryFocus() {
 	}
 
 	if focusPane.split == splitNone {
-		if c := fyne.CurrentApp().Driver().CanvasForObject(focusPane); c != nil {
+		// A pane not drawn yet, e.g. of a tmux tab made or laid out just now,
+		// has no canvas known, the window's finds it in its content
+		c := fyne.CurrentApp().Driver().CanvasForObject(focusPane)
+		if c == nil && win != nil {
+			c = win.Canvas()
+		}
+		if c != nil {
 			c.Focus(focusPane)
 		}
 	}
