@@ -2,6 +2,7 @@ package ui
 
 import (
 	"encoding/json"
+	"runtime"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -28,6 +29,10 @@ const (
 	actPaneDown   action = "paneDown"
 	actSplitRight action = "splitRight"
 	actSplitDown  action = "splitDown"
+	actCopy       action = "copy"
+	actCopy2      action = "copy2"
+	actPaste      action = "paste"
+	actPaste2     action = "paste2"
 )
 
 // actions are all the actions, in the order the settings show them, with
@@ -44,6 +49,10 @@ var actions = []struct {
 	{actPaneDown, "Lower pane"},
 	{actSplitRight, "Split right"},
 	{actSplitDown, "Split down"},
+	{actCopy, "Copy"},
+	{actCopy2, "Copy (second key)"},
+	{actPaste, "Paste"},
+	{actPaste2, "Paste (second key)"},
 }
 
 // keyBinding is a key with its modifiers, the zero value is no key
@@ -68,6 +77,20 @@ var defaultBindings = map[action]keyBinding{
 	actPaneDown:   {fyne.KeyDown, fyne.KeyModifierAlt},
 	actSplitRight: {fyne.KeyBackslash, fyne.KeyModifierControl},
 	actSplitDown:  {fyne.KeyMinus, fyne.KeyModifierControl},
+	actCopy:       clipboardKey(fyne.KeyC),
+	actCopy2:      {fyne.KeyInsert, fyne.KeyModifierControl},
+	actPaste:      clipboardKey(fyne.KeyV),
+	actPaste2:     {fyne.KeyInsert, fyne.KeyModifierShift},
+}
+
+// clipboardKey is the default key of copy (C) or paste (V): Ctrl+Shift, as
+// Ctrl+C and Ctrl+V are keys for the terminal's program, and the system's
+// Cmd on macOS
+func clipboardKey(key fyne.KeyName) keyBinding {
+	if runtime.GOOS == "darwin" {
+		return keyBinding{key, fyne.KeyModifierSuper}
+	}
+	return keyBinding{key, fyne.KeyModifierControl | fyne.KeyModifierShift}
 }
 
 // bindings are the keys in use, the defaults until LoadSettings loads the
@@ -227,6 +250,10 @@ func (p *Pane) runAction(act action) {
 		p.Split(splitRight, 0.5)
 	case actSplitDown:
 		p.Split(splitDown, 0.5)
+	case actCopy, actCopy2:
+		p.copySelection()
+	case actPaste, actPaste2:
+		p.paste(fyne.CurrentApp().Clipboard())
 	}
 }
 

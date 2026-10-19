@@ -411,8 +411,8 @@ func shortcutsPage(s *settings, w fyne.Window) fyne.CanvasObject {
 
 	builtIn := widget.NewForm()
 	for _, k := range []struct{ action, keys string }{
-		{"Copy", "Ctrl+Shift+C, Ctrl+Insert, or select with the mouse"},
-		{"Paste", "Ctrl+Shift+V, Shift+Insert, middle click"},
+		{"Copy", "Select with the mouse"},
+		{"Paste", "Middle click"},
 		{"Select a word", "Double click"},
 		{"Search", "Right click > Search"},
 		{"Scroll back", "Mouse wheel"},

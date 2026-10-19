@@ -239,31 +239,35 @@ func (p *Pane) TypedKey(ke *fyne.KeyEvent) {
 }
 
 // TypedShortcut gets every key with Ctrl, Alt or Super held, and the
-// standard shortcuts like copy and paste.
+// standard shortcuts like copy and paste. Those are taken as their keys, so
+// they are YaTerm's shortcuts only as set (e.g. paste), else they go to the
+// terminal.
 func (p *Pane) TypedShortcut(sc fyne.Shortcut) {
-	// On macOS the standard shortcuts are Cmd+key, so they really mean
-	// copy/paste, elsewhere they are Ctrl+key which a terminal sends as is.
-	mac := runtime.GOOS == "darwin"
+	// On macOS the standard shortcuts are Cmd+key, elsewhere Ctrl+key
+	ctrl := fyne.KeyModifierControl
+	if runtime.GOOS == "darwin" {
+		ctrl = fyne.KeyModifierSuper
+	}
 
 	var (
 		name fyne.KeyName
-		mods = fyne.KeyModifierControl
+		mods = ctrl
 	)
 
 	switch sc := sc.(type) {
 	case *fyne.ShortcutPaste:
-		if mac || sc.Secondary { // Cmd+V, Shift+Insert
-			p.paste(sc.Clipboard)
-			return
+		if sc.Secondary { // Shift+Insert
+			name, mods = fyne.KeyInsert, fyne.KeyModifierShift
+		} else {
+			name = fyne.KeyV
 		}
-		name = fyne.KeyV
 
 	case *fyne.ShortcutCopy:
-		if mac || sc.Secondary { // Cmd+C, Ctrl+Insert
-			p.copySelection()
-			return
+		if sc.Secondary { // Ctrl+Insert
+			name, mods = fyne.KeyInsert, fyne.KeyModifierControl
+		} else {
+			name = fyne.KeyC
 		}
-		name = fyne.KeyC
 
 	case *fyne.ShortcutCut:
 		if sc.Secondary { // Shift+Delete
@@ -291,20 +295,6 @@ func (p *Pane) TypedShortcut(sc fyne.Shortcut) {
 		return
 	}
 	if p.tmuxControl != nil {
-		return
-	}
-
-	// Ctrl+Shift+V pastes (Cmd+Shift+V on macOS), Ctrl+Shift+C would copy
-	clipMods := fyne.KeyModifierControl | fyne.KeyModifierShift
-	if mac {
-		clipMods = fyne.KeyModifierSuper | fyne.KeyModifierShift
-	}
-	if mods == clipMods && (name == fyne.KeyV || name == fyne.KeyC) {
-		if name == fyne.KeyV {
-			p.paste(fyne.CurrentApp().Clipboard())
-		} else {
-			p.copySelection()
-		}
 		return
 	}
 
