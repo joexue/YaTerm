@@ -141,9 +141,15 @@ func (t *Terminal) Resize(row, col int) {
 		t.scrollTop, t.scrollBottom = 0, 0
 		t.screen.Flush(t.cursorShown())
 	}
+	// In tmux control mode the pty keeps its size: tmux is told its size by
+	// commands. And ConPTY (Windows) asks for the cursor position ("ESC [6n")
+	// on a resize, to sync its copy of the screen. That ESC between the lines
+	// of tmux would be taken as the start of the ST and end the mode. endTmux
+	// gives the pty the size then.
+	inTmux := t.tmux != nil
 	t.stateMu.Unlock()
 
-	if t.pty != nil {
+	if t.pty != nil && !inTmux {
 		t.pty.Resize(row, col)
 	}
 }

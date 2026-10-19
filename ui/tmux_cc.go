@@ -155,6 +155,19 @@ func (s *tmuxSession) sendClientSize() {
 	s.sendCommand(fmt.Sprintf("refresh-client -C %dx%d", col, row), nil)
 }
 
+// moveTmuxControl moves the session to the pane the control terminal moved
+// to: a split moves it to the first pane, a close of the pane next to it to
+// the parent. Else q would go to tmux as a key, and the commands to a pane
+// with no terminal.
+func moveTmuxControl(from, to *Pane) {
+	s := activeTmux()
+	if s == nil || s.control != from || from == to {
+		return
+	}
+	s.control = to
+	to.tmuxControl, from.tmuxControl = from.tmuxControl, nil
+}
+
 // windowFromLine makes the tab of a window from a line of
 // "#{window_id} #{window_active} #{window_layout} #{window_name}"
 func (s *tmuxSession) windowFromLine(line string) (*container.TabItem, bool) {

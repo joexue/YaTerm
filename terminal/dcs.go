@@ -54,6 +54,13 @@ func (t *Terminal) endTmux() {
 		h.TmuxEnd()
 	}
 	t.tmux = nil
+
+	// The pty kept its size during the mode, see Resize. Not here: this holds
+	// the lock, and is the reader of what ConPTY writes on a resize.
+	if t.pty != nil && t.row > 0 && t.col > 0 {
+		row, col := t.row, t.col
+		go t.pty.Resize(row, col)
+	}
 }
 
 // processDcsTmux collects the lines of the control mode. An ESC ends it, tmux

@@ -215,6 +215,7 @@ func (p *Pane) Close() {
 		// pane is closed.
 		pa.term = take.term
 		pa.screen = take.screen
+		moveTmuxControl(take, pa)
 		// take's search bar goes away with take, so do its highlights
 		if take.search != nil {
 			take.screen.Search(nil, true)
@@ -266,6 +267,7 @@ func (p *Pane) Split(direction int, ratio float32) {
 
 	p.split = direction
 	p.first = NewPane(p, p.term, false)
+	moveTmuxControl(p, p.first)
 	p.second = NewPane(p, nil, true)
 	p.term = nil
 
@@ -301,8 +303,8 @@ func (p *Pane) Resize(size fyne.Size) {
 	if p.term != nil && p.tmux == nil {
 		p.term.Resize(p.row, p.col)
 	}
-	if s := activeTmux(); s != nil && p.parent == nil && (p.tmux != nil || p.split != splitNone) && s.ownsRoot(p) {
-		//s.sendClientSize()
+	if s := activeTmux(); s != nil && p.parent == nil {
+		s.sendClientSize()
 	}
 
 	// Cann't skip it, This will triage the renderer to call Layout
