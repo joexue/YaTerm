@@ -266,10 +266,11 @@ func appearancePage(s *settings) fyne.CanvasObject {
 	return container.NewBorder(form, nil, nil, nil, preview.box)
 }
 
-// schemePreview shows a scheme: some text in its colors on its background,
-// and its 16 colors
+// schemePreview shows a scheme as the app would look: the tab bar, and below
+// some text in its colors on its background, and its 16 colors
 type schemePreview struct {
 	box    *fyne.Container
+	tabs   *fyne.Container // holds the tab bar, in a theme of the scheme
 	bg     *canvas.Rectangle
 	lines  []*canvas.Text
 	colors [16]*canvas.Rectangle
@@ -281,7 +282,8 @@ type schemePreview struct {
 
 func newSchemePreview() *schemePreview {
 	p := &schemePreview{bg: canvas.NewRectangle(color.Black)}
-	p.bg.CornerRadius = 4
+	p.bg.BottomLeftCornerRadius, p.bg.BottomRightCornerRadius = 4, 4
+	p.tabs = container.NewStack()
 
 	p.cell = canvas.NewRectangle(color.Transparent)
 	p.cursor = canvas.NewRectangle(color.White)
@@ -313,8 +315,27 @@ func newSchemePreview() *schemePreview {
 	}
 
 	content := container.NewVBox(text, layout.NewSpacer(), normal, bright)
-	p.box = container.NewStack(p.bg, container.NewPadded(content))
+	p.box = container.NewBorder(p.tabs, nil, nil, nil, container.NewStack(p.bg, container.NewPadded(content)))
 	return p
+}
+
+// tabBar is the tab bar of the app in th, made of its own widgets: a
+// selected tab, another one, + and the settings button. They do nothing here.
+func previewTabBar(th fyne.Theme) fyne.CanvasObject {
+	bg := canvas.NewRectangle(th.Color(theme.ColorNameMenuBackground, fyne.CurrentApp().Settings().ThemeVariant()))
+	bg.TopLeftCornerRadius, bg.TopRightCornerRadius = 4, 4
+
+	add := widget.NewButtonWithIcon("", theme.ContentAddIcon(), nil)
+	add.Importance = widget.LowImportance
+	settings := widget.NewButtonWithIcon("", theme.SettingsIcon(), nil)
+	settings.Importance = widget.LowImportance
+
+	tabs := container.NewHBox(
+		newTabButton("Tab 1", nil, true, nil, nil),
+		newTabButton("Tab 2", nil, false, nil, nil),
+		add,
+	)
+	return container.NewStack(bg, container.NewBorder(nil, nil, nil, settings, tabs))
 }
 
 // show draws scheme in the preview, with the text at size and the cursor in
@@ -323,6 +344,14 @@ func (p *schemePreview) show(scheme *yatheme.Scheme, size float32, shape yatheme
 	if scheme == nil {
 		return
 	}
+
+	// The tab bar is made again in the theme of the scheme. A new override:
+	// it sets the theme before the widgets are drawn, they take their colors
+	// then, a Refresh of the old one would draw them first.
+	th := yatheme.NewYatermTheme()
+	th.SetScheme(scheme.Name)
+	p.tabs.Objects = []fyne.CanvasObject{container.NewThemeOverride(previewTabBar(th), th)}
+	p.tabs.Refresh()
 
 	p.bg.FillColor = scheme.Colors[yatheme.ColorBackground]
 	p.bg.Refresh()

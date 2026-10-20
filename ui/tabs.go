@@ -46,7 +46,7 @@ func (c *closeIcon) Tapped(*fyne.PointEvent) {
 }
 
 func (c *closeIcon) MouseIn(*desktop.MouseEvent) {
-	c.bg.FillColor = theme.Color(theme.ColorNameHover)
+	c.bg.FillColor = c.Theme().Color(theme.ColorNameHover, fyne.CurrentApp().Settings().ThemeVariant())
 	c.bg.Refresh()
 }
 
@@ -78,12 +78,15 @@ func newTabButton(text string, icon fyne.Resource, selected bool, onTapped, onCl
 	return t
 }
 
+// backgroundColor is of the widget's theme, not the app's: in the settings
+// preview a tab shows the scheme looked at
 func (t *tabButton) backgroundColor() color.Color {
+	th, v := t.Theme(), fyne.CurrentApp().Settings().ThemeVariant()
 	if t.selected {
-		return theme.Color(theme.ColorNameBackground)
+		return th.Color(theme.ColorNameBackground, v)
 	}
 	if t.hovered {
-		return theme.Color(theme.ColorNameHover)
+		return th.Color(theme.ColorNameHover, v)
 	}
 	return color.Transparent
 }
