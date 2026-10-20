@@ -65,19 +65,22 @@ func (t *Terminal) endTmux() {
 
 // processDcsTmux collects the lines of the control mode. An ESC ends it, tmux
 // escapes all of them in its text, so it is the start of the final ST.
-func (t *Terminal) processDcsTmux(r rune) {
+func (t *Terminal) processDcsTmux(r byte) {
 	switch r {
+	case asciiEscape:
+		t.state = stateDCSTermination
+
 	case '\n':
-		line := string(t.param)
-		t.param = []rune{}
+		line := string(t.param1)
+		t.param1 = []byte{}
 		t.tmux.TmuxLine(line)
 
 	// Ignore
 	case '\r':
 
 	default:
-		if len(t.param) < tmuxMaxLine {
-			t.param = append(t.param, r)
+		if len(t.param1) < tmuxMaxLine {
+			t.param1 = append(t.param1, r)
 		}
 	}
 }
@@ -246,6 +249,8 @@ func (t *Terminal) processDcs(r rune) {
 	case 'p':
 		if len(t.param) == 4 && string(t.param) == "1000" && t.startTmux() {
 			t.param = nil
+			t.param1 = nil
+			t.leftOver = nil
 			t.state = stateDCSTmux
 		} else {
 			t.param = append(t.param, r)

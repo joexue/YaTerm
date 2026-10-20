@@ -75,8 +75,10 @@ func (t *Terminal) processRune(r rune) {
 	case stateDCS:
 		t.processDcs(r)
 
-	case stateDCSTmux:
-		t.processDcsTmux(r)
+	/*
+		case stateDCSTmux:
+			t.processDcsTmux(r)
+	*/
 
 	case stateDCSTermination:
 		if r == '\\' {
@@ -104,6 +106,13 @@ func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 	}
 
 	for len(data) > 0 {
+		// Tmux handle the bytes
+		if t.state == stateDCSTmux {
+			t.processDcsTmux(data[0])
+			data = data[1:]
+			continue
+		}
+
 		r, size := utf8.DecodeRune(data)
 		data = data[size:]
 
@@ -113,8 +122,6 @@ func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 				t.leftOver = append(t.leftOver, data...)
 				break
 			}
-			t.processRune(utf8.RuneError)
-			continue
 		}
 
 		if isC1ControlCharacter(r) {

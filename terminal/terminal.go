@@ -89,6 +89,7 @@ type Terminal struct {
 	charsets [2]rune
 	shifted  int
 	param    []rune
+	param1   []byte
 	leftOver []byte // the start of a UTF-8 character the last read ended in
 
 	fg, bg color.Color
