@@ -270,7 +270,8 @@ func appearancePage(s *settings) fyne.CanvasObject {
 // some text in its colors on its background, and its 16 colors
 type schemePreview struct {
 	box    *fyne.Container
-	tabs   *fyne.Container // holds the tab bar, in a theme of the scheme
+	window *canvas.Rectangle // the window's background, shows between the tab bar and the text as in the app
+	tabs   *fyne.Container   // holds the tab bar, in a theme of the scheme
 	bg     *canvas.Rectangle
 	lines  []*canvas.Text
 	colors [16]*canvas.Rectangle
@@ -284,6 +285,8 @@ func newSchemePreview() *schemePreview {
 	p := &schemePreview{bg: canvas.NewRectangle(color.Black)}
 	p.bg.BottomLeftCornerRadius, p.bg.BottomRightCornerRadius = 4, 4
 	p.tabs = container.NewStack()
+	p.window = canvas.NewRectangle(color.Black)
+	p.window.CornerRadius = 4
 
 	p.cell = canvas.NewRectangle(color.Transparent)
 	p.cursor = canvas.NewRectangle(color.White)
@@ -315,7 +318,8 @@ func newSchemePreview() *schemePreview {
 	}
 
 	content := container.NewVBox(text, layout.NewSpacer(), normal, bright)
-	p.box = container.NewBorder(p.tabs, nil, nil, nil, container.NewStack(p.bg, container.NewPadded(content)))
+	p.box = container.NewStack(p.window,
+		container.NewBorder(p.tabs, nil, nil, nil, container.NewStack(p.bg, container.NewPadded(content))))
 	return p
 }
 
@@ -353,6 +357,8 @@ func (p *schemePreview) show(scheme *yatheme.Scheme, size float32, shape yatheme
 	p.tabs.Objects = []fyne.CanvasObject{container.NewThemeOverride(previewTabBar(th), th)}
 	p.tabs.Refresh()
 
+	p.window.FillColor = scheme.Colors[yatheme.ColorBackground]
+	p.window.Refresh()
 	p.bg.FillColor = scheme.Colors[yatheme.ColorBackground]
 	p.bg.Refresh()
 	for i, line := range p.lines {
