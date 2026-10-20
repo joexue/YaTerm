@@ -59,11 +59,14 @@ func (t *Terminal) eraseInScreen(mode int) {
 			t.screen.SetWrapped(row, false)
 		}
 		t.eraseCells(t.cursorY, 0, t.cursorX+1)
-	case 2, 3:
+	case 2:
 		for row := 0; row < t.row; row++ {
 			t.eraseCells(row, 0, t.col)
 			t.screen.SetWrapped(row, false)
 		}
+	// The lines kept above the screen, "clear" sends it after 2
+	case 3:
+		t.screen.ClearHistory()
 	}
 }
 
@@ -91,12 +94,13 @@ func (t *Terminal) handleCsiIntermediate(message, inter string, final rune) {
 		t.savedRow, t.savedCol = 0, 0
 		t.savedCharsets, t.savedShifted = [2]rune{}, 0
 		t.wrapPending = false
+		t.resetModes()
 
-	// DECRQM, ask if a mode is set: "CSI ? 12 $ p". Modes are not reported
-	// yet, the answer is 0, not recognized, so the program does not wait.
+	// DECRQM, ask if a mode is set: "CSI ? 12 $ p". The answer is 1 set, 2
+	// reset, or 0 for a mode not supported, so the program does not wait.
 	case "$p":
 		if mode := strings.TrimPrefix(message, "?"); mode != message {
-			t.reply("\x1b[?" + mode + ";0$y")
+			t.reply("\x1b[?" + mode + ";" + strconv.Itoa(t.privateModeState(atoi(mode))) + "$y")
 		} else {
 			t.reply("\x1b[" + message + ";0$y")
 		}
@@ -202,8 +206,16 @@ func (t *Terminal) handleCsi() {
 		t.moveCursor(param(params, 0, 1)-1, t.cursorX)
 	case 'H', 'f':
 		t.moveCursor(param(params, 0, 1)-1, param(params, 1, 1)-1)
-	case 'G':
+	case 'G', '`':
 		t.moveCursor(t.cursorY, param(params, 0, 1)-1)
+	case 'a':
+		t.moveCursor(t.cursorY, t.cursorX+param(params, 0, 1))
+	case 'e':
+		t.moveCursor(t.cursorY+param(params, 0, 1), t.cursorX)
+	case 'E':
+		t.moveCursor(t.cursorY+param(params, 0, 1), 0)
+	case 'F':
+		t.moveCursor(t.cursorY-param(params, 0, 1), 0)
 	case 'h':
 	//escapePrivateModeOn,
 	case 'L':
@@ -235,7 +247,7 @@ func (t *Terminal) handleCsi() {
 	case 'T':
 		t.scrollRegion(-param(params, 0, 1))
 	case 'b':
-	//escapeRepeatChar,
+		t.repeatChar(param(params, 0, 1))
 	case 't':
 		//escapeWindowOps,
 	}
@@ -299,6 +311,55 @@ func (t *Terminal) setPrivateMode(mode int, on bool) {
 		} else {
 			t.restoreCursor()
 		}
+
+	case 1:
+		t.appCursorKeys = on
+	case 25:
+		t.cursorHidden = !on
+		t.screen.SetCursorVisible(on)
+	case 2004:
+		t.bracketedPaste = on
+	}
+}
+
+// privateModeState is the DECRQM answer for a mode: 1 set, 2 reset, 0 not
+// supported
+func (t *Terminal) privateModeState(mode int) int {
+	set := false
+	switch mode {
+	case 1:
+		set = t.appCursorKeys
+	case 25:
+		set = !t.cursorHidden
+	case 47, 1047, 1049:
+		set = t.alternate
+	case 2004:
+		set = t.bracketedPaste
+	default:
+		return 0
+	}
+	if set {
+		return 1
+	}
+	return 2
+}
+
+// resetModes puts the private modes back to their defaults, by a soft or a
+// full reset
+func (t *Terminal) resetModes() {
+	t.appCursorKeys = false
+	t.bracketedPaste = false
+	t.cursorHidden = false
+	t.screen.SetCursorVisible(true)
+}
+
+// repeatChar writes the last character n times more (REP), at most a screen
+func (t *Terminal) repeatChar(n int) {
+	if t.lastChar == 0 {
+		return
+	}
+	for i := 0; i < min(n, t.row*t.col); i++ {
+		t.outputChar(t.lastChar)
 	}
 }
 

@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
-	"time"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -81,27 +80,34 @@ func coord(col, row int) uintptr {
 }
 
 type Pty struct {
+	sized sizeGate
+
+	// mu guards the fields below: the UI thread resizes and writes, the
+	// terminal's goroutine starts the program
+	mu       sync.Mutex
 	row, col int
+	in       *os.File
+	out      *os.File
+	api      *conptyAPI
+	hpc      windows.Handle
+	process  *os.Process
 
-	in  *os.File
-	out *os.File
-	api *conptyAPI
-	hpc windows.Handle
-
-	process   *os.Process
 	closeOnce sync.Once
 }
 
 func New() *Pty {
-	return &Pty{}
+	return &Pty{sized: newSizeGate()}
 }
 
 func (p *Pty) Resize(row, col int) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	if p.row == row && p.col == col {
 		return
 	}
 
 	p.row, p.col = row, col
+	p.sized.set(row, col)
 	if p.hpc == 0 {
 		return
 	}
@@ -116,14 +122,10 @@ const defaultProgram = `C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.ex
 // program. A program that is not found falls back to the default, so a wrong
 // setting does not close every new tab.
 func (p *Pty) RunCmd(cmd string) error {
-	ticker := time.NewTicker(time.Millisecond * 100)
-	for range ticker.C {
-		if p.col > 0 && p.row > 0 {
-			break
-		}
-	}
-
-	ticker.Stop()
+	p.sized.wait()
+	p.mu.Lock()
+	row, col := p.row, p.col
+	p.mu.Unlock()
 
 	// CreateProcess does not look in PATH, so the program gets its full path
 	path, args, ok := FindProgram(cmd)
@@ -154,7 +156,7 @@ func (p *Pty) RunCmd(cmd string) error {
 	out := os.NewFile(uintptr(outRead), "conpty-out")
 
 	var hpc windows.Handle
-	r, _, _ := api.create.Call(coord(p.col, p.row), uintptr(inRead), uintptr(outWrite), 0, uintptr(unsafe.Pointer(&hpc)))
+	r, _, _ := api.create.Call(coord(col, row), uintptr(inRead), uintptr(outWrite), 0, uintptr(unsafe.Pointer(&hpc)))
 	windows.CloseHandle(inRead)
 	windows.CloseHandle(outWrite)
 	if r != 0 {
@@ -179,6 +181,7 @@ func (p *Pty) RunCmd(cmd string) error {
 		return err
 	}
 
+	p.mu.Lock()
 	p.process = process
 	p.api = api
 	p.in = in
@@ -187,6 +190,7 @@ func (p *Pty) RunCmd(cmd string) error {
 
 	// The size may have changed while it started
 	_, _, _ = api.resize.Call(uintptr(hpc), coord(p.col, p.row))
+	p.mu.Unlock()
 
 	// ConPTY keeps its output pipe open after the shell exits (e.g. "exit"),
 	// so Read never gets EOF and the pane never closes. Wait for the shell
@@ -262,19 +266,25 @@ func (p *Pty) Read(buf []byte) (int, error) {
 }
 
 func (p *Pty) Write(bytes []byte) (int, error) {
+	p.mu.Lock()
+	in := p.in
+	p.mu.Unlock()
 	// Typing or pasting into a new pane before its shell has started
-	if p.in == nil {
+	if in == nil {
 		return 0, errNotStarted
 	}
-	return p.in.Write(bytes)
+	return in.Write(bytes)
 }
 
 func (p *Pty) Close() {
-	if p.process == nil {
+	p.mu.Lock()
+	process := p.process
+	p.mu.Unlock()
+	if process == nil {
 		return
 	}
 
-	_ = p.process.Kill()
+	_ = process.Kill()
 	// Older ConPTYs block in ClosePseudoConsole until the output is read,
 	// which may wait for this (UI) thread
 	go p.closePty()

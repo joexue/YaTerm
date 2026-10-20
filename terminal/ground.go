@@ -54,6 +54,7 @@ var widthCond = func() *runewidth.Condition {
 }()
 
 func (t *Terminal) outputChar(r rune) {
+	t.lastChar = r
 	r = t.translateChar(r)
 	w := widthCond.RuneWidth(r)
 	if w == 0 {

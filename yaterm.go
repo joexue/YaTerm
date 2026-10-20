@@ -8,9 +8,14 @@ import (
 	"yaterm/ui"
 )
 
+// appID names YaTerm to Fyne and the system, e.g. its settings are kept in
+// a folder of that name. Dots, not slashes: it is a folder name, a macOS
+// bundle identifier and a Wayland app ID too.
+const appID = "com.github.joexue.yaterm"
+
 func main() {
 	// The ID lets Fyne keep the settings (preferences) between runs
-	a := app.NewWithID("github.com/joexue/yaterm")
+	a := app.NewWithID(appID)
 	a.SetIcon(assert.YatermIconRes)
 
 	th := theme.NewYatermTheme()

@@ -4,9 +4,33 @@ import (
 	"errors"
 	"os/exec"
 	"strings"
+	"sync"
 )
 
 var errNotStarted = errors.New("pty: shell not started yet")
+
+// sizeGate lets RunCmd wait for the first size: the program starts at the
+// size of its pane, which the UI gives by Resize once the pane is laid out
+type sizeGate struct {
+	once sync.Once
+	ch   chan struct{}
+}
+
+func newSizeGate() sizeGate {
+	return sizeGate{ch: make(chan struct{})}
+}
+
+// set tells the size is known, if it is one
+func (g *sizeGate) set(row, col int) {
+	if row > 0 && col > 0 {
+		g.once.Do(func() { close(g.ch) })
+	}
+}
+
+// wait waits for the first size
+func (g *sizeGate) wait() {
+	<-g.ch
+}
 
 // DefaultProgram is the program a terminal runs when none is set: PowerShell
 // on Windows, bash elsewhere

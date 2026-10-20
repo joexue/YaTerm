@@ -37,6 +37,12 @@ type Screen interface {
 	// (curRow, curCol). Back to the main screen it returns that cursor,
 	// moved by the reflows done meanwhile.
 	SetAlternate(on bool, curRow, curCol int) (int, int)
+
+	// SetCursorVisible shows or hides the cursor (DECTCEM, "CSI ? 25 h/l")
+	SetCursorVisible(visible bool)
+
+	// ClearHistory drops the lines kept above the screen ("CSI 3 J")
+	ClearHistory()
 }
 
 type Pty interface {
@@ -113,6 +119,34 @@ type Terminal struct {
 
 	// alternate tells the alternate screen is shown, see setAlternate
 	alternate bool
+
+	// DEC private modes the program set, see setPrivateMode
+	appCursorKeys  bool // DECCKM ?1: the cursor keys send "ESC O x"
+	cursorHidden   bool // DECTCEM ?25 reset
+	bracketedPaste bool // ?2004: a paste comes between "ESC [200~" and "ESC [201~"
+
+	// lastChar is the last character written, REP ("CSI n b") repeats it
+	lastChar rune
+
+	// Replies to the program, written in order by one goroutine, see reply
+	replyMu  sync.Mutex
+	replies  []string
+	replying bool
+}
+
+// AppCursorKeys tells the cursor keys are to send "ESC O x" (DECCKM)
+func (t *Terminal) AppCursorKeys() bool {
+	t.stateMu.Lock()
+	defer t.stateMu.Unlock()
+	return t.appCursorKeys
+}
+
+// BracketedPaste tells a paste is to be put between "ESC [200~" and
+// "ESC [201~", so the program takes it as text, not as typed keys
+func (t *Terminal) BracketedPaste() bool {
+	t.stateMu.Lock()
+	defer t.stateMu.Unlock()
+	return t.bracketedPaste
 }
 
 func New(screen Screen) *Terminal {
@@ -171,22 +205,23 @@ func (t *Terminal) Size() (int, int) {
 }
 
 func (t *Terminal) RunCmd(cmd string) {
-	err := t.pty.RunCmd(cmd)
-
-	if err != nil {
-	} else {
-		buf := make([]byte, bufLen)
-		for {
-			num, err := t.Read(buf)
-			if err != nil {
-				break
-			}
-
-			//fmt.Println("xxxxxxxxxxxxxxx", num, err)
-			t.ProcessOutput(buf[:num], num)
-		}
-
+	if err := t.pty.RunCmd(cmd); err != nil {
+		// The pane stays open to show why, closing it would say nothing
+		t.Print("YaTerm: the program could not start: " + err.Error() + "\n")
+		return
 	}
+
+	buf := make([]byte, bufLen)
+	for {
+		num, err := t.Read(buf)
+		if err != nil {
+			break
+		}
+		t.ProcessOutput(buf[:num], num)
+	}
+
+	// The program ended: the pty is closed and the program waited for
+	t.pty.Close()
 
 	// The program ended inside the tmux control mode, e.g. its pane closed
 	t.stateMu.Lock()
@@ -198,8 +233,6 @@ func (t *Terminal) RunCmd(cmd string) {
 	if f := t.OnExit; f != nil {
 		f()
 	}
-
-	return
 }
 
 func (t *Terminal) Exit() {

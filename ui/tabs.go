@@ -153,7 +153,7 @@ func NewTabs(items ...*container.TabItem) *Tabs {
 		Items:         items,
 		SelectedIndex: -1,
 		tabBar:        container.NewHBox(),
-		contentArea:   container.NewMax(),
+		contentArea:   container.NewStack(),
 	}
 	t.BaseWidget.ExtendBaseWidget(t)
 

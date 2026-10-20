@@ -129,6 +129,9 @@ type Screen struct {
 	// The selection uses it to stay on the same text.
 	histTotal int
 
+	// The program hid the cursor (DECTCEM)
+	cursorHidden bool
+
 	// The alternate screen (e.g. of vim) is shown in lines, the main screen
 	// waits in mainLines with its cursor. No history comes from it.
 	alt                    bool
@@ -530,7 +533,7 @@ func (s *Screen) SetFocused(focused bool) {
 // back and is hidden when it is below the view. Called with mu held.
 func (s *Screen) updateCursor() {
 	row := s.curRow + s.offset
-	if !s.focused || row >= s.row {
+	if !s.focused || s.cursorHidden || row >= s.row {
 		s.cursor.Hide()
 		s.cursorText.Hide()
 		return
@@ -661,6 +664,25 @@ func (s *Screen) scrollTo(offset int) {
 }
 
 func (s *Screen) MoveCursor(row, col int) {
+}
+
+// SetCursorVisible shows or hides the cursor, see terminal.Screen. It is
+// drawn so on the next flush.
+func (s *Screen) SetCursorVisible(visible bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.cursorHidden = !visible
+}
+
+// ClearHistory drops the lines above the screen, see terminal.Screen
+func (s *Screen) ClearHistory() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.hist.reset()
+	s.offset = 0
+	s.sel = selection{}
+	s.find.stale = true
+	s.viewDirty = true
 }
 
 // SetAlternate switches to the alternate screen or back, see terminal.Screen

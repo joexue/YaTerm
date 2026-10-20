@@ -19,7 +19,17 @@ func (t *Terminal) processApc(r rune) {
 		t.param = nil
 		t.state = stateGROUND
 
+	case asciiCancel, asciiSub:
+		t.param = nil
+		t.state = stateGROUND
+
 	default:
-		t.param = append(t.param, r)
+		// Nothing in it is used, a big image must not grow the memory
+		if len(t.param) < apcMaxLen {
+			t.param = append(t.param, r)
+		}
 	}
 }
+
+// An APC longer than this is not kept, it is read to its end
+const apcMaxLen = 4096

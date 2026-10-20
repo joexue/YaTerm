@@ -75,7 +75,7 @@ func (t *Terminal) handleEscAction(r rune) {
 
 	// Resets tab stops, margins, modes, graphic rendition, palette, activates primary screen, erases the display and moves cursor to home position
 	case 'c':
-		t.setAlternate(false)
+		t.fullReset()
 
 	// Memory Lock (per HP terminals).  Locks memory above the cursor.
 	case 'l':
@@ -177,8 +177,9 @@ func (t *Terminal) processEsc(r rune) {
 		t.state = stateDCS
 		t.param = nil
 
-	// Application Program Command
-	case '_':
+	// Application Program Command, and the Start of String (SOS) and Privacy
+	// Message (PM) strings, read the same way and ignored
+	case '_', 'X', '^':
 		t.state = stateAPC
 		t.param = nil
 
@@ -195,4 +196,19 @@ func (t *Terminal) processEsc(r rune) {
 			t.param = nil
 		}
 	}
+}
+
+// fullReset is RIS ("ESC c", what the "reset" command sends): the main
+// screen, cleared, the cursor home, the colors, character sets, scroll region
+// and modes at their defaults. The history stays.
+func (t *Terminal) fullReset() {
+	t.setAlternate(false)
+	t.resetGraphics()
+	t.resetModes()
+	t.scrollTop, t.scrollBottom = 0, 0
+	t.charsets, t.shifted = [2]rune{}, 0
+	t.savedRow, t.savedCol = 0, 0
+	t.savedCharsets, t.savedShifted = [2]rune{}, 0
+	t.eraseInScreen(2)
+	t.moveCursor(0, 0)
 }

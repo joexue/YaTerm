@@ -435,16 +435,6 @@ func (s *tmuxSession) tabFocus(tab *container.TabItem) {
 	}
 }
 
-// ownsRoot tells if a pane is the root of a tmux window's tab
-func (s *tmuxSession) ownsRoot(p *Pane) bool {
-	for _, w := range s.windows {
-		if w.root == p {
-			return true
-		}
-	}
-	return false
-}
-
 // ownsTab tells if a tab is a tmux window
 func (s *tmuxSession) ownsTab(tab *container.TabItem) bool {
 	for _, w := range s.windows {
@@ -752,7 +742,6 @@ func startTmux(control *Pane) terminal.TmuxHandler {
 // tmuxRefuser detaches a second session, YaTerm runs one at a time
 type tmuxRefuser struct {
 	term *terminal.Terminal
-	done bool
 }
 
 func (r *tmuxRefuser) TmuxLine(string) {

@@ -201,7 +201,12 @@ func (p *Pane) Close() {
 		return
 	}
 
+	// Closed already, e.g. its program ended while the user closed it: its
+	// parent holds other panes now, taking one of them would break the tree
 	pa := p.parent
+	if pa == nil || (pa.first != p && pa.second != p) {
+		return
+	}
 	var take *Pane
 	if pa.first == p {
 		take = pa.second

@@ -5,7 +5,7 @@ CROSS = /home/joe/go/bin/fyne-cross
 all: windows macos
 
 windows:
-	$(CROSS) windows -app-id github.com/joexue/YaTerm -icon assert/Resource/icons/yaterm.png -output yaterm
+	$(CROSS) windows -app-id com.github.joexue.yaterm -icon assert/Resource/icons/yaterm.png -output yaterm
 
 # The darwin image of fyne-cross with the SDK frameworks where zig looks for
 # them, see build/darwin/Dockerfile
@@ -19,4 +19,4 @@ darwin-image:
 MACOS_SDK = /home/joe/SDKs/MacOSX26.5.sdk
 
 macos: darwin-image
-	$(CROSS) darwin -image $(DARWIN_IMAGE) -arch=arm64 --macosx-sdk-path $(MACOS_SDK) -macosx-version-min 12.0 -app-id github.com/joexue/YaTerm -icon assert/Resource/icons/yaterm.png
+	$(CROSS) darwin -image $(DARWIN_IMAGE) -arch=arm64 --macosx-sdk-path $(MACOS_SDK) -macosx-version-min 12.0 -app-id com.github.joexue.yaterm -icon assert/Resource/icons/yaterm.png

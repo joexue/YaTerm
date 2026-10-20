@@ -232,7 +232,7 @@ func (p *Pane) TypedKey(ke *fyne.KeyEvent) {
 	if p.tmuxControl != nil {
 		return
 	}
-	if seq := keySequence(ke.Name, p.mods); seq != nil {
+	if seq := p.keySequence(ke.Name, p.mods); seq != nil {
 		p.screen.ScrollToBottom()
 		_, _ = p.term.Write(seq)
 	}
@@ -303,7 +303,7 @@ func (p *Pane) TypedShortcut(sc fyne.Shortcut) {
 		return
 	}
 
-	seq := keySequence(name, mods)
+	seq := p.keySequence(name, mods)
 	if seq == nil {
 		seq = shortcutChars(name, mods)
 	}
@@ -341,6 +341,18 @@ func shortcutChars(name fyne.KeyName, mods fyne.KeyModifier) []byte {
 	return []byte{byte(c)}
 }
 
+// keySequence is keySequence for the program of this pane: with application
+// cursor keys (DECCKM) set, e.g. by vim or less, the arrows, Home and End
+// without modifiers send "ESC O x" instead of "ESC [ x"
+func (p *Pane) keySequence(name fyne.KeyName, mods fyne.KeyModifier) []byte {
+	seq := keySequence(name, mods)
+	if len(seq) == 3 && seq[0] == 27 && seq[1] == '[' && strings.IndexByte("ABCDHF", seq[2]) >= 0 &&
+		p.term.AppCursorKeys() {
+		return []byte{27, 'O', seq[2]}
+	}
+	return seq
+}
+
 // paste sends the clipboard text, new lines are sent as Enter (CR) like typing
 func (p *Pane) paste(cb fyne.Clipboard) {
 	if cb == nil || p.tmuxControl != nil {
@@ -354,6 +366,13 @@ func (p *Pane) paste(cb fyne.Clipboard) {
 
 	text = strings.ReplaceAll(text, "\r\n", "\r")
 	text = strings.ReplaceAll(text, "\n", "\r")
+
+	// The program asked for bracketed paste (e.g. bash, zsh, vim): it takes
+	// the text as pasted, a new line in it does not run a command. The end
+	// marker in the text would end it early and run the rest as typed.
+	if p.term.BracketedPaste() {
+		text = "\x1b[200~" + strings.ReplaceAll(text, "\x1b[201~", "") + "\x1b[201~"
+	}
 
 	p.screen.ScrollToBottom()
 	_, _ = p.term.Write([]byte(text))

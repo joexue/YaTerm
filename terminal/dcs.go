@@ -84,12 +84,34 @@ func (t *Terminal) processDcsTmux(r rune) {
 
 // reply sends an answer to the program. Not while holding the state lock: if
 // the program is busy writing output, writing to it could block until that
-// output is read, which needs the lock.
+// output is read, which needs the lock. One goroutine writes the replies in
+// order: programs often send a query and then DA1, and take DA1's answer
+// coming first as "the query is not supported".
 func (t *Terminal) reply(s string) {
 	if s == "" {
 		return
 	}
-	go func() { _, _ = t.Write([]byte(s)) }()
+	t.replyMu.Lock()
+	defer t.replyMu.Unlock()
+	t.replies = append(t.replies, s)
+	if t.replying {
+		return
+	}
+	t.replying = true
+	go func() {
+		for {
+			t.replyMu.Lock()
+			if len(t.replies) == 0 {
+				t.replying = false
+				t.replyMu.Unlock()
+				return
+			}
+			s := t.replies[0]
+			t.replies = t.replies[1:]
+			t.replyMu.Unlock()
+			_, _ = t.Write([]byte(s))
+		}
+	}()
 }
 
 // sgrString is the SGR parameters that set the current colors and attributes
