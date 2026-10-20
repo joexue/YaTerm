@@ -110,7 +110,9 @@ func (s *tmuxSession) end() {
 	s.removing = true
 	for id, w := range s.windows {
 		delete(s.windows, id)
-		tabControl.Remove(w.tab)
+		fyne.Do(func() {
+			tabControl.Remove(w.tab)
+		})
 	}
 	s.removing = false
 	s.panes = map[int]*tmuxPane{}
@@ -191,7 +193,9 @@ func (s *tmuxSession) createWindow(id int, name, layout string) *container.TabIt
 	w := &tmuxWindow{id: id, root: root, checksum: layoutChecksum(layout),
 		tab: container.NewTabItemWithIcon(name, assert.TmuxIconRes, root)}
 	s.windows[id] = w
-	tabControl.Append(w.tab)
+	fyne.Do(func() {
+		tabControl.Append(w.tab)
+	})
 	return w.tab
 }
 
@@ -220,25 +224,28 @@ func (s *tmuxSession) layoutChanged(id int, layout string) {
 	}
 
 	focused := -1
-	if c := fyne.CurrentApp().Driver().CanvasForObject(w.root); c != nil {
-		if p, ok := c.Focused().(*Pane); ok && p.tmux != nil {
+
+	fyne.Do(func() {
+		if c := fyne.CurrentApp().Driver().CanvasForObject(w.root); c != nil {
+			if p, ok := c.Focused().(*Pane); ok && p.tmux != nil {
 			focused = p.tmux.id
+			}
 		}
-	}
 
-	root := s.buildWindow(id, node)
-	w.root = root
-	w.tab.Content = root
-	tabControl.Refresh()
+		root := s.buildWindow(id, node)
+		w.root = root
+		w.tab.Content = root
+		tabControl.Refresh()
 
-	if tp := s.panes[focused]; tp != nil && tp.leaf != nil {
-		root.lastFocus = tp.leaf
-		root.TryFocus()
-	} else if root.inShownTab() {
-		// The focused pane is gone (e.g. its shell exited): the one tmux has
-		// active, else the first, buildWindow set it
-		root.TryFocus()
-	}
+		if tp := s.panes[focused]; tp != nil && tp.leaf != nil {
+			root.lastFocus = tp.leaf
+			root.TryFocus()
+		} else if root.inShownTab() {
+			// The focused pane is gone (e.g. its shell exited): the one tmux has
+			// active, else the first, buildWindow set it
+			root.TryFocus()
+		}
+	})
 }
 
 // parseLayout reads a layout, nil when it can not
@@ -319,7 +326,9 @@ func (s *tmuxSession) resizeNode(p *Pane, n *tmuxLayout) bool {
 		return false
 	}
 	if p.ratio != ratio {
-		p.SetRatio(ratio)
+		fyne.Do(func() {
+			p.SetRatio(ratio)
+		})
 	}
 	return true
 }
@@ -404,7 +413,9 @@ func (s *tmuxSession) closeWindow(id int) {
 		}
 	}
 	s.removing = true
-	tabControl.Remove(w.tab)
+	fyne.Do(func() {
+		tabControl.Remove(w.tab)
+	})
 	s.removing = false
 }
 
@@ -455,11 +466,13 @@ func (s *tmuxSession) paneFocused(tp *tmuxPane) {
 }
 
 func (s *tmuxSession) selectTabItem(tab *container.TabItem) {
-	for i, t := range tabControl.Items {
-		if t == tab && tabControl.SelectedIndex != i {
-			tabControl.Select(i)
+	fyne.Do(func() {
+		for i, t := range tabControl.Items {
+			if t == tab && tabControl.SelectedIndex != i {
+				tabControl.Select(i)
+			}
 		}
-	}
+	})
 }
 
 // dividerMoved tells tmux the size the user gave the panes of a split by its
@@ -595,7 +608,9 @@ func (s *tmuxSession) notification(line string) {
 		if id, ok := tmuxID(w, '@'); ok {
 			if win := s.windows[id]; win != nil {
 				win.tab.Text = name
-				tabControl.Refresh()
+				fyne.Do(func() {
+					tabControl.Refresh()
+				})
 			}
 		}
 
@@ -663,54 +678,13 @@ func (s *tmuxSession) line(line string) {
 func (s *tmuxSession) TmuxLine(line string) {
 	//s.control.term.Print("DEBUG: " + line)
 	//s.control.term.Print("\n")
-	s.post(func() { s.line(line) })
+	s.line(line)
 }
 
 // TmuxEnd: the control mode ended in the terminal, by its ST, or by the end
 // of the program, e.g. tmux went away without %exit
 func (s *tmuxSession) TmuxEnd() {
-	s.post(nil)
-}
-
-// post queues work for the UI thread, nil ends the session. Not fyne.Do or
-// DoAndWait: the reader holds the terminal's lock, which the UI thread may
-// wait for (e.g. for the title on a tab switch), it must never wait for the
-// UI thread. This queue has no limit, and keeps the order.
-func (s *tmuxSession) post(f func()) {
-	s.qmu.Lock()
-	s.queue = append(s.queue, f)
-	s.qmu.Unlock()
-	select {
-	case s.wake <- struct{}{}:
-	default:
-	}
-}
-
-// work runs the queued work on the UI thread, all that is queued at once,
-// so a lot of output does not wait for the UI thread line by line. It stops
-// with the session.
-func (s *tmuxSession) work() {
-	for range s.wake {
-		s.qmu.Lock()
-		batch := s.queue
-		s.queue = nil
-		s.qmu.Unlock()
-
-		ended := false
-		fyne.DoAndWait(func() {
-			for _, f := range batch {
-				if f == nil {
-					s.end()
-					ended = true
-					return
-				}
-				f()
-			}
-		})
-		if ended {
-			return
-		}
-	}
+	s.end()
 }
 
 // startTmux is the control pane's OnTmuxControl: a session, or one that
@@ -720,7 +694,7 @@ func startTmux(control *Pane) terminal.TmuxHandler {
 	defer tmuxMu.Unlock()
 	if tmuxActive != nil {
 		// Print takes the lock this (OnTmuxControl) holds
-		go control.term.Print("YaTerm runs one tmux control mode session at a time\n")
+		control.term.Print("YaTerm runs one tmux control mode session at a time\n")
 		control.term.Write([]byte("detach\n"))
 		return &tmuxRefuser{term: control.term}
 	}
@@ -732,7 +706,6 @@ func startTmux(control *Pane) terminal.TmuxHandler {
 		active:  -1,
 		wake:    make(chan struct{}, 1),
 	}
-	go tmuxActive.work()
 
 	// the fist response from the outside command "attach", but we need to handle it
 	tmuxActive.sendCommand("", tmuxActive.attach)
