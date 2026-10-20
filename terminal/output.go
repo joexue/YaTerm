@@ -104,17 +104,15 @@ func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 	}
 
 	for len(data) > 0 {
-		// A character split over two reads is finished with the next read
-		if len(data) < utf8.UTFMax && !utf8.FullRune(data) {
-			t.leftOver = append(t.leftOver, data...)
-			break
-		}
-
 		r, size := utf8.DecodeRune(data)
 		data = data[size:]
 
 		// Not UTF-8, still show it as "�" let user know
 		if r == utf8.RuneError && size == 1 {
+			if len(data) < utf8.UTFMax {
+				t.leftOver = append(t.leftOver, data...)
+				break
+			}
 			t.processRune(utf8.RuneError)
 			continue
 		}
