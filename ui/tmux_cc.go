@@ -10,7 +10,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"yaterm/assert"
 	"yaterm/terminal"
 )
 
@@ -190,8 +189,12 @@ func (s *tmuxSession) createWindow(id int, name, layout string) *container.TabIt
 	}
 	root := s.buildWindow(id, node)
 
-	w := &tmuxWindow{id: id, root: root, checksum: layoutChecksum(layout),
-		tab: container.NewTabItemWithIcon(name, assert.TmuxIconRes, root)}
+	w := &tmuxWindow{
+		id:       id,
+		root:     root,
+		checksum: layoutChecksum(layout),
+		tab:      NewTmuxTab(root),
+	}
 	s.windows[id] = w
 	fyne.Do(func() {
 		tabControl.Append(w.tab)
@@ -228,7 +231,7 @@ func (s *tmuxSession) layoutChanged(id int, layout string) {
 	fyne.Do(func() {
 		if c := fyne.CurrentApp().Driver().CanvasForObject(w.root); c != nil {
 			if p, ok := c.Focused().(*Pane); ok && p.tmux != nil {
-			focused = p.tmux.id
+				focused = p.tmux.id
 			}
 		}
 

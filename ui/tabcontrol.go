@@ -8,12 +8,13 @@ import (
 	"yaterm/assert"
 )
 
-var tabId int = 0
+var tabId = 0
 var markdownTabId = 0
+var tmuxTabId = 0
 var tabControl *Tabs
 var win fyne.Window
 
-func NewTabItem() *container.TabItem {
+func NewTab() *container.TabItem {
 	tabId++
 	pane := NewPane(nil, nil, true)
 	tab := container.NewTabItem(fmt.Sprintf("Tab %d", tabId), pane)
@@ -44,7 +45,7 @@ func NewTabItem() *container.TabItem {
 func NewTabControl(_ fyne.App, w fyne.Window) fyne.CanvasObject {
 	win = w
 
-	t := NewTabItem()
+	t := NewTab()
 	tabControl = NewTabs(t)
 
 	// On a tmux window the + makes a tmux window, its tab comes from tmux
@@ -53,7 +54,7 @@ func NewTabControl(_ fyne.App, w fyne.Window) fyne.CanvasObject {
 			s.newWindow()
 			return nil
 		}
-		return NewTabItem()
+		return NewTab()
 	}
 
 	tabControl.OnClosed = func(tab *container.TabItem) {
@@ -120,4 +121,10 @@ You need to select text from terminal then show them
 	fyne.Do(func() {
 		tabControl.Append(mtab)
 	})
+}
+
+func NewTmuxTab(pane *Pane) *container.TabItem {
+	tmuxTabId++
+
+	return container.NewTabItemWithIcon(fmt.Sprintf("Tmux %d", tmuxTabId), assert.TmuxIconRes, pane)
 }
