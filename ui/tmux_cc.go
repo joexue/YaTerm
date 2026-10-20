@@ -65,6 +65,7 @@ type tmuxSession struct {
 
 type tmuxWindow struct {
 	id       int
+	title    string
 	tab      *container.TabItem
 	root     *Pane
 	checksum string // of the layout shown, the same one again is ignored
@@ -192,8 +193,9 @@ func (s *tmuxSession) createWindow(id int, name, layout string) *container.TabIt
 	w := &tmuxWindow{
 		id:       id,
 		root:     root,
-		checksum: layoutChecksum(layout),
+		title:    name,
 		tab:      NewTmuxTab(root),
+		checksum: layoutChecksum(layout),
 	}
 	s.windows[id] = w
 	fyne.Do(func() {
@@ -443,6 +445,7 @@ func (s *tmuxSession) tabFocus(tab *container.TabItem) {
 	}
 	for id, w := range s.windows {
 		if w.tab == tab {
+			showTitle(w.title)
 			s.sendCommand(fmt.Sprintf("select-window -t @%d", id), nil)
 			return
 		}
@@ -610,9 +613,9 @@ func (s *tmuxSession) notification(line string) {
 		w, name, _ := strings.Cut(rest, " ")
 		if id, ok := tmuxID(w, '@'); ok {
 			if win := s.windows[id]; win != nil {
-				win.tab.Text = name
+				win.title = name
 				fyne.Do(func() {
-					tabControl.Refresh()
+					showTitle(name)
 				})
 			}
 		}

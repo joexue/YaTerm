@@ -14,6 +14,10 @@ var tmuxTabId = 0
 var tabControl *Tabs
 var win fyne.Window
 
+func showTitle(title string) {
+	win.SetTitle("YaTerm: " + title)
+}
+
 func NewTab() *container.TabItem {
 	tabId++
 	pane := NewPane(nil, nil, true)
