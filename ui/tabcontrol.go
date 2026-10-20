@@ -59,8 +59,9 @@ func NewTabControl(_ fyne.App, w fyne.Window) fyne.CanvasObject {
 	tabControl.OnClosed = func(tab *container.TabItem) {
 		switch tab.Content.(type) {
 		case *Pane:
-			// A tmux window ends in tmux when its tab is closed
-			if s := activeTmux(); s != nil {
+			// A tmux window ends in tmux when its tab is closed, any other
+			// tab ends its programs
+			if s := activeTmux(); s != nil && s.ownsTab(tab) {
 				s.tabClosed(tab)
 			} else {
 				tab.Content.(*Pane).TearDown()

@@ -237,11 +237,14 @@ func (t *Terminal) SetColors(schema [16]color.Color) {
 
 // Print shows a message of YaTerm on the screen, plain text and new lines.
 // It goes past the parser, which may be in the middle of something, e.g. the
-// tmux control mode would take it as a line for tmux. Not for the reader
-// goroutine while it holds the state lock.
+// tmux control mode would take it as a line for tmux. It takes the state
+// lock, so not for the reader goroutine while it holds it (e.g. in a
+// callback).
 func (t *Terminal) Print(text string) {
 	text = strings.ReplaceAll(text, "\n", "\r\n")
 
+	t.stateMu.Lock()
+	defer t.stateMu.Unlock()
 	for _, r := range text {
 		t.processGround(r)
 	}
