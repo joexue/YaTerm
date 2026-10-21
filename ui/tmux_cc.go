@@ -445,7 +445,7 @@ func (s *tmuxSession) tabFocus(tab *container.TabItem) {
 	}
 	for id, w := range s.windows {
 		if w.tab == tab {
-			showTitle(w.title)
+			ShowTitle(w.title)
 			s.sendCommand(fmt.Sprintf("select-window -t @%d", id), nil)
 			return
 		}
@@ -615,7 +615,7 @@ func (s *tmuxSession) notification(line string) {
 			if win := s.windows[id]; win != nil {
 				win.title = name
 				fyne.Do(func() {
-					showTitle(name)
+					ShowTitle(name)
 				})
 			}
 		}

@@ -37,19 +37,18 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 				s.killPane(p.tmux)
 				return
 			}
-			p.term.OnExit = nil
-			p.term.Exit()
-			p.TryClose()
+
+			p.Close()
 		})
+
 		closeTabItem := fyne.NewMenuItemWithIcon("Close Tab", theme.Icon(theme.IconNameWindowClose), func() {
 			if s := activeTmux(); s != nil && p.tmux != nil {
 				s.killWindow(p.tmux.window)
 				return
 			}
-			p.root.TearDown()
-			if f := p.root.OnTearDown; f != nil {
-				f()
-			}
+
+			// Close the root pane, same as close tab
+			p.root.Close()
 		})
 
 		showMarkDownItem := fyne.NewMenuItemWithIcon("Show as Markdown", theme.NewThemedResource(assert.MarkdownIconRes), func() {

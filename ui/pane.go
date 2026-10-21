@@ -41,10 +41,11 @@ const (
 	splitDown  // the new pane below, one over the other
 )
 
-var paneBorderWidth = float32(1)
-var panePadding = (paneBorderWidth * 3)
-
-var id int = 0
+var (
+	paneId = 0
+	paneBorderWidth = float32(1)
+	panePadding = (paneBorderWidth * 3)
+)
 
 type Pane struct {
 	widget.BaseWidget
@@ -92,9 +93,6 @@ type Pane struct {
 	modKeys map[fyne.KeyName]bool
 	mods    fyne.KeyModifier
 
-	// Callback from creater, called when the whole pane tree is finished
-	OnTearDown func()
-
 	// Callback from creater, called on the root with the title of the
 	// focused pane's program (OSC 0/2), e.g. to show it in the tab
 	OnTitle func(title string)
@@ -119,7 +117,7 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 	b.StrokeColor = color.Transparent
 
 	p := &Pane{
-		id:       id,
+		id:       paneId,
 		border:   b,
 		split:    splitNone,
 		first:    nil,
@@ -139,7 +137,6 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 
 	p.ExtendBaseWidget(p)
 
-	term.OnExit = p.TryClose
 	p.connectTerm()
 	if run {
 		go func() {
@@ -147,7 +144,7 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 		}()
 	}
 
-	id++
+	paneId++
 
 	return p
 }
@@ -195,9 +192,7 @@ func (p *Pane) TryFocus() {
 
 func (p *Pane) Close() {
 	if p == p.root {
-		if f := p.OnTearDown; f != nil {
-			f()
-		}
+		CloseTab(p)
 		return
 	}
 
@@ -207,11 +202,14 @@ func (p *Pane) Close() {
 	if pa == nil || (pa.first != p && pa.second != p) {
 		return
 	}
-	var take *Pane
+
+	var take, quit *Pane
 	if pa.first == p {
 		take = pa.second
+		quit = pa.first
 	} else {
 		take = pa.first
+		quit = pa.second
 	}
 
 	pa.split = take.split
@@ -230,7 +228,6 @@ func (p *Pane) Close() {
 		if take.search != nil {
 			take.screen.Search(nil, true)
 		}
-		pa.term.OnExit = pa.TryClose
 		pa.connectTerm()
 
 		pa.root.lastFocus = pa
@@ -242,10 +239,13 @@ func (p *Pane) Close() {
 		pa.root.lastFocus = pa.first
 	}
 
+	quit.TearDown()
+
 	pa.Refresh()
 	pa.TryFocus()
 }
 
+// Called by terminal exit
 func (p *Pane) TryClose() {
 	fyne.Do(func() {
 		p.Close()
@@ -333,7 +333,7 @@ func (p *Pane) FocusGained() {
 	}
 	p.screen.SetFocused(true)
 	if p.term != nil {
-		p.root.showTitle(p.term.Title())
+		p.showTitle(p.term.Title())
 	}
 
 	if p.parent != nil {
@@ -518,6 +518,7 @@ func (p *Pane) hideSearch() {
 // connectTerm points the terminal's callbacks to this pane, done again when
 // the terminal moves to another pane on a split or a close
 func (p *Pane) connectTerm() {
+	p.term.OnExit = p.TryClose
 	p.term.OnTitleChange = p.titleChanged
 	p.term.OnTmuxControl = func() terminal.TmuxHandler { return startTmux(p) }
 	p.term.OnClipboard = func(text string) {
@@ -538,7 +539,7 @@ func (p *Pane) titleChanged(title string) {
 
 // showTitle hands a title to the root's OnTitle, an empty one keeps the old
 func (p *Pane) showTitle(title string) {
-	if f := p.OnTitle; f != nil && title != "" {
+	if f := p.root.OnTitle; f != nil && title != "" {
 		f(title)
 	}
 }
@@ -551,7 +552,7 @@ func newSplitPane(parent *Pane, direction int, ratio float32) *Pane {
 	b.StrokeColor = color.Transparent
 
 	p := &Pane{
-		id:       id,
+		id:       paneId,
 		border:   b,
 		split:    direction,
 		ratio:    ratio,
@@ -565,6 +566,7 @@ func newSplitPane(parent *Pane, direction int, ratio float32) *Pane {
 	}
 	p.divider = NewDivider(p)
 	p.ExtendBaseWidget(p)
-	id++
+
+	paneId++
 	return p
 }

@@ -8,14 +8,52 @@ import (
 	"yaterm/assert"
 )
 
-var tabId = 0
-var markdownTabId = 0
-var tmuxTabId = 0
-var tabControl *Tabs
-var win fyne.Window
+var (
+	win fyne.Window
+	app fyne.App
 
-func showTitle(title string) {
+	tabControl *Tabs
+
+	tabId, tmuxTabId, markdownTabId int
+)
+
+func ShowTitle(title string) {
 	win.SetTitle("YaTerm: " + title)
+}
+
+func CloseTab(pane *Pane) {
+	tabControl.CloseTabByObj(pane)
+}
+
+func NewMarkdownTab() {
+	markdownTabId++
+
+	defaultText := `
+# The content is empty
+You need to select text from terminal then show them
+`
+	content := fyne.CurrentApp().Clipboard().Content()
+	if len(content) == 0 {
+		content = defaultText
+	}
+
+	// The long time hang caused by io i.e. remote image
+	rt := widget.NewRichTextFromMarkdown(content)
+	// A scroll container, not rt.Scroll: Fyne drops the renderer of a widget
+	// not drawn for a minute (e.g. in a tab in the background), and RichText
+	// with its own scroll makes a new one that draws nothing, the tab would
+	// be empty when shown again
+
+	mtab := container.NewTabItemWithIcon(fmt.Sprintf("MD %d", markdownTabId), assert.MarkdownIconColorRes, container.NewScroll(rt))
+	fyne.Do(func() {
+		tabControl.Append(mtab)
+	})
+}
+
+func NewTmuxTab(pane *Pane) *container.TabItem {
+	tmuxTabId++
+
+	return container.NewTabItemWithIcon(fmt.Sprintf("Tmux %d", tmuxTabId), assert.TmuxIconRes, pane)
 }
 
 func NewTab() *container.TabItem {
@@ -28,26 +66,12 @@ func NewTab() *container.TabItem {
 		win.SetTitle("YaTerm: " + title)
 	}
 
-	// When pane is closed from pane internally (e.g. from popup menu)
-	pane.OnTearDown = func() {
-		tabControl.Remove(tab)
-
-		if len(tabControl.Items) == 0 {
-			win.Close()
-		}
-	}
-
-	go func() {
-		fyne.Do(func() {
-			pane.TryFocus()
-		})
-	}()
-
 	return tab
 }
 
-func NewTabControl(_ fyne.App, w fyne.Window) fyne.CanvasObject {
+func NewTabControl(a fyne.App, w fyne.Window) fyne.CanvasObject {
 	win = w
+	app = a
 
 	t := NewTab()
 	tabControl = NewTabs(t)
@@ -93,42 +117,17 @@ func NewTabControl(_ fyne.App, w fyne.Window) fyne.CanvasObject {
 		}
 	}
 
-	registerWindowShortcuts()
-
 	tabControl.OnSettings = func() {
 		ShowSettings(w)
 	}
 
+	registerWindowShortcuts()
+
+	go func() {
+		fyne.Do(func() {
+			win.Canvas().Focus(t.Content.(*Pane))
+		})
+	}()
+
 	return tabControl
-}
-
-func NewMarkdownTab() {
-	markdownTabId++
-
-	defaultText := `
-# The content is empty
-You need to select text from terminal then show them
-`
-	content := fyne.CurrentApp().Clipboard().Content()
-	if len(content) == 0 {
-		content = defaultText
-	}
-
-	// The long time hang caused by io i.e. remote image
-	rt := widget.NewRichTextFromMarkdown(content)
-	// A scroll container, not rt.Scroll: Fyne drops the renderer of a widget
-	// not drawn for a minute (e.g. in a tab in the background), and RichText
-	// with its own scroll makes a new one that draws nothing, the tab would
-	// be empty when shown again
-
-	mtab := container.NewTabItemWithIcon(fmt.Sprintf("MD %d", markdownTabId), assert.MarkdownIconColorRes, container.NewScroll(rt))
-	fyne.Do(func() {
-		tabControl.Append(mtab)
-	})
-}
-
-func NewTmuxTab(pane *Pane) *container.TabItem {
-	tmuxTabId++
-
-	return container.NewTabItemWithIcon(fmt.Sprintf("Tmux %d", tmuxTabId), assert.TmuxIconRes, pane)
 }

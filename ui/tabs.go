@@ -300,6 +300,15 @@ func (t *Tabs) Refresh() {
 	t.BaseWidget.Refresh()
 }
 
+func (t *Tabs) CloseTabByObj(obj fyne.CanvasObject) {
+	for _, item := range t.Items {
+		if item.Content == obj {
+			t.CloseTab(item)
+			break
+		}
+	}
+}
+
 func (t *Tabs) AcceptsTab() bool {
 	return true
 }
