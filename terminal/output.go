@@ -114,10 +114,9 @@ func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 		}
 
 		r, size := utf8.DecodeRune(data)
-		data = data[size:]
-
-		// Not UTF-8, still show it as "�" let user know
+		// Not UTF-8, but is not splited, still show it as "�" let user know
 		if r == utf8.RuneError && size == 1 {
+			// This maybe part of UTF-8, the rest is comming from pty
 			if len(data) < utf8.UTFMax {
 				t.leftOver = append(t.leftOver, data...)
 				break
@@ -130,6 +129,8 @@ func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 		} else {
 			t.processRune(r)
 		}
+
+		data = data[size:]
 	}
 
 	t.screen.Flush(t.cursorShown())
