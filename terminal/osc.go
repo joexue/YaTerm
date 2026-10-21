@@ -23,7 +23,7 @@ func cleanTitle(s string) string {
 
 // setClipboard handles "52;<targets>;<base64>". Reading the clipboard with
 // "?" is not allowed, any program in the terminal could read it then.
-func (t *Terminal) setClipboard(arg string) {
+func (t *Terminal) SetClipboard(arg string) {
 	_, data, ok := strings.Cut(arg, ";")
 	if !ok || data == "?" || t.OnClipboard == nil {
 		return
@@ -54,7 +54,7 @@ func (t *Terminal) handleOsc(end rune) {
 
 	// Window title, shown in the tab
 	case "0", "2":
-		t.setTitle(cleanTitle(arg))
+		t.SetTitle(cleanTitle(arg))
 
 	// Icon name, there are no icons
 	case "1":
@@ -64,14 +64,14 @@ func (t *Terminal) handleOsc(end rune) {
 
 	// 7 working directory
 	case "7":
-		t.setCwd(arg)
+		t.SetCwd(arg)
 
 	// 8 hyperlinks
 	case "8":
 
 	// Set the clipboard: "52;c;<base64>"
 	case "52":
-		t.setClipboard(arg)
+		t.SetClipboard(arg)
 
 	default:
 	}

@@ -1,6 +1,7 @@
 package terminal
 
 import (
+	"errors"
 	"strings"
 	//"fmt"
 	"image/color"
@@ -222,7 +223,10 @@ func (t *Terminal) RunCmd(cmd string) {
 	}
 
 	// The program ended: the pty is closed and the program waited for
-	t.pty.Close()
+	// May closed by Exit() already
+	if t.pty != nil {
+		t.pty.Close()
+	}
 
 	// The program ended inside the tmux control mode, e.g. its pane closed
 	t.stateMu.Lock()
@@ -237,7 +241,10 @@ func (t *Terminal) RunCmd(cmd string) {
 }
 
 func (t *Terminal) Exit() {
-	t.pty.Close()
+	if t.pty != nil {
+		t.pty.Close()
+		t.pty = nil
+	}
 }
 
 func (t *Terminal) Write(bytes []byte) (int, error) {
@@ -247,21 +254,25 @@ func (t *Terminal) Write(bytes []byte) (int, error) {
 }
 
 func (t *Terminal) Read(bytes []byte) (int, error) {
-	return t.pty.Read(bytes)
+	if t.pty != nil {
+		return t.pty.Read(bytes)
+	} else {
+		return 0, errors.New("Closed pty")
+	}
 }
 
 func (t *Terminal) GetScreen() Screen {
 	return t.screen
 }
 
-func (t *Terminal) setTitle(title string) {
+func (t *Terminal) SetTitle(title string) {
 	t.title = title
 	if f := t.OnTitleChange; f != nil {
 		f(title)
 	}
 }
 
-func (t *Terminal) setCwd(cwd string) {
+func (t *Terminal) SetCwd(cwd string) {
 	t.cwd = cwd
 }
 
