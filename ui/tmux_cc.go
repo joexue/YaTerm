@@ -194,7 +194,7 @@ func (s *tmuxSession) createWindow(id int, name, layout string) *container.TabIt
 		id:       id,
 		root:     root,
 		title:    name,
-		tab:      NewTmuxTab(root),
+		tab:      NewTmuxTab(root, s.sessionId, id),
 		checksum: layoutChecksum(layout),
 	}
 	s.windows[id] = w

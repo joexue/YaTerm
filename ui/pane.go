@@ -42,9 +42,9 @@ const (
 )
 
 var (
-	paneId = 0
+	paneId          = 0
 	paneBorderWidth = float32(1)
-	panePadding = (paneBorderWidth * 3)
+	panePadding     = (paneBorderWidth * 3)
 )
 
 type Pane struct {

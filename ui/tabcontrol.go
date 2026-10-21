@@ -14,7 +14,7 @@ var (
 
 	tabControl *Tabs
 
-	tabId, tmuxTabId, markdownTabId int
+	tabId, markdownTabId int
 )
 
 func ShowTitle(title string) {
@@ -50,10 +50,8 @@ You need to select text from terminal then show them
 	})
 }
 
-func NewTmuxTab(pane *Pane) *container.TabItem {
-	tmuxTabId++
-
-	return container.NewTabItemWithIcon(fmt.Sprintf("Tmux %d", tmuxTabId), assert.TmuxIconRes, pane)
+func NewTmuxTab(pane *Pane, sessId, id int) *container.TabItem {
+	return container.NewTabItemWithIcon(fmt.Sprintf("Tmux %d:%d", sessId, id), assert.TmuxIconRes, pane)
 }
 
 func NewTab() *container.TabItem {
