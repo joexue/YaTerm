@@ -347,7 +347,7 @@ func (s *tmuxSession) leaf(n *tmuxLayout, parent *Pane, window int, used map[int
 		screen := NewScreen()
 		term := terminal.NewWithPty(screen, &tmuxPty{session: s, pane: n.pane})
 		if th := currentTheme(); th != nil {
-			term.SetColors(th.Scheme().ANSI)
+			term.SetColors(th.Scheme().ANSI, queryThemeColor())
 			screen.SetCursorShape(th.CursorShape())
 		}
 		tp = &tmuxPane{id: n.pane, term: term, screen: screen}

@@ -118,16 +118,8 @@ func tmuxID(s string, prefix byte) (int, bool) {
 
 // queryThemeColor answers OSC 10, 11 and 12 with the theme's text,
 // background and cursor color
-func queryThemeColor(code int) color.Color {
-	switch code {
-	case 10:
-		return theme.Color(theme.ColorNameForeground)
-	case 11:
-		return theme.Color(theme.ColorNameBackground)
-	case 12:
-		return theme.Color(theme.ColorNamePrimary)
-	}
-	return nil
+func queryThemeColor() [3]color.Color {
+	return [3]color.Color{theme.Color(theme.ColorNameForeground), theme.Color(theme.ColorNameBackground), theme.Color(theme.ColorNamePrimary)}
 }
 
 // currentTheme is the app's YatermTheme, nil when the app uses another theme

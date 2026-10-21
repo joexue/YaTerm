@@ -96,6 +96,7 @@ type Terminal struct {
 	fg, bg color.Color
 	style  Style
 
+	sysColor    [3]color.Color //fgColor, bgColor, primColor
 	colorSchema [16]color.Color
 
 	cwd   string // set by OSC 7
@@ -108,7 +109,6 @@ type Terminal struct {
 	// OSC 10 (text), 11 (background) or 12 (cursor).
 	OnTitleChange func(title string)
 	OnClipboard   func(text string)
-	OnQueryColor  func(code int) color.Color
 
 	OnExit func()
 
@@ -276,8 +276,9 @@ func (t *Terminal) SetCwd(cwd string) {
 	t.cwd = cwd
 }
 
-func (t *Terminal) SetColors(schema [16]color.Color) {
+func (t *Terminal) SetColors(schema [16]color.Color, sysColor [3]color.Color) {
 	t.colorSchema = schema
+	t.sysColor = sysColor
 }
 
 // Print shows a message of YaTerm on the screen, plain text and new lines.

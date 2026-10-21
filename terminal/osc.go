@@ -97,17 +97,15 @@ func (t *Terminal) processOsc(r rune) {
 // replyColor answers a color query with "OSC code ; rgb:rrrr/gggg/bbbb",
 // ended as the query was
 func (t *Terminal) replyColor(code string, end rune) {
-	if t.OnQueryColor == nil {
-		return
-	}
-	n := 10
+	n := 0
 	switch code {
 	case "11":
-		n = 11
+		n = 1
 	case "12":
-		n = 12
+		n = 2
 	}
-	c := t.OnQueryColor(n)
+	c := t.sysColor[n]
+
 	if c == nil {
 		return
 	}

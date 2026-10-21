@@ -105,7 +105,7 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 		screen = NewScreen()
 		term = terminal.New(screen)
 		if th := currentTheme(); th != nil {
-			term.SetColors(th.Scheme().ANSI)
+			term.SetColors(th.Scheme().ANSI, queryThemeColor())
 			screen.SetCursorShape(th.CursorShape())
 		}
 	} else {
@@ -364,7 +364,7 @@ func (p *Pane) applyTheme(th *yatheme.YatermTheme) {
 	}
 
 	if p.term != nil {
-		p.term.SetColors(th.Scheme().ANSI)
+		p.term.SetColors(th.Scheme().ANSI, queryThemeColor())
 	}
 	p.screen.SetCursorShape(th.CursorShape())
 
@@ -524,7 +524,6 @@ func (p *Pane) connectTerm() {
 	p.term.OnClipboard = func(text string) {
 		fyne.Do(func() { fyne.CurrentApp().Clipboard().SetContent(text) })
 	}
-	p.term.OnQueryColor = queryThemeColor
 }
 
 // titleChanged shows a new title from the program, if this pane is the
