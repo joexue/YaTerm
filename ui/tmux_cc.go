@@ -37,13 +37,16 @@ func activeTmux() *tmuxSession {
 
 // tmuxSession is a tmux control mode session
 type tmuxSession struct {
-	control *Pane // the pane tmux -CC runs in
+	sessionId int
+
+	// the pane tmux -CC runs in
+	control *Pane
 
 	// The callbacks of the commands sent, in order, each gets the lines
 	// between "%begin" and "%end" (or "%error"). mu also keeps the order of
 	// the commands written the same as of the callbacks.
-	mu      sync.Mutex
-	pending []func(lines []string, failed bool)
+	cmdMutex        sync.Mutex
+	pendingHandlers []func(lines []string, failed bool)
 
 	// UI thread only, the lines are handled there (see TmuxLine)
 	inResponse bool
@@ -55,7 +58,6 @@ type tmuxSession struct {
 	removing   bool // a tab is removed by the session, not closed by the user
 	active     int  // the pane tmux has active
 
-	sessionId int
 }
 
 type tmuxWindow struct {
@@ -627,13 +629,13 @@ func (s *tmuxSession) notification(line string) {
 
 // reply hands a reply to its command, the first one is to no command
 func (s *tmuxSession) handleCommandResponse(lines []string, failed bool) {
-	s.mu.Lock()
+	s.cmdMutex.Lock()
 	var done func([]string, bool)
-	if len(s.pending) > 0 {
-		done = s.pending[0]
-		s.pending = s.pending[1:]
+	if len(s.pendingHandlers) > 0 {
+		done = s.pendingHandlers[0]
+		s.pendingHandlers = s.pendingHandlers[1:]
 	}
-	s.mu.Unlock()
+	s.cmdMutex.Unlock()
 
 	if done != nil {
 		done(lines, failed)
@@ -643,9 +645,9 @@ func (s *tmuxSession) handleCommandResponse(lines []string, failed bool) {
 // send writes a command to tmux, handler gets its reply, handler may be nil
 func (s *tmuxSession) sendCommand(cmd string, handler func(lines []string, failed bool)) {
 	//s.control.term.Print("DEBUG COMMAND: " + cmd + "\n")
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.pending = append(s.pending, handler)
+	s.cmdMutex.Lock()
+	defer s.cmdMutex.Unlock()
+	s.pendingHandlers = append(s.pendingHandlers, handler)
 	// For the first imply command
 	if len(cmd) > 0 {
 		_, _ = s.control.term.Write([]byte(cmd + "\n"))
