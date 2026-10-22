@@ -33,8 +33,8 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 
 		closePaneItem := fyne.NewMenuItemWithIcon("Close Pane", theme.Icon(theme.IconNameWindowClose), func() {
 			// tmux closes its pane, the layout change removes it here
-			if s := activeTmux(); s != nil && p.tmux != nil {
-				s.killPane(p.tmux.id)
+			if s := activeTmux(); s != nil && p.isTmux {
+				s.killPane(p.id)
 				return
 			}
 
@@ -42,8 +42,8 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 		})
 
 		closeTabItem := fyne.NewMenuItemWithIcon("Close Tab", theme.Icon(theme.IconNameWindowClose), func() {
-			if s := activeTmux(); s != nil && p.tmux != nil {
-				s.killWindow(p.tmux.window)
+			if s := activeTmux(); s != nil && p.isTmux {
+				s.killWindow(p.extId)
 				return
 			}
 

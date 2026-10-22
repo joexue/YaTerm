@@ -81,7 +81,6 @@ type Pane struct {
 
 	// tmux control mode: the tmux pane this pane shows, or the session this
 	// pane runs (tmux -CC), nil otherwise
-	tmux        *tmuxPane
 	tmuxControl *tmuxSession
 
 	// Where the drag is, in screen coordinates, and the stop for the timer
@@ -251,7 +250,7 @@ func (p *Pane) Split(direction int, ratio float32) {
 	// tmux splits its pane, the layout change makes the new one here
 	if p.isTmux {
 		if s := activeTmux(); s != nil {
-			s.split(p.tmux.id, direction)
+			s.split(p.id, direction)
 		}
 		return
 	}
@@ -324,7 +323,7 @@ func (p *Pane) Resize(size fyne.Size) {
 func (p *Pane) FocusGained() {
 	p.root.lastFocus = p
 	if s := activeTmux(); s != nil && p.isTmux {
-		s.paneFocused(p.tmux.id)
+		s.paneFocused(p.id)
 	}
 	p.screen.SetFocused(true)
 	if p.term != nil {

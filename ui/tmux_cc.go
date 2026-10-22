@@ -227,8 +227,8 @@ func (s *tmuxSession) layoutChanged(id int, layout string) {
 
 	fyne.Do(func() {
 		if c := fyne.CurrentApp().Driver().CanvasForObject(w.root); c != nil {
-			if p, ok := c.Focused().(*Pane); ok && p.tmux != nil {
-				focused = p.tmux.id
+			if p, ok := c.Focused().(*Pane); ok && p.isTmux {
+				focused = p.id
 			}
 		}
 
@@ -311,10 +311,10 @@ func (s *tmuxSession) buildNode(n *tmuxLayout, parent *Pane, window int, used ma
 // shape is another, e.g. a pane was added, then the tree is made again.
 func (s *tmuxSession) resizeNode(p *Pane, n *tmuxLayout) bool {
 	if n.kind == 0 {
-		if p.split != splitNone || p.tmux == nil || p.tmux.id != n.pane {
+		if p.split != splitNone || !p.isTmux || p.id != n.pane {
 			return false
 		}
-		p.tmux.term.Resize(n.h, n.w)
+		p.term.Resize(n.h, n.w)
 		return true
 	}
 	if len(n.kids) == 1 {
@@ -353,7 +353,8 @@ func (s *tmuxSession) leaf(n *tmuxLayout, parent *Pane, window int, used map[int
 
 	leaf := NewPane(parent, tp.term, false)
 	leaf.isTmux = true
-	leaf.tmux = tp
+	leaf.id = n.pane
+	leaf.extId = window
 	tp.leaf = leaf
 	tp.term.Resize(n.h, n.w)
 
@@ -489,14 +490,14 @@ func (s *tmuxSession) dividerMoved(p *Pane) {
 	for leaf.split != splitNone {
 		leaf = leaf.first
 	}
-	if leaf.tmux == nil {
+	if !leaf.isTmux {
 		return
 	}
 
 	if p.split == splitRight {
-		s.sendCommand(fmt.Sprintf("resize-pane -t %%%d -x %d", leaf.tmux.id, leaf.col), nil)
+		s.sendCommand(fmt.Sprintf("resize-pane -t %%%d -x %d", leaf.id, leaf.col), nil)
 	} else {
-		s.sendCommand(fmt.Sprintf("resize-pane -t %%%d -y %d", leaf.tmux.id, leaf.row), nil)
+		s.sendCommand(fmt.Sprintf("resize-pane -t %%%d -y %d", leaf.id, leaf.row), nil)
 	}
 }
 
