@@ -567,7 +567,6 @@ func (s *tmuxSession) discoveWindow() {
 
 		if activeTab != nil {
 			s.selectTabItem(activeTab)
-			activeTab.Content.(*Pane).TryFocus()
 		}
 	})
 }
