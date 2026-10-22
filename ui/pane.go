@@ -149,7 +149,7 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 	return p
 }
 
-// Called by TabControl
+// Called by TabControl or complete close
 func (p *Pane) TearDown() {
 	if p.split == splitNone {
 		t := p.term
@@ -243,13 +243,6 @@ func (p *Pane) Close() {
 
 	pa.Refresh()
 	pa.TryFocus()
-}
-
-// Called by terminal exit
-func (p *Pane) TryClose() {
-	fyne.Do(func() {
-		p.Close()
-	})
 }
 
 func (p *Pane) Split(direction int, ratio float32) {
@@ -518,22 +511,29 @@ func (p *Pane) hideSearch() {
 // connectTerm points the terminal's callbacks to this pane, done again when
 // the terminal moves to another pane on a split or a close
 func (p *Pane) connectTerm() {
-	p.term.OnExit = p.TryClose
-	p.term.OnTitleChange = p.titleChanged
-	p.term.OnTmuxControl = func() terminal.TmuxHandler { return startTmux(p) }
-	p.term.OnClipboard = func(text string) {
-		fyne.Do(func() { fyne.CurrentApp().Clipboard().SetContent(text) })
+	p.term.OnExit = func() {
+		fyne.Do(func() {
+			p.Close()
+		})
 	}
-}
 
-// titleChanged shows a new title from the program, if this pane is the
-// focused one. Called on the terminal's reader goroutine.
-func (p *Pane) titleChanged(title string) {
-	fyne.Do(func() {
-		if p.root.lastFocus == p {
-			p.root.showTitle(title)
-		}
-	})
+	p.term.OnTitleChange = func(title string) {
+		fyne.Do(func() {
+			if p.root.lastFocus == p {
+				p.root.showTitle(title)
+			}
+		})
+	}
+
+	p.term.OnClipboard = func(text string) {
+		fyne.Do(func() {
+			fyne.CurrentApp().Clipboard().SetContent(text)
+		})
+	}
+
+	p.term.OnTmuxControl = func() terminal.TmuxHandler {
+		return startTmux(p)
+	}
 }
 
 // showTitle hands a title to the root's OnTitle, an empty one keeps the old
