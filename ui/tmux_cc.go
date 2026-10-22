@@ -14,12 +14,12 @@ import (
 )
 
 /*
- * ================================
+ * ===========================================================================
  *  tmux control mode (tmux -CC): every tmux window is a tab, every tmux pane
  *  a pane of it. The pane tmux runs in (the control pane) carries the
  *  commands to tmux and gets its replies and notifications, see
  *  https://github.com/tmux/tmux/wiki/Control-Mode
- * ================================
+ * ===========================================================================
  */
 
 // The session in use, only one at a time. Started on the reader goroutine of
@@ -44,11 +44,6 @@ type tmuxSession struct {
 	// the commands written the same as of the callbacks.
 	mu      sync.Mutex
 	pending []func(lines []string, failed bool)
-
-	// Work for the UI thread from the reader goroutine, see post
-	qmu   sync.Mutex
-	queue []func()
-	wake  chan struct{}
 
 	// UI thread only, the lines are handled there (see TmuxLine)
 	inResponse bool
@@ -505,16 +500,16 @@ func (s *tmuxSession) dividerMoved(p *Pane) {
 }
 
 // split splits a tmux pane, the layout change makes the new pane
-func (s *tmuxSession) split(tp *tmuxPane, direction int) {
+func (s *tmuxSession) split(paneId, direction int) {
 	flag := "-h"
 	if direction == splitDown {
 		flag = "-v"
 	}
-	s.sendCommand(fmt.Sprintf("split-window %s -t %%%d", flag, tp.id), nil)
+	s.sendCommand(fmt.Sprintf("split-window %s -t %%%d", flag, paneId), nil)
 }
 
-func (s *tmuxSession) killPane(tp *tmuxPane) {
-	s.sendCommand(fmt.Sprintf("kill-pane -t %%%d", tp.id), nil)
+func (s *tmuxSession) killPane(paneId int) {
+	s.sendCommand(fmt.Sprintf("kill-pane -t %%%d", paneId), nil)
 }
 
 func (s *tmuxSession) killWindow(window int) {
@@ -709,7 +704,6 @@ func startTmux(control *Pane) terminal.TmuxHandler {
 		windows: map[int]*tmuxWindow{},
 		panes:   map[int]*tmuxPane{},
 		active:  -1,
-		wake:    make(chan struct{}, 1),
 	}
 
 	// the fist response from the outside command "attach", but we need to handle it

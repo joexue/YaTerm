@@ -249,7 +249,7 @@ func (p *Pane) Split(direction int, ratio float32) {
 	// tmux splits its pane, the layout change makes the new one here
 	if p.tmux != nil {
 		if s := activeTmux(); s != nil {
-			s.split(p.tmux, direction)
+			s.split(p.tmux.id, direction)
 		}
 		return
 	}

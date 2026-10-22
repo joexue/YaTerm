@@ -34,7 +34,7 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 		closePaneItem := fyne.NewMenuItemWithIcon("Close Pane", theme.Icon(theme.IconNameWindowClose), func() {
 			// tmux closes its pane, the layout change removes it here
 			if s := activeTmux(); s != nil && p.tmux != nil {
-				s.killPane(p.tmux)
+				s.killPane(p.tmux.id)
 				return
 			}
 
