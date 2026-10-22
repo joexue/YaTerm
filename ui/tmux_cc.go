@@ -352,6 +352,7 @@ func (s *tmuxSession) leaf(n *tmuxLayout, parent *Pane, window int, used map[int
 	used[n.pane] = true
 
 	leaf := NewPane(parent, tp.term, false)
+	leaf.isTmux = true
 	leaf.tmux = tp
 	tp.leaf = leaf
 	tp.term.Resize(n.h, n.w)
@@ -458,12 +459,12 @@ func (s *tmuxSession) ownsTab(tab *container.TabItem) bool {
 }
 
 // paneFocused tells tmux the pane the user works in
-func (s *tmuxSession) paneFocused(tp *tmuxPane) {
-	if s.active == tp.id {
+func (s *tmuxSession) paneFocused(paneId int) {
+	if s.active == paneId {
 		return
 	}
-	s.active = tp.id
-	s.sendCommand(fmt.Sprintf("select-pane -t %%%d", tp.id), nil)
+	s.active = paneId
+	s.sendCommand(fmt.Sprintf("select-pane -t %%%d", paneId), nil)
 }
 
 func (s *tmuxSession) selectTabItem(tab *container.TabItem) {

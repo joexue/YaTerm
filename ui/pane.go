@@ -93,6 +93,8 @@ type Pane struct {
 	modKeys map[fyne.KeyName]bool
 	mods    fyne.KeyModifier
 
+	isTmux bool
+	extId  int
 	// Callback from creater, called on the root with the title of the
 	// focused pane's program (OSC 0/2), e.g. to show it in the tab
 	OnTitle func(title string)
@@ -247,7 +249,7 @@ func (p *Pane) Close() {
 
 func (p *Pane) Split(direction int, ratio float32) {
 	// tmux splits its pane, the layout change makes the new one here
-	if p.tmux != nil {
+	if p.isTmux {
 		if s := activeTmux(); s != nil {
 			s.split(p.tmux.id, direction)
 		}
@@ -303,7 +305,7 @@ func (p *Pane) Resize(size fyne.Size) {
 	// The screen Resize() will be called by UI frame, just handle terminal
 	// here. A tmux pane has the size tmux gives it, the tab area of tmux is
 	// told to tmux instead.
-	if p.term != nil && p.tmux == nil {
+	if p.term != nil && !p.isTmux {
 		p.term.Resize(p.row, p.col)
 	}
 	if s := activeTmux(); s != nil && p.parent == nil {
@@ -321,8 +323,8 @@ func (p *Pane) Resize(size fyne.Size) {
  */
 func (p *Pane) FocusGained() {
 	p.root.lastFocus = p
-	if s := activeTmux(); s != nil && p.tmux != nil {
-		s.paneFocused(p.tmux)
+	if s := activeTmux(); s != nil && p.isTmux {
+		s.paneFocused(p.tmux.id)
 	}
 	p.screen.SetFocused(true)
 	if p.term != nil {
@@ -557,6 +559,7 @@ func newSplitPane(parent *Pane, direction int, ratio float32) *Pane {
 		ratio:    ratio,
 		parent:   parent,
 		cellSize: measureCell(),
+		isTmux:   true,
 	}
 	if parent == nil {
 		p.root = p
