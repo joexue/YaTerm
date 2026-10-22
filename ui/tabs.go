@@ -1,14 +1,11 @@
 package ui
 
 import (
-	//"fmt"
 	"image/color"
 
 	"fyne.io/fyne/v2"
-	//"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	//"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -164,6 +161,7 @@ func NewTabs(items ...*container.TabItem) *Tabs {
 		if t.OnSettings != nil {
 			t.OnSettings()
 		}
+		t.Select(t.SelectedIndex)
 	})
 	t.settingsBtn.Importance = widget.LowImportance
 
@@ -307,6 +305,15 @@ func (t *Tabs) CloseTabByObj(obj fyne.CanvasObject) {
 			break
 		}
 	}
+}
+
+// Move focus back if user click the empty area
+func (t *Tabs) Tapped(pe *fyne.PointEvent) {
+	t.Select(t.SelectedIndex)
+}
+
+func (t *Tabs) TappedSecondary(pe *fyne.PointEvent) {
+	t.Select(t.SelectedIndex)
 }
 
 func (t *Tabs) AcceptsTab() bool {
