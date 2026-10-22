@@ -3,9 +3,9 @@ Website = "https://github.com/joexue/yaterm"
 [Details]
 Icon = "assert/Resource/icons/yaterm.png"
 Name = "YaTerm"
-ID = "github.com/joexue/yaterm"
+ID = "com.github.joexue.yaterm"
 Version = "1.0.0"
-Build = 1
+Build = 27
 
 [Source]
 Repo = "https://github.com/joexue/yaterm"
