@@ -54,10 +54,9 @@ type tmuxSession struct {
 	attached   bool
 	ended      bool
 	windows    map[int]*tmuxWindow
-	panes      map[int]*tmuxPane
+	panes      map[int]*Pane
 	removing   bool // a tab is removed by the session, not closed by the user
 	active     int  // the pane tmux has active
-
 }
 
 type tmuxWindow struct {
@@ -66,15 +65,6 @@ type tmuxWindow struct {
 	tab      *container.TabItem
 	root     *Pane
 	checksum string // of the layout shown, the same one again is ignored
-}
-
-// tmuxPane is a tmux pane, its terminal and screen stay while the panes
-// showing them are made again on each layout change
-type tmuxPane struct {
-	id, window int
-	term       *terminal.Terminal
-	screen     *Screen
-	leaf       *Pane
 }
 
 // attach starts using the session: the control pane only takes q to detach,
@@ -112,7 +102,7 @@ func (s *tmuxSession) end() {
 		})
 	}
 	s.removing = false
-	s.panes = map[int]*tmuxPane{}
+	s.panes = map[int]*Pane{}
 
 	s.control.tmuxControl = nil
 
@@ -239,8 +229,8 @@ func (s *tmuxSession) layoutChanged(id int, layout string) {
 		w.tab.Content = root
 		tabControl.Refresh()
 
-		if tp := s.panes[focused]; tp != nil && tp.leaf != nil {
-			root.lastFocus = tp.leaf
+		if tp := s.panes[focused]; tp != nil && tp.isTmux {
+			root.lastFocus = tp
 			root.TryFocus()
 		} else if root.inShownTab() {
 			// The focused pane is gone (e.g. its shell exited): the one tmux has
@@ -274,7 +264,7 @@ func (s *tmuxSession) buildWindow(window int, node *tmuxLayout) *Pane {
 	used := map[int]bool{}
 	root := s.buildNode(node, nil, window, used)
 	for id, tp := range s.panes {
-		if tp.window == window && !used[id] {
+		if tp.extId == window && !used[id] {
 			delete(s.panes, id)
 		}
 	}
@@ -282,8 +272,8 @@ func (s *tmuxSession) buildWindow(window int, node *tmuxLayout) *Pane {
 	// The focus goes to the pane tmux has active, else to the first one. A
 	// split root has none, NewPane only sets it for a single pane.
 	root.lastFocus = nil
-	if tp := s.panes[s.active]; tp != nil && tp.window == window && tp.leaf != nil {
-		root.lastFocus = tp.leaf
+	if tp := s.panes[s.active]; tp != nil && tp.extId == window && tp.isTmux {
+		root.lastFocus = tp
 	}
 	if root.lastFocus == nil {
 		root.lastFocus = root.leaves()[0]
@@ -347,28 +337,28 @@ func (s *tmuxSession) leaf(n *tmuxLayout, parent *Pane, window int, used map[int
 			term.SetColors(th.Scheme().ANSI, queryThemeColor())
 			screen.SetCursorShape(th.CursorShape())
 		}
-		tp = &tmuxPane{id: n.pane, term: term, screen: screen}
+
+		tp = NewPane(parent, term, false)
 		s.panes[n.pane] = tp
 	}
-	tp.window = window
+
+	tp.extId = window
 	used[n.pane] = true
 
-	leaf := NewPane(parent, tp.term, false)
-	leaf.isTmux = true
-	leaf.id = n.pane
-	leaf.extId = window
-	tp.leaf = leaf
+	tp.isTmux = true
+	tp.id = n.pane
 	tp.term.Resize(n.h, n.w)
 
 	if created {
 		s.syncPane(tp)
 	}
-	return leaf
+
+	return tp
 }
 
 // syncPane fills a new pane with what tmux shows in it, with its history,
 // and puts the cursor where it is
-func (s *tmuxSession) syncPane(tp *tmuxPane) {
+func (s *tmuxSession) syncPane(tp *Pane) {
 	var captured []string
 	s.sendCommand(fmt.Sprintf("capture-pane -p -e -C -t %%%d -S -%d", tp.id, HistoryLines), func(lines []string, failed bool) {
 		if !failed {
@@ -412,7 +402,7 @@ func (s *tmuxSession) closeWindow(id int) {
 	}
 	delete(s.windows, id)
 	for pid, tp := range s.panes {
-		if tp.window == id {
+		if tp.extId == id {
 			delete(s.panes, pid)
 		}
 	}
@@ -706,7 +696,7 @@ func startTmux(control *Pane) terminal.TmuxHandler {
 	tmuxActive = &tmuxSession{
 		control: control,
 		windows: map[int]*tmuxWindow{},
-		panes:   map[int]*tmuxPane{},
+		panes:   map[int]*Pane{},
 		active:  -1,
 	}
 
