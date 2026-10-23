@@ -50,10 +50,6 @@ You need to select text from terminal then show them
 	})
 }
 
-func NewTmuxTab(pane *Pane, sessId, id int) *container.TabItem {
-	return container.NewTabItemWithIcon(fmt.Sprintf("Tmux %d:%d", sessId, id), assert.TmuxIconRes, pane)
-}
-
 func NewTab() *container.TabItem {
 	tabId++
 	pane := NewPane(nil, nil, true)
@@ -76,7 +72,7 @@ func NewTabControl(a fyne.App, w fyne.Window) fyne.CanvasObject {
 
 	// On a tmux window the + makes a tmux window, its tab comes from tmux
 	tabControl.CreateTab = func() *container.TabItem {
-		if s := activeTmux(); s != nil && tabControl.SelectedIndex >= 0 && s.ownsTab(tabControl.Items[tabControl.SelectedIndex]) {
+		if s := activeTmux(); s != nil && tabControl.SelectedIndex >= 0 && s.ownsTab(tabControl.Focused()) {
 			s.newWindow()
 			return nil
 		}

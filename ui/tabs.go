@@ -307,6 +307,10 @@ func (t *Tabs) CloseTabByObj(obj fyne.CanvasObject) {
 	}
 }
 
+func (t *Tabs) Focused() *container.TabItem {
+	return t.Items[t.SelectedIndex]
+}
+
 // Move focus back if user click the empty area
 func (t *Tabs) Tapped(pe *fyne.PointEvent) {
 	t.Select(t.SelectedIndex)

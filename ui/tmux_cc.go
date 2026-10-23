@@ -10,6 +10,8 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+
+	"yaterm/assert"
 	"yaterm/terminal"
 )
 
@@ -181,7 +183,7 @@ func (s *tmuxSession) createWindow(id int, name, layout string) *container.TabIt
 		id:       id,
 		root:     root,
 		title:    name,
-		tab:      NewTmuxTab(root, s.sessionId, id),
+		tab:      container.NewTabItemWithIcon(fmt.Sprintf("Tmux %d:%d", s.sessionId, id), assert.TmuxIconRes, root),
 		checksum: layoutChecksum(layout),
 	}
 	s.windows[id] = w
