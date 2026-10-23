@@ -17,19 +17,26 @@ var (
 	_ desktop.Hoverable  = (*Divider)(nil)
 )
 
+type DividerObject interface {
+	fyne.CanvasObject
+
+	SplitDirection() int
+	SetRatio(float32)
+}
+
 type Divider struct {
 	widget.BaseWidget
 
-	pane           *Pane
+	obj            DividerObject
 	hovered        bool
 	dragging       bool
 	startDragOff   *fyne.Position
 	currentDragPos fyne.Position
 }
 
-func NewDivider(pane *Pane) *Divider {
+func NewDivider(obj DividerObject) *Divider {
 	d := &Divider{
-		pane: pane,
+		obj: obj,
 	}
 
 	d.ExtendBaseWidget(d)
@@ -50,7 +57,7 @@ func (d *Divider) CreateRenderer() fyne.WidgetRenderer {
 }
 
 func (d *Divider) Cursor() desktop.Cursor {
-	if d.pane.split == splitRight {
+	if d.obj.SplitDirection() == splitRight {
 		return desktop.HResizeCursor
 	}
 	return desktop.VResizeCursor
@@ -60,11 +67,6 @@ func (d *Divider) DragEnd() {
 	d.startDragOff = nil
 	d.dragging = false
 	d.Refresh()
-
-	// In a tmux window tmux sizes the panes, it is told the new size
-	if s := activeTmux(); s != nil {
-		s.dividerMoved(d.pane)
-	}
 }
 
 func (d *Divider) Dragged(e *fyne.DragEvent) {
@@ -82,28 +84,14 @@ func (d *Divider) Dragged(e *fyne.DragEvent) {
 	}
 
 	x, y := d.currentDragPos.Components()
-	var ratio, firstRatio, secondRatio float32
-	if d.pane.split == splitRight {
-		widthFree := float32(d.pane.Size().Width - DividerThickness(d))
-		firstRatio = float32(d.pane.first.MinSize().Width) / widthFree
-		secondRatio = 1. - (float32(d.pane.second.MinSize().Width) / widthFree)
-		ratio = float32(x-d.startDragOff.X) / widthFree
+	var ratio float32
+	if d.obj.SplitDirection() == splitRight {
+		ratio = x / (d.obj.Size().Width - DividerThickness(d))
 	} else {
-		heightFree := float32(d.pane.Size().Height - DividerThickness(d))
-		firstRatio = float32(d.pane.first.MinSize().Height) / heightFree
-		secondRatio = 1. - (float32(d.pane.second.MinSize().Height) / heightFree)
-		ratio = float32(y-d.startDragOff.Y) / heightFree
+		ratio = y / (d.obj.Size().Height - DividerThickness(d))
 	}
 
-	if ratio < firstRatio {
-		ratio = firstRatio
-	}
-
-	if ratio > secondRatio {
-		ratio = secondRatio
-	}
-
-	d.pane.SetRatio(ratio)
+	d.obj.SetRatio(ratio)
 }
 
 func (d *Divider) MouseIn(event *desktop.MouseEvent) {
@@ -135,7 +123,7 @@ func (r *DividerRenderer) Layout(size fyne.Size) {
 }
 
 func (r *DividerRenderer) MinSize() fyne.Size {
-	if r.Divider.pane.split == splitRight {
+	if r.Divider.obj.SplitDirection() == splitRight {
 		return fyne.NewSize(DividerThickness(r.Divider), DividerLength(r.Divider))
 	}
 	return fyne.NewSize(DividerLength(r.Divider), DividerThickness(r.Divider))

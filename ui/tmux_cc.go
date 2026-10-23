@@ -470,11 +470,7 @@ func (s *tmuxSession) selectTabItem(tab *container.TabItem) {
 	})
 }
 
-// dividerMoved tells tmux the size the user gave the panes of a split by its
-// divider: the size of the part before it, by its first pane. resize-pane
-// resizes the whole part the pane is in, along the split, the part after it
-// gets the rest. The layout change then gives the panes the sizes tmux has.
-func (s *tmuxSession) dividerMoved(p *Pane) {
+func (s *tmuxSession) SetRatio(p *Pane) {
 	if p.split == splitNone {
 		return
 	}

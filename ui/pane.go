@@ -33,6 +33,7 @@ var (
 	_ fyne.SecondaryTappable = (*Pane)(nil)
 	_ desktop.Mouseable      = (*Pane)(nil)
 	_ fyne.Draggable         = (*Pane)(nil)
+	_ DividerObject          = (*Pane)(nil)
 )
 
 const (
@@ -287,6 +288,10 @@ func (p *Pane) Split(direction int, ratio float32) {
 func (p *Pane) SetRatio(ratio float32) {
 	p.ratio = ratio
 	p.Refresh()
+
+	if s := activeTmux(); s != nil && p.isTmux {
+		s.SetRatio(p)
+	}
 }
 
 func (p *Pane) Resize(size fyne.Size) {
@@ -313,6 +318,10 @@ func (p *Pane) Resize(size fyne.Size) {
 
 	// Cann't skip it, This will triage the renderer to call Layout
 	p.BaseWidget.Resize(size)
+}
+
+func (p *Pane) SplitDirection() int {
+	return p.split
 }
 
 /*
