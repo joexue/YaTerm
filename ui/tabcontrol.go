@@ -22,6 +22,11 @@ func ShowTitle(title string) {
 }
 
 func CloseTab(pane *Pane) {
+	if s := activeTmux(); s != nil && pane.isTmux {
+		s.killWindow(pane.extId)
+		return
+	}
+
 	tabControl.CloseTabByObj(pane)
 }
 

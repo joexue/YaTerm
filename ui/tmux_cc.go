@@ -222,7 +222,7 @@ func (s *tmuxSession) layoutChanged(id int, layout string) {
 	fyne.Do(func() {
 		if c := fyne.CurrentApp().Driver().CanvasForObject(w.root); c != nil {
 			if p, ok := c.Focused().(*Pane); ok && p.isTmux {
-				focused = p.id
+				focused = p.extPaneId
 			}
 		}
 
@@ -305,7 +305,7 @@ func (s *tmuxSession) buildNode(n *tmuxLayout, parent *Pane, window int, used ma
 // shape is another, e.g. a pane was added, then the tree is made again.
 func (s *tmuxSession) resizeNode(p *Pane, n *tmuxLayout) bool {
 	if n.kind == 0 {
-		if p.split != splitNone || !p.isTmux || p.id != n.pane {
+		if p.split != splitNone || !p.isTmux || p.extPaneId != n.pane {
 			return false
 		}
 		p.term.Resize(n.h, n.w)
@@ -347,8 +347,16 @@ func (s *tmuxSession) leaf(n *tmuxLayout, parent *Pane, window int, used map[int
 	tp.extId = window
 	used[n.pane] = true
 
+	// A pane kept from the tree before is in the new one now
+	tp.parent = parent
+	if parent == nil {
+		tp.root = tp
+	} else {
+		tp.root = parent.root
+	}
+
 	tp.isTmux = true
-	tp.id = n.pane
+	tp.extPaneId = n.pane
 	tp.term.Resize(n.h, n.w)
 
 	if created {
@@ -362,12 +370,12 @@ func (s *tmuxSession) leaf(n *tmuxLayout, parent *Pane, window int, used map[int
 // and puts the cursor where it is
 func (s *tmuxSession) syncPane(tp *Pane) {
 	var captured []string
-	s.sendCommand(fmt.Sprintf("capture-pane -p -e -C -t %%%d -S -%d", tp.id, HistoryLines), func(lines []string, failed bool) {
+	s.sendCommand(fmt.Sprintf("capture-pane -p -e -C -t %%%d -S -%d", tp.extPaneId, HistoryLines), func(lines []string, failed bool) {
 		if !failed {
 			captured = lines
 		}
 	})
-	s.sendCommand(fmt.Sprintf("display-message -p -t %%%d '#{cursor_x} #{cursor_y}'", tp.id), func(lines []string, failed bool) {
+	s.sendCommand(fmt.Sprintf("display-message -p -t %%%d '#{cursor_x} #{cursor_y}'", tp.extPaneId), func(lines []string, failed bool) {
 		if failed || captured == nil {
 			return
 		}
@@ -485,9 +493,9 @@ func (s *tmuxSession) SetRatio(p *Pane) {
 	}
 
 	if p.split == splitRight {
-		s.sendCommand(fmt.Sprintf("resize-pane -t %%%d -x %d", leaf.id, leaf.col), nil)
+		s.sendCommand(fmt.Sprintf("resize-pane -t %%%d -x %d", leaf.extPaneId, leaf.col), nil)
 	} else {
-		s.sendCommand(fmt.Sprintf("resize-pane -t %%%d -y %d", leaf.id, leaf.row), nil)
+		s.sendCommand(fmt.Sprintf("resize-pane -t %%%d -y %d", leaf.extPaneId, leaf.row), nil)
 	}
 }
 

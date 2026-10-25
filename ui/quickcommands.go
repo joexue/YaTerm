@@ -113,10 +113,6 @@ func quickCommandIcon() fyne.Resource {
 // typeText types text into the terminal like a paste: new lines are sent as
 // Enter, so a command saved with a new line at its end runs right away
 func (p *Pane) typeText(text string) {
-	if p.term == nil || text == "" || p.tmuxControl != nil {
-		return
-	}
-
 	text = strings.ReplaceAll(text, "\r\n", "\r")
 	text = strings.ReplaceAll(text, "\n", "\r")
 

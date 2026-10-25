@@ -93,8 +93,9 @@ type Pane struct {
 	modKeys map[fyne.KeyName]bool
 	mods    fyne.KeyModifier
 
-	isTmux bool
-	extId  int
+	isTmux    bool
+	extId     int // the tmux window of a tmux pane
+	extPaneId int // the tmux pane of a tmux pane
 	// Callback from creater, called on the root with the title of the
 	// focused pane's program (OSC 0/2), e.g. to show it in the tab
 	OnTitle func(title string)
@@ -195,6 +196,11 @@ func (p *Pane) Focus() {
 }
 
 func (p *Pane) Close() {
+	if s := activeTmux(); s != nil && p.isTmux {
+		s.killPane(p.extPaneId)
+		return
+	}
+
 	if p == p.root {
 		CloseTab(p)
 		return
@@ -253,7 +259,7 @@ func (p *Pane) Split(direction int, ratio float32) {
 	// tmux splits its pane, the layout change makes the new one here
 	if p.isTmux {
 		if s := activeTmux(); s != nil {
-			s.split(p.id, direction)
+			s.split(p.extPaneId, direction)
 		}
 		return
 	}
@@ -334,7 +340,7 @@ func (p *Pane) SplitDirection() int {
 func (p *Pane) FocusGained() {
 	p.root.lastFocus = p
 	if s := activeTmux(); s != nil && p.isTmux {
-		s.paneFocused(p.id)
+		s.paneFocused(p.extPaneId)
 	}
 	p.screen.SetFocused(true)
 	if p.term != nil {

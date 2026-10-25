@@ -28,21 +28,10 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 		separatorItem := fyne.NewMenuItemSeparator()
 
 		closePaneItem := fyne.NewMenuItemWithIcon("Close Pane", theme.Icon(theme.IconNameWindowClose), func() {
-			// tmux closes its pane, the layout change removes it here
-			if s := activeTmux(); s != nil && p.isTmux {
-				s.killPane(p.id)
-				return
-			}
-
 			p.Close()
 		})
 
 		closeTabItem := fyne.NewMenuItemWithIcon("Close Tab", theme.Icon(theme.IconNameWindowClose), func() {
-			if s := activeTmux(); s != nil && p.isTmux {
-				s.killWindow(p.extId)
-				return
-			}
-
 			CloseTab(p.root)
 		})
 
@@ -57,6 +46,9 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 		quickCommandsItem := fyne.NewMenuItemWithIcon("Quick Commands", quickCommandIcon(), nil)
 		quickCommandsItem.ChildMenu = p.quickCommandsMenu()
 
+		if p.tmuxControl != nil {
+			quickCommandsItem.Disabled = true
+		}
 		menuItems := []*fyne.MenuItem{splitRightItem, splitDownItem, separatorItem, showMarkDownItem, separatorItem, searchItem, quickCommandsItem, separatorItem, closePaneItem, closeTabItem}
 		popUpMenu := widget.NewPopUpMenu(fyne.NewMenu("", menuItems...), c)
 		popUpMenu.ShowAtRelativePosition(pe.Position, p)
