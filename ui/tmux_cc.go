@@ -3,12 +3,14 @@ package ui
 import (
 	"bytes"
 	"fmt"
+	"image/color"
 	"io"
 	"strconv"
 	"strings"
 	"sync"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 
 	"yaterm/assert"
@@ -294,7 +296,7 @@ func (s *tmuxSession) buildNode(n *tmuxLayout, parent *Pane, window int, used ma
 	}
 
 	direction, first, rest, ratio := n.split()
-	p := newSplitPane(parent, direction, ratio)
+	p := NewSplitPane(parent, direction, ratio)
 	p.first = s.buildNode(first, p, window, used)
 	p.second = s.buildNode(rest, p, window, used)
 	return p
@@ -897,4 +899,32 @@ func (p *layoutParser) cell() (*tmuxLayout, error) {
 	default:
 		return nil, fmt.Errorf("unexpected %q at %d", c, p.i)
 	}
+}
+
+// newSplitPane makes a pane split in two, e.g. for a tmux layout, the caller
+// sets its first and second pane
+func NewSplitPane(parent *Pane, direction int, ratio float32) *Pane {
+	b := canvas.NewRectangle(color.Transparent)
+	b.StrokeWidth = paneBorderWidth
+	b.StrokeColor = color.Transparent
+
+	p := &Pane{
+		id:       paneId,
+		border:   b,
+		split:    direction,
+		ratio:    ratio,
+		parent:   parent,
+		cellSize: measureCell(),
+		isTmux:   true,
+	}
+	if parent == nil {
+		p.root = p
+	} else {
+		p.root = parent.root
+	}
+	p.divider = NewDivider(p)
+	p.ExtendBaseWidget(p)
+
+	paneId++
+	return p
 }

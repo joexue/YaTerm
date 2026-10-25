@@ -40,7 +40,7 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 		})
 
 		searchItem := fyne.NewMenuItemWithIcon("Search", theme.Icon(theme.IconNameSearch), func() {
-			p.showSearch()
+			p.ShowSearch()
 		})
 
 		quickCommandsItem := fyne.NewMenuItemWithIcon("Quick Commands", quickCommandIcon(), nil)

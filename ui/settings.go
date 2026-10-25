@@ -542,7 +542,7 @@ func applySettings(s *settings, th *yatheme.YatermTheme) {
 	}
 	for _, tab := range tabControl.Items {
 		if p, ok := tab.Content.(*Pane); ok {
-			p.applyTheme(th)
+			p.ApplyTheme(th)
 		}
 	}
 }
