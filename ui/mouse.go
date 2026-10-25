@@ -11,15 +11,11 @@ import (
 )
 
 func (p *Pane) Tapped(pe *fyne.PointEvent) {
-	if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
-		c.Focus(p)
-	}
+	p.Focus()
 }
 
 func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
-	if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
-		c.Focus(p)
-	}
+	p.Focus()
 
 	if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
 		splitRightItem := fyne.NewMenuItemWithIcon("Split Right", theme.NewThemedResource(assert.HSplitIconRes), func() {
@@ -217,12 +213,7 @@ func (p *Pane) DragEnd() {
 	}
 	p.dragging = false
 
-	// A drag that scrolled is usually released outside the pane, and Fyne
-	// takes the focus away from it on a release over anything else, just
-	// before calling DragEnd. The drag started here, so keep the focus.
-	if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
-		c.Focus(p)
-	}
+	p.Focus()
 
 	p.copySelection()
 }
