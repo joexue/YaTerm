@@ -116,6 +116,14 @@ func tmuxID(s string, prefix byte) (int, bool) {
 	return n, err == nil
 }
 
+// layoutChecksum is the checksum at the start of a layout, "" if none
+func layoutChecksum(layout string) string {
+	if i := strings.IndexByte(layout, ','); i == 4 {
+		return layout[:i]
+	}
+	return ""
+}
+
 // queryThemeColor answers OSC 10, 11 and 12 with the theme's text,
 // background and cursor color
 func queryThemeColor() [3]color.Color {

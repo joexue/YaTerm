@@ -22,7 +22,7 @@ func ShowTitle(title string) {
 }
 
 func CloseTab(pane *Pane) {
-	if s := activeTmux(); s != nil && pane.isTmux {
+	if s := ActiveTmux(); s != nil && pane.isTmux {
 		s.killWindow(pane.extId)
 		return
 	}
@@ -77,8 +77,8 @@ func NewTabControl(a fyne.App, w fyne.Window) fyne.CanvasObject {
 
 	// On a tmux window the + makes a tmux window, its tab comes from tmux
 	tabControl.CreateTab = func() *container.TabItem {
-		if s := activeTmux(); s != nil && tabControl.SelectedIndex >= 0 && s.ownsTab(tabControl.Focused()) {
-			s.newWindow()
+		if s := ActiveTmux(); s != nil && tabControl.SelectedIndex >= 0 && s.OwnsTab(tabControl.Focused()) {
+			s.NewWindow()
 			return nil
 		}
 		return NewTab()
@@ -89,8 +89,8 @@ func NewTabControl(a fyne.App, w fyne.Window) fyne.CanvasObject {
 		case *Pane:
 			// A tmux window ends in tmux when its tab is closed, any other
 			// tab ends its programs
-			if s := activeTmux(); s != nil && s.ownsTab(tab) {
-				s.tabClosed(tab)
+			if s := ActiveTmux(); s != nil && s.OwnsTab(tab) {
+				s.TabClosed(tab)
 			} else {
 				tab.Content.(*Pane).TearDown()
 			}
@@ -103,7 +103,7 @@ func NewTabControl(a fyne.App, w fyne.Window) fyne.CanvasObject {
 	tabControl.OnSelected = func(tab *container.TabItem) {
 		switch tab.Content.(type) {
 		case *Pane:
-			if s := activeTmux(); s != nil {
+			if s := ActiveTmux(); s != nil {
 				s.tabFocus(tab)
 			}
 			tab.Content.(*Pane).TryFocus()

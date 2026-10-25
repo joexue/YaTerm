@@ -161,7 +161,7 @@ func (p *Pane) Take(sub *Pane) {
 	if p.split == splitNone {
 		p.term = sub.term
 		p.screen = sub.screen
-		moveTmuxControl(p, sub)
+		MoveTmuxControl(p, sub)
 		if sub.search != nil {
 			sub.screen.Search(nil, true)
 		}
@@ -220,8 +220,8 @@ func (p *Pane) Focus() {
 }
 
 func (p *Pane) Close() {
-	if s := activeTmux(); s != nil && p.isTmux {
-		s.killPane(p.extPaneId)
+	if s := ActiveTmux(); s != nil && p.isTmux {
+		s.KillPane(p.extPaneId)
 		return
 	}
 
@@ -257,8 +257,8 @@ func (p *Pane) Close() {
 func (p *Pane) Split(direction int, ratio float32) {
 	// tmux splits its pane, the layout change makes the new one here
 	if p.isTmux {
-		if s := activeTmux(); s != nil {
-			s.split(p.extPaneId, direction)
+		if s := ActiveTmux(); s != nil {
+			s.Split(p.extPaneId, direction)
 		}
 		return
 	}
@@ -279,7 +279,7 @@ func (p *Pane) Split(direction int, ratio float32) {
 
 	p.split = direction
 	p.first = NewPane(p, p.term, false)
-	moveTmuxControl(p, p.first)
+	MoveTmuxControl(p, p.first)
 	p.second = NewPane(p, nil, true)
 	p.term = nil
 	p.screen = nil
@@ -297,7 +297,7 @@ func (p *Pane) SetRatio(ratio float32) {
 	p.ratio = ratio
 	p.Refresh()
 
-	if s := activeTmux(); s != nil && p.isTmux {
+	if s := ActiveTmux(); s != nil && p.isTmux {
 		s.SetRatio(p)
 	}
 }
@@ -320,8 +320,8 @@ func (p *Pane) Resize(size fyne.Size) {
 	if p.term != nil && !p.isTmux {
 		p.term.Resize(p.row, p.col)
 	}
-	if s := activeTmux(); s != nil && p.parent == nil {
-		s.sendClientSize(p.row, p.col)
+	if s := ActiveTmux(); s != nil && p.parent == nil {
+		s.SendClientSize(p.row, p.col)
 	}
 
 	// Cann't skip it, This will triage the renderer to call Layout
@@ -356,7 +356,7 @@ func (p *Pane) ConnectTerm() {
 	}
 
 	p.term.OnTmuxControl = func() terminal.TmuxHandler {
-		return startTmux(p)
+		return StartTmux(p)
 	}
 }
 
@@ -367,8 +367,8 @@ func (p *Pane) ConnectTerm() {
  */
 func (p *Pane) FocusGained() {
 	p.root.lastFocus = p
-	if s := activeTmux(); s != nil && p.isTmux {
-		s.paneFocused(p.extPaneId)
+	if s := ActiveTmux(); s != nil && p.isTmux {
+		s.PaneFocused(p.extPaneId)
 	}
 	p.screen.SetFocused(true)
 	if p.term != nil {
