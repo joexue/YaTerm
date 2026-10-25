@@ -43,8 +43,7 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 				return
 			}
 
-			// Close the root pane, same as close tab
-			p.root.Close()
+			CloseTab(p.root)
 		})
 
 		showMarkDownItem := fyne.NewMenuItemWithIcon("Show as Markdown", theme.NewThemedResource(assert.MarkdownIconRes), func() {
