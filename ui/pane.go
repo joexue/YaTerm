@@ -43,7 +43,7 @@ const (
 )
 
 var (
-	paneId          = 0
+	paneId          int
 	paneBorderWidth = float32(1)
 	panePadding     = (paneBorderWidth * 3)
 )
@@ -51,7 +51,10 @@ var (
 type Pane struct {
 	widget.BaseWidget
 
-	id     int
+	id    int
+	extId int
+	tabId int
+
 	size   fyne.Size
 	border *canvas.Rectangle
 
@@ -93,16 +96,16 @@ type Pane struct {
 	modKeys map[fyne.KeyName]bool
 	mods    fyne.KeyModifier
 
-	isTmux    bool
-	extId     int // the tmux window of a tmux pane
-	extPaneId int // the tmux pane of a tmux pane
+	isTmux bool
 	// Callback from creater, called on the root with the title of the
 	// focused pane's program (OSC 0/2), e.g. to show it in the tab
 	OnTitle func(title string)
 }
 
-func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
+func NewPane(parent *Pane, term *terminal.Terminal, tabId int, run bool) *Pane {
 	var screen *Screen
+
+	paneId++
 
 	if term == nil {
 		screen = NewScreen()
@@ -121,6 +124,7 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 
 	p := &Pane{
 		id:       paneId,
+		tabId:    tabId,
 		border:   b,
 		split:    splitNone,
 		first:    nil,
@@ -146,8 +150,6 @@ func NewPane(parent *Pane, term *terminal.Terminal, run bool) *Pane {
 			term.RunCmd(program)
 		}()
 	}
-
-	paneId++
 
 	return p
 }
@@ -221,7 +223,7 @@ func (p *Pane) Focus() {
 
 func (p *Pane) Close() {
 	if s := ActiveTmux(); s != nil && p.isTmux {
-		s.KillPane(p.extPaneId)
+		s.KillPane(p.extId)
 		return
 	}
 
@@ -258,7 +260,7 @@ func (p *Pane) Split(direction int, ratio float32) {
 	// tmux splits its pane, the layout change makes the new one here
 	if p.isTmux {
 		if s := ActiveTmux(); s != nil {
-			s.Split(p.extPaneId, direction)
+			s.Split(p.extId, direction)
 		}
 		return
 	}
@@ -278,9 +280,9 @@ func (p *Pane) Split(direction int, ratio float32) {
 	}
 
 	p.split = direction
-	p.first = NewPane(p, p.term, false)
+	p.first = NewPane(p, p.term, p.tabId, false)
 	MoveTmuxControl(p, p.first)
-	p.second = NewPane(p, nil, true)
+	p.second = NewPane(p, nil, p.tabId, true)
 	p.term = nil
 	p.screen = nil
 
@@ -368,7 +370,7 @@ func (p *Pane) ConnectTerm() {
 func (p *Pane) FocusGained() {
 	p.root.lastFocus = p
 	if s := ActiveTmux(); s != nil && p.isTmux {
-		s.PaneFocused(p.extPaneId)
+		s.PaneFocused(p.extId)
 	}
 	p.screen.SetFocused(true)
 	if p.term != nil {

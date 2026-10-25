@@ -210,7 +210,7 @@ func (s *tmuxSession) LayoutChanged(id int, layout string) {
 	fyne.Do(func() {
 		if c := fyne.CurrentApp().Driver().CanvasForObject(w.root); c != nil {
 			if p, ok := c.Focused().(*Pane); ok && p.isTmux {
-				focused = p.extPaneId
+				focused = p.extId
 			}
 		}
 
@@ -246,7 +246,7 @@ func (s *tmuxSession) buildWindow(window int, node *tmuxLayout) *Pane {
 	used := map[int]bool{}
 	root := s.buildNode(node, nil, window, used)
 	for id, tp := range s.panes {
-		if tp.extId == window && !used[id] {
+		if tp.tabId == window && !used[id] {
 			delete(s.panes, id)
 		}
 	}
@@ -266,7 +266,7 @@ func (s *tmuxSession) buildNode(n *tmuxLayout, parent *Pane, window int, used ma
 	}
 
 	direction, first, rest, ratio := n.split()
-	p := NewSplitPane(parent, direction, ratio)
+	p := NewSplitPane(parent, direction, window, ratio)
 	p.first = s.buildNode(first, p, window, used)
 	p.second = s.buildNode(rest, p, window, used)
 	return p
@@ -277,7 +277,7 @@ func (s *tmuxSession) buildNode(n *tmuxLayout, parent *Pane, window int, used ma
 // shape is another, e.g. a pane was added, then the tree is made again.
 func (s *tmuxSession) resizeNode(p *Pane, n *tmuxLayout) bool {
 	if n.kind == 0 {
-		if p.split != splitNone || !p.isTmux || p.extPaneId != n.pane {
+		if p.split != splitNone || !p.isTmux || p.extId != n.pane {
 			return false
 		}
 		p.term.Resize(n.h, n.w)
@@ -312,11 +312,11 @@ func (s *tmuxSession) leaf(n *tmuxLayout, parent *Pane, window int, used map[int
 			screen.SetCursorShape(th.CursorShape())
 		}
 
-		tp = NewPane(parent, term, false)
+		tp = NewPane(parent, term, window, false)
 		s.panes[n.pane] = tp
 	}
 
-	tp.extId = window
+	//tp.tabId = window
 	used[n.pane] = true
 
 	// A pane kept from the tree before is in the new one now
@@ -328,7 +328,7 @@ func (s *tmuxSession) leaf(n *tmuxLayout, parent *Pane, window int, used map[int
 	}
 
 	tp.isTmux = true
-	tp.extPaneId = n.pane
+	tp.extId = n.pane
 	tp.term.Resize(n.h, n.w)
 
 	if created {
@@ -342,12 +342,12 @@ func (s *tmuxSession) leaf(n *tmuxLayout, parent *Pane, window int, used map[int
 // and puts the cursor where it is
 func (s *tmuxSession) syncPane(tp *Pane) {
 	var captured []string
-	s.sendCommand(fmt.Sprintf("capture-pane -p -e -C -t %%%d -S -%d", tp.extPaneId, HistoryLines), func(lines []string, failed bool) {
+	s.sendCommand(fmt.Sprintf("capture-pane -p -e -C -t %%%d -S -%d", tp.extId, HistoryLines), func(lines []string, failed bool) {
 		if !failed {
 			captured = lines
 		}
 	})
-	s.sendCommand(fmt.Sprintf("display-message -p -t %%%d '#{cursor_x} #{cursor_y}'", tp.extPaneId), func(lines []string, failed bool) {
+	s.sendCommand(fmt.Sprintf("display-message -p -t %%%d '#{cursor_x} #{cursor_y}'", tp.extId), func(lines []string, failed bool) {
 		if failed || captured == nil {
 			return
 		}
@@ -384,7 +384,7 @@ func (s *tmuxSession) CloseWindow(id int) {
 	}
 	delete(s.windows, id)
 	for pid, tp := range s.panes {
-		if tp.extId == id {
+		if tp.tabId == id {
 			delete(s.panes, pid)
 		}
 	}
@@ -453,9 +453,9 @@ func (s *tmuxSession) SetRatio(p *Pane) {
 	}
 
 	if p.split == splitRight {
-		s.sendCommand(fmt.Sprintf("resize-pane -t %%%d -x %d", leaf.extPaneId, leaf.col), nil)
+		s.sendCommand(fmt.Sprintf("resize-pane -t %%%d -x %d", leaf.extId, leaf.col), nil)
 	} else {
-		s.sendCommand(fmt.Sprintf("resize-pane -t %%%d -y %d", leaf.extPaneId, leaf.row), nil)
+		s.sendCommand(fmt.Sprintf("resize-pane -t %%%d -y %d", leaf.extId, leaf.row), nil)
 	}
 }
 
@@ -837,13 +837,14 @@ func (p *layoutParser) cell() (*tmuxLayout, error) {
 
 // newSplitPane makes a pane split in two, e.g. for a tmux layout, the caller
 // sets its first and second pane
-func NewSplitPane(parent *Pane, direction int, ratio float32) *Pane {
+func NewSplitPane(parent *Pane, direction int, window int, ratio float32) *Pane {
 	b := canvas.NewRectangle(color.Transparent)
 	b.StrokeWidth = paneBorderWidth
 	b.StrokeColor = color.Transparent
 
 	p := &Pane{
 		id:       paneId,
+		tabId:    window,
 		border:   b,
 		split:    direction,
 		ratio:    ratio,

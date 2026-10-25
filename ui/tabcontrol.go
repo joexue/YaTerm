@@ -23,7 +23,7 @@ func ShowTitle(title string) {
 
 func CloseTab(pane *Pane) {
 	if s := ActiveTmux(); s != nil && pane.isTmux {
-		s.killWindow(pane.extId)
+		s.killWindow(pane.tabId)
 		return
 	}
 
@@ -57,7 +57,7 @@ You need to select text from terminal then show them
 
 func NewTab() *container.TabItem {
 	tabId++
-	pane := NewPane(nil, nil, true)
+	pane := NewPane(nil, nil, tabId, true)
 	tab := container.NewTabItem(fmt.Sprintf("Tab %d", tabId), pane)
 
 	// The title the program sets (OSC 0/2) replaces "Tab n"
