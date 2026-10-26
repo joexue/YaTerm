@@ -104,7 +104,7 @@ func NewTabControl(a fyne.App, w fyne.Window) fyne.CanvasObject {
 		switch tab.Content.(type) {
 		case *Pane:
 			if s := ActiveTmux(); s != nil {
-				s.tabFocus(tab)
+				s.TabFocus(tab)
 			}
 			tab.Content.(*Pane).TryFocus()
 

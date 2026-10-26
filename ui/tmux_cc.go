@@ -3,14 +3,12 @@ package ui
 import (
 	"bytes"
 	"fmt"
-	"image/color"
 	"io"
 	"strconv"
 	"strings"
 	"sync"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 
 	"yaterm/assert"
@@ -26,6 +24,11 @@ import (
  * ===========================================================================
  */
 
+/*
+ * ===========================================================================
+ *  tmux session
+ * ===========================================================================
+ */
 // The session in use, only one at a time. Started on the reader goroutine of
 // the control pane, used on the UI thread.
 var (
@@ -46,7 +49,8 @@ type tmuxSession struct {
 	cmdMutex        sync.Mutex
 	pendingHandlers []func(lines []string, failed bool)
 
-	// UI thread only, the lines are handled there (see TmuxLine)
+	// tmux control pane terminal goroutine only, the lines are handled there
+	// see TmuxLine
 	inResponse bool
 	response   []string
 	windows    map[int]*tmuxWindow
@@ -401,8 +405,8 @@ func (s *tmuxSession) TabClosed(tab *container.TabItem) {
 	}
 }
 
-// tabFocus is called when the user selected a tab, tmux gets the window
-func (s *tmuxSession) tabFocus(tab *container.TabItem) {
+// TabFocus is called when the user selected a tab, tmux gets the window
+func (s *tmuxSession) TabFocus(tab *container.TabItem) {
 	for id, w := range s.windows {
 		if w.tab == tab {
 			ShowTitle(w.title)
@@ -477,9 +481,9 @@ func (s *tmuxSession) NewWindow() {
 	s.sendCommand("new-window", nil)
 }
 
-// sendKeys types into a tmux pane: text as it is (-l), other bytes like ESC
+// SendKeys types into a tmux pane: text as it is (-l), other bytes like ESC
 // sequences as hex (-H), each command a line of its own
-func (s *tmuxSession) sendKeys(pane int, data []byte) {
+func (s *tmuxSession) SendKeys(pane int, data []byte) {
 	for len(data) > 0 {
 		n := 0
 		for n < len(data) && data[n] >= 0x20 && data[n] != 0x7f {
@@ -643,8 +647,13 @@ func (s *tmuxSession) sendCommand(cmd string, handler func(lines []string, faile
 	}
 }
 
-// line handles a line from tmux: a reply to a command or a notification
-func (s *tmuxSession) line(line string) {
+// TmuxLine and TmuxEnd come on the reader goroutine with the terminal's
+// lock held. The session works on the UI thread: its windows and panes are
+// tabs and widgets, and the UI uses its maps, which must not be used by two
+// goroutines at once.
+func (s *tmuxSession) TmuxLine(line string) {
+	//s.control.term.Print("DEBUG: " + line)
+	//s.control.term.Print("\n")
 	if s.inResponse {
 		if strings.HasPrefix(line, "%end ") || strings.HasPrefix(line, "%error ") {
 			lines, failed := s.response, strings.HasPrefix(line, "%error ")
@@ -664,25 +673,19 @@ func (s *tmuxSession) line(line string) {
 	s.notification(line)
 }
 
-// TmuxLine and TmuxEnd come on the reader goroutine with the terminal's
-// lock held. The session works on the UI thread: its windows and panes are
-// tabs and widgets, and the UI uses its maps, which must not be used by two
-// goroutines at once.
-func (s *tmuxSession) TmuxLine(line string) {
-	//s.control.term.Print("DEBUG: " + line)
-	//s.control.term.Print("\n")
-	s.line(line)
-}
-
 // TmuxEnd: the control mode ended in the terminal, by its ST, or by the end
 // of the program, e.g. tmux went away without %exit
 func (s *tmuxSession) TmuxEnd() {
 	s.end()
 }
 
+/*
+ * ===========================================================================
+ *  tmux refuser session, just give the terminal a consumer before it cleans
+ * ===========================================================================
+ */
 // tmuxRefuser detaches a second session, YaTerm runs one at a time
 type tmuxRefuser struct {
-	term *terminal.Terminal
 }
 
 func (r *tmuxRefuser) TmuxLine(string) {
@@ -691,6 +694,12 @@ func (r *tmuxRefuser) TmuxLine(string) {
 
 func (r *tmuxRefuser) TmuxEnd() {
 }
+
+/*
+ * ===========================================================================
+ *  tmux pty: send the keys to specific terminal
+ * ===========================================================================
+ */
 
 // tmuxPty is the pty of a tmux pane: what is typed goes to tmux as keys, the
 // output comes from the session, the size from the tmux layout
@@ -703,7 +712,7 @@ func (p *tmuxPty) Write(b []byte) (int, error) {
 	// Replies of the terminal come from other goroutines, the keys go to
 	// tmux in order from the UI thread
 	data := append([]byte(nil), b...)
-	fyne.Do(func() { p.session.sendKeys(p.pane, data) })
+	p.session.SendKeys(p.pane, data)
 	return len(b), nil
 }
 
@@ -716,6 +725,11 @@ func (p *tmuxPty) RunCmd(string) error      { return nil }
 func (p *tmuxPty) Read([]byte) (int, error) { return 0, io.EOF }
 func (p *tmuxPty) Close()                   {}
 
+/*
+ * ===========================================================================
+ *  tmux layout handling
+ * ===========================================================================
+ */
 // tmuxLayout is a cell of a tmux window layout: a pane, or cells side by
 // side ('{') or one over the other ('[')
 type tmuxLayout struct {
@@ -781,6 +795,11 @@ func parseTmuxLayout(s string) (*tmuxLayout, error) {
 	return n, err
 }
 
+/*
+ * ===========================================================================
+ *  tmux layout parser
+ * ===========================================================================
+ */
 type layoutParser struct {
 	s string
 	i int
@@ -868,36 +887,11 @@ func (p *layoutParser) cell() (*tmuxLayout, error) {
 	}
 }
 
-// newSplitPane makes a pane split in two, e.g. for a tmux layout, the caller
-// sets its first and second pane
-func NewSplitPane(parent *Pane, direction int, window int, ratio float32) *Pane {
-	b := canvas.NewRectangle(color.Transparent)
-	b.StrokeWidth = paneBorderWidth
-	b.StrokeColor = color.Transparent
-
-	p := &Pane{
-		id:       paneId,
-		extId:    -1,
-		tabId:    window,
-		border:   b,
-		split:    direction,
-		ratio:    ratio,
-		parent:   parent,
-		cellSize: measureCell(),
-		isTmux:   true,
-	}
-	if parent == nil {
-		p.root = p
-	} else {
-		p.root = parent.root
-	}
-	p.divider = NewDivider(p)
-	p.ExtendBaseWidget(p)
-
-	paneId++
-	return p
-}
-
+/*
+ * ===========================================================================
+ *  starts tmux layout control
+ * ===========================================================================
+ */
 // StartTmux is the control pane's OnTmuxControl: a session, or one that
 // detaches right away when another is in use
 func StartTmux(control *Pane) terminal.TmuxHandler {
@@ -907,7 +901,7 @@ func StartTmux(control *Pane) terminal.TmuxHandler {
 		// Print takes the lock this (OnTmuxControl) holds
 		control.term.Print("YaTerm runs one tmux control mode session at a time\n")
 		control.term.Write([]byte("detach\n"))
-		return &tmuxRefuser{term: control.term}
+		return &tmuxRefuser{}
 	}
 
 	tmuxActive = &tmuxSession{

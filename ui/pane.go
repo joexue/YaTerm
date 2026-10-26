@@ -154,6 +154,36 @@ func NewPane(parent *Pane, term *terminal.Terminal, tabId int, run bool) *Pane {
 	return p
 }
 
+// newSplitPane makes a pane split in two, e.g. for a tmux layout, the caller
+// sets its first and second pane
+func NewSplitPane(parent *Pane, direction int, window int, ratio float32) *Pane {
+	b := canvas.NewRectangle(color.Transparent)
+	b.StrokeWidth = paneBorderWidth
+	b.StrokeColor = color.Transparent
+
+	p := &Pane{
+		id:       paneId,
+		extId:    -1,
+		tabId:    window,
+		border:   b,
+		split:    direction,
+		ratio:    ratio,
+		parent:   parent,
+		cellSize: measureCell(),
+		isTmux:   true,
+	}
+	if parent == nil {
+		p.root = p
+	} else {
+		p.root = parent.root
+	}
+	p.divider = NewDivider(p)
+	p.ExtendBaseWidget(p)
+
+	paneId++
+	return p
+}
+
 func (p *Pane) Take(sub *Pane) {
 	p.split = sub.split
 	p.first = sub.first
