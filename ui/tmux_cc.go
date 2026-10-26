@@ -185,8 +185,8 @@ func (s *tmuxSession) createWindow(id int, name, layout string) *container.TabIt
 // checksum) is ignored. New sizes only, e.g. a pane resized in tmux or a new
 // client size, go to the panes there are. Else, e.g. after a split or a pane
 // that ended, the panes are made again, the terminals stay.
-func (s *tmuxSession) LayoutChanged(id int, layout string) {
-	w := s.windows[id]
+func (s *tmuxSession) LayoutChanged(window int, layout string) {
+	w := s.windows[window]
 	if w == nil {
 		return // not shown yet, windowAdded makes it
 	}
@@ -214,7 +214,7 @@ func (s *tmuxSession) LayoutChanged(id int, layout string) {
 			focused = f.extId
 		}
 
-		root := s.buildWindow(id, node)
+		root := s.buildWindow(window, node)
 		if tp := s.panes[focused]; tp != nil && tp.root == root {
 			root.lastFocus = tp
 		}
@@ -223,9 +223,7 @@ func (s *tmuxSession) LayoutChanged(id int, layout string) {
 		w.tab.Content = root
 		tabControl.Refresh()
 
-		if root.inShownTab() {
-			s.DiscovePane(id)
-		}
+		s.DiscovePane(window)
 	})
 }
 
@@ -518,12 +516,14 @@ func (s *tmuxSession) DiscoveWindow() {
 			if tab, active, id := s.windowFromLine(l); tab != nil && active {
 				activeTab = tab
 				activeTabId = id
+			} else {
+				activeTabId = id
 			}
+			s.DiscovePane(activeTabId)
 		}
 
 		if activeTab != nil {
 			s.selectTabItem(activeTab)
-			s.DiscovePane(activeTabId)
 		}
 	})
 }
@@ -550,7 +550,10 @@ func (s *tmuxSession) DiscovePane(window int) {
 
 		if activePane != nil {
 			fyne.Do(func() {
-				activePane.Focus()
+				activePane.root.lastFocus = activePane
+				if activePane.InFocusTab() {
+					activePane.Focus()
+				}
 			})
 		}
 	})

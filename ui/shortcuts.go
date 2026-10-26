@@ -233,7 +233,7 @@ func (p *Pane) runAction(act action) {
 		return
 	}
 
-	if !p.inShownTab() {
+	if !p.InFocusTab() {
 		return
 	}
 
@@ -255,15 +255,6 @@ func (p *Pane) runAction(act action) {
 	case actPaste, actPaste2:
 		p.paste(fyne.CurrentApp().Clipboard())
 	}
-}
-
-// inShownTab tells if the pane is in the tab that is shown
-func (p *Pane) inShownTab() bool {
-	if tabControl == nil {
-		return true // e.g. a pane on its own in a test
-	}
-	i := tabControl.SelectedIndex
-	return i >= 0 && i < len(tabControl.Items) && tabControl.Items[i].Content == p.root
 }
 
 // windowShortcuts are the shortcuts registered on the window's canvas

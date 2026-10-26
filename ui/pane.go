@@ -362,6 +362,15 @@ func (p *Pane) ConnectTerm() {
 	}
 }
 
+// inShownTab tells if the pane is in the tab that is shown
+func (p *Pane) InFocusTab() bool {
+	if tabControl == nil {
+		return true // e.g. a pane on its own in a test
+	}
+	i := tabControl.SelectedIndex
+	return i >= 0 && i < len(tabControl.Items) && tabControl.Items[i].Content == p.root
+}
+
 // ApplyTheme gives the theme's colors to the terminals of the pane and its
 // children, and fits them again to their size, as a new font size changes how
 // many rows and columns fit
