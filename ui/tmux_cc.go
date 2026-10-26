@@ -205,29 +205,25 @@ func (s *tmuxSession) LayoutChanged(id int, layout string) {
 		return
 	}
 
-	focused := -1
-
-	root := s.buildWindow(id, node)
-
+	// The tree is made on the UI thread, the panes kept from the tree before
+	// are in use there. The new root is the tab's content, the old one may be
+	// a pane in the new tree, so it can not take the new one.
 	fyne.Do(func() {
-		if c := fyne.CurrentApp().Driver().CanvasForObject(w.root); c != nil {
-			if p, ok := c.Focused().(*Pane); ok && p.isTmux {
-				focused = p.extId
-			}
+		focused := -1
+		if f := w.root.lastFocus; f != nil {
+			focused = f.extId
 		}
 
-		//w.root = root
-		w.root.Take(root)
-		//w.tab.Content = root
-		root = w.root
+		root := s.buildWindow(id, node)
+		if tp := s.panes[focused]; tp != nil && tp.root == root {
+			root.lastFocus = tp
+		}
+
+		w.root = root
+		w.tab.Content = root
 		tabControl.Refresh()
 
-		if tp := s.panes[focused]; tp != nil && tp.isTmux {
-			root.lastFocus = tp
-			root.TryFocus()
-		} else if root.inShownTab() {
-			// The focused pane is gone (e.g. its shell exited): the one tmux has
-			// active, else the first, buildWindow set it
+		if root.inShownTab() {
 			root.TryFocus()
 		}
 	})
@@ -254,7 +250,7 @@ func (s *tmuxSession) buildWindow(window int, node *tmuxLayout) *Pane {
 		}
 	}
 
-	root.lastFocus = root.leaves()[0]
+	root.lastFocus = root.Leaves()[0]
 	return root
 }
 
@@ -847,6 +843,7 @@ func NewSplitPane(parent *Pane, direction int, window int, ratio float32) *Pane 
 
 	p := &Pane{
 		id:       paneId,
+		extId:    -1,
 		tabId:    window,
 		border:   b,
 		split:    direction,

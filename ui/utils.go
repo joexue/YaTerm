@@ -55,6 +55,13 @@ func abs(n int) int {
 	return n
 }
 
+func abs32(v float32) float32 {
+	if v < 0 {
+		return -v
+	}
+	return v
+}
+
 func isWordRune(r rune) bool {
 	return r != 0 && !strings.ContainsRune(wordDelimiters, r)
 }

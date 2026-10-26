@@ -357,7 +357,7 @@ func (p *Pane) focusNeighbor(dx, dy int) {
 
 	var best *Pane
 	bestGap, bestOff := float32(0), float32(0)
-	for _, q := range p.root.leaves() {
+	for _, q := range p.root.Leaves() {
 		if q == p {
 			continue
 		}
@@ -394,19 +394,4 @@ func (p *Pane) focusNeighbor(dx, dy int) {
 			c.Focus(best)
 		}
 	}
-}
-
-// leaves returns the panes under p that show a terminal
-func (p *Pane) leaves() []*Pane {
-	if p.split == splitNone {
-		return []*Pane{p}
-	}
-	return append(p.first.leaves(), p.second.leaves()...)
-}
-
-func abs32(v float32) float32 {
-	if v < 0 {
-		return -v
-	}
-	return v
 }

@@ -211,6 +211,35 @@ func (p *Pane) TryFocus() {
 	}
 }
 
+func (p *Pane) TryFocusByExtId() {
+	// A tree built from outside, e.g. a tmux layout, may have none yet
+	focusPane := p.root.lastFocus
+	if focusPane == nil {
+		focusPane = p.root
+	}
+	extId := focusPane.extId
+	focusPane = p.root
+
+	for _, q := range p.root.Leaves() {
+		if q.extId == extId {
+			focusPane = q
+			break
+		}
+	}
+
+	for {
+		if focusPane.split == splitNone {
+			break
+		} else {
+			focusPane = focusPane.first
+		}
+	}
+
+	if focusPane.split == splitNone {
+		focusPane.Focus()
+	}
+}
+
 func (p *Pane) Focus() {
 	c := fyne.CurrentApp().Driver().CanvasForObject(p)
 	if c == nil && win != nil {
@@ -362,6 +391,35 @@ func (p *Pane) ConnectTerm() {
 	}
 }
 
+// ApplyTheme gives the theme's colors to the terminals of the pane and its
+// children, and fits them again to their size, as a new font size changes how
+// many rows and columns fit
+func (p *Pane) ApplyTheme(th *yatheme.YatermTheme) {
+	if p.split != splitNone {
+		p.first.ApplyTheme(th)
+		p.second.ApplyTheme(th)
+		return
+	}
+
+	if p.term != nil {
+		p.term.SetColors(th.Scheme().ANSI, queryThemeColor())
+	}
+	p.screen.SetCursorShape(th.CursorShape())
+
+	// Resize returns early for the same size, so forget it first
+	p.size = fyne.Size{}
+	p.Resize(p.Size())
+	p.screen.Refresh()
+}
+
+// Leaves returns the panes under p that show a terminal
+func (p *Pane) Leaves() []*Pane {
+	if p.split == splitNone {
+		return []*Pane{p}
+	}
+	return append(p.first.Leaves(), p.second.Leaves()...)
+}
+
 /*
  * ================================
  *  Focusable
@@ -395,27 +453,6 @@ func (p *Pane) FocusLost() {
 
 	p.border.StrokeColor = color.Transparent
 	p.border.Refresh()
-}
-
-// ApplyTheme gives the theme's colors to the terminals of the pane and its
-// children, and fits them again to their size, as a new font size changes how
-// many rows and columns fit
-func (p *Pane) ApplyTheme(th *yatheme.YatermTheme) {
-	if p.split != splitNone {
-		p.first.ApplyTheme(th)
-		p.second.ApplyTheme(th)
-		return
-	}
-
-	if p.term != nil {
-		p.term.SetColors(th.Scheme().ANSI, queryThemeColor())
-	}
-	p.screen.SetCursorShape(th.CursorShape())
-
-	// Resize returns early for the same size, so forget it first
-	p.size = fyne.Size{}
-	p.Resize(p.Size())
-	p.screen.Refresh()
 }
 
 /*
