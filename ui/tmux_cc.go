@@ -207,6 +207,8 @@ func (s *tmuxSession) LayoutChanged(id int, layout string) {
 
 	focused := -1
 
+	root := s.buildWindow(id, node)
+
 	fyne.Do(func() {
 		if c := fyne.CurrentApp().Driver().CanvasForObject(w.root); c != nil {
 			if p, ok := c.Focused().(*Pane); ok && p.isTmux {
@@ -214,9 +216,10 @@ func (s *tmuxSession) LayoutChanged(id int, layout string) {
 			}
 		}
 
-		root := s.buildWindow(id, node)
-		w.root = root
-		w.tab.Content = root
+		//w.root = root
+		w.root.Take(root)
+		//w.tab.Content = root
+		root = w.root
 		tabControl.Refresh()
 
 		if tp := s.panes[focused]; tp != nil && tp.isTmux {

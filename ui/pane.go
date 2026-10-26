@@ -159,7 +159,7 @@ func (p *Pane) Take(sub *Pane) {
 	p.first = sub.first
 	p.second = sub.second
 	p.ratio = sub.ratio
-
+	p.divider = sub.divider
 	if p.split == splitNone {
 		p.term = sub.term
 		p.screen = sub.screen
