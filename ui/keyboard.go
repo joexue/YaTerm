@@ -214,7 +214,7 @@ func (p *Pane) TypedRune(r rune) {
 	// them, only q detaches
 	if s := p.tmuxControl; s != nil {
 		if r == 'q' || r == 'Q' {
-			s.detach()
+			s.Detach()
 		}
 		return
 	}

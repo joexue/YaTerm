@@ -14,18 +14,18 @@ import (
 
 const searchEntryWidth = 200
 
-// searchBar is the find box shown at the top right of a pane:
+// SearchBar is the find box shown at the top right of a pane:
 // [Find      ] ↑ ↓ Aa ^$ ×
 // ↑ and ↓ choose the direction and go to the next match in it, Enter goes on
 // in that direction and Shift+Enter the other way, Aa matches case, ^$ takes
 // the text as a regular expression, × and Esc close it.
-type searchBar struct {
+type SearchBar struct {
 	widget.BaseWidget
 
 	screen  *Screen
 	onClose func()
 
-	entry                     *searchEntry
+	Entry                     *searchEntry
 	up, down, caseBtn, regBtn *widget.Button
 	closeBtn                  *widget.Button
 	bg                        *canvas.Rectangle
@@ -33,14 +33,14 @@ type searchBar struct {
 	upward, matchCase, regex bool
 }
 
-func newSearchBar(screen *Screen, onClose func()) *searchBar {
-	b := &searchBar{screen: screen, onClose: onClose, upward: true}
+func NewSearchBar(screen *Screen, onClose func()) *SearchBar {
+	b := &SearchBar{screen: screen, onClose: onClose, upward: true}
 
-	b.entry = newSearchEntry()
-	b.entry.SetPlaceHolder("Find")
-	b.entry.OnChanged = func(string) { b.search() }
-	b.entry.OnSubmitted = func(string) { b.next(b.upward != b.entry.shift) }
-	b.entry.onEscape = func() { b.onClose() }
+	b.Entry = newSearchEntry()
+	b.Entry.SetPlaceHolder("Find")
+	b.Entry.OnChanged = func(string) { b.Search() }
+	b.Entry.OnSubmitted = func(string) { b.next(b.upward != b.Entry.shift) }
+	b.Entry.onEscape = func() { b.onClose() }
 
 	b.up = widget.NewButtonWithIcon("", theme.MoveUpIcon(), func() {
 		b.upward = true
@@ -55,12 +55,12 @@ func newSearchBar(screen *Screen, onClose func()) *searchBar {
 	b.caseBtn = widget.NewButton("Aa", func() {
 		b.matchCase = !b.matchCase
 		b.updateButtons()
-		b.search()
+		b.Search()
 	})
 	b.regBtn = widget.NewButton("^$", func() {
 		b.regex = !b.regex
 		b.updateButtons()
-		b.search()
+		b.Search()
 	})
 	b.closeBtn = widget.NewButtonWithIcon("", theme.CancelIcon(), func() { b.onClose() })
 	b.closeBtn.Importance = widget.LowImportance
@@ -77,7 +77,7 @@ func newSearchBar(screen *Screen, onClose func()) *searchBar {
 
 // updateButtons shows the chosen direction and the options that are on as
 // filled buttons, like a pressed toggle
-func (b *searchBar) updateButtons() {
+func (b *SearchBar) updateButtons() {
 	set := func(btn *widget.Button, on bool) {
 		btn.Importance = widget.LowImportance
 		if on {
@@ -93,8 +93,8 @@ func (b *searchBar) updateButtons() {
 
 // search runs the search for the text in the entry, an empty text or an
 // invalid regular expression clears the matches
-func (b *searchBar) search() {
-	text := b.entry.Text
+func (b *SearchBar) Search() {
+	text := b.Entry.Text
 	if text == "" {
 		b.screen.Search(nil, b.upward)
 		return
@@ -116,23 +116,23 @@ func (b *searchBar) search() {
 	b.screen.Search(re, b.upward)
 }
 
-func (b *searchBar) next(up bool) {
+func (b *SearchBar) next(up bool) {
 	b.screen.FindNext(up)
 }
 
 // focus puts the keyboard focus into the entry
-func (b *searchBar) focus() {
+func (b *SearchBar) Focus() {
 	if c := fyne.CurrentApp().Driver().CanvasForObject(b); c != nil {
-		c.Focus(b.entry)
+		c.Focus(b.Entry)
 	}
 }
 
 // Tapped takes clicks on the bar between its widgets, so they do not reach
 // the pane under it and start a selection there
-func (b *searchBar) Tapped(*fyne.PointEvent) {}
+func (b *SearchBar) Tapped(*fyne.PointEvent) {}
 
-func (b *searchBar) CreateRenderer() fyne.WidgetRenderer {
-	entryBox := container.New(layout.NewGridWrapLayout(fyne.NewSize(searchEntryWidth, b.entry.MinSize().Height)), b.entry)
+func (b *SearchBar) CreateRenderer() fyne.WidgetRenderer {
+	entryBox := container.New(layout.NewGridWrapLayout(fyne.NewSize(searchEntryWidth, b.Entry.MinSize().Height)), b.Entry)
 	row := container.NewHBox(entryBox, layout.NewSpacer(), b.up, b.down, b.caseBtn, b.regBtn, b.closeBtn)
 	return widget.NewSimpleRenderer(container.NewStack(b.bg, container.NewPadded(row)))
 }

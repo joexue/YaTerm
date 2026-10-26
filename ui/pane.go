@@ -81,11 +81,11 @@ type Pane struct {
 	pressed      bool // the primary button went down on the pane itself
 
 	// The find box at the top right, nil until first opened
-	search *searchBar
+	search *SearchBar
 
 	// tmux control mode: the tmux pane this pane shows, or the session this
 	// pane runs (tmux -CC), nil otherwise
-	tmuxControl *tmuxSession
+	tmuxControl *TmuxSession
 
 	// Where the drag is, in screen coordinates, and the stop for the timer
 	// that scrolls while it is past the top or bottom
@@ -313,15 +313,13 @@ func (p *Pane) Split(direction int, ratio float32) {
 	p.first = NewPane(p, p.term, p.tabId, false)
 	MoveTmuxControl(p, p.first)
 	p.second = NewPane(p, nil, p.tabId, true)
+
 	p.term = nil
 	p.screen = nil
-
 	p.divider = NewDivider(p)
 	p.ratio = ratio
 	p.root.lastFocus = p.second
-
 	p.Refresh()
-
 	p.second.TryFocus()
 }
 
@@ -572,18 +570,18 @@ func (p *Pane) ShowSearch() {
 	}
 
 	if p.search == nil {
-		p.search = newSearchBar(p.screen, p.HideSearch)
+		p.search = NewSearchBar(p.screen, p.HideSearch)
 		p.Refresh()
 	}
 
 	if text := p.screen.SelectedText(); text != "" && !strings.Contains(text, "\n") {
-		p.search.entry.SetText(text)
+		p.search.Entry.SetText(text)
 	}
 
 	p.search.Show()
 	p.Refresh()
-	p.search.focus()
-	p.search.search()
+	p.search.Focus()
+	p.search.Search()
 }
 
 // HideSearch closes the search bar, clears the highlights and gives the
