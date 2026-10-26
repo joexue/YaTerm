@@ -211,35 +211,6 @@ func (p *Pane) TryFocus() {
 	}
 }
 
-func (p *Pane) TryFocusByExtId() {
-	// A tree built from outside, e.g. a tmux layout, may have none yet
-	focusPane := p.root.lastFocus
-	if focusPane == nil {
-		focusPane = p.root
-	}
-	extId := focusPane.extId
-	focusPane = p.root
-
-	for _, q := range p.root.Leaves() {
-		if q.extId == extId {
-			focusPane = q
-			break
-		}
-	}
-
-	for {
-		if focusPane.split == splitNone {
-			break
-		} else {
-			focusPane = focusPane.first
-		}
-	}
-
-	if focusPane.split == splitNone {
-		focusPane.Focus()
-	}
-}
-
 func (p *Pane) Focus() {
 	c := fyne.CurrentApp().Driver().CanvasForObject(p)
 	if c == nil && win != nil {

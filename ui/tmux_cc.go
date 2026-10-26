@@ -124,20 +124,20 @@ func MoveTmuxControl(from, to *Pane) {
 
 // windowFromLine makes the tab of a window from a line of
 // "#{window_id} #{window_active} #{window_layout} #{window_name}"
-func (s *tmuxSession) windowFromLine(line string) (*container.TabItem, bool) {
+func (s *tmuxSession) windowFromLine(line string) (*container.TabItem, bool, int) {
 	f := strings.SplitN(line, " ", 4)
 	if len(f) < 3 {
-		return nil, false
+		return nil, false, 0
 	}
 	id, ok := tmuxID(f[0], '@')
 	if !ok {
-		return nil, false
+		return nil, false, 0
 	}
 	name := ""
 	if len(f) == 4 {
 		name = f[3]
 	}
-	return s.createWindow(id, name, f[2]), f[1] == "1"
+	return s.createWindow(id, name, f[2]), f[1] == "1", id
 }
 
 // WindowAdded asks for the layout of a new window, tmux does not send it
@@ -148,7 +148,7 @@ func (s *tmuxSession) WindowAdded(id int) {
 	s.sendCommand(fmt.Sprintf("display-message -p -t @%d '#{window_id} #{window_active} #{window_layout} #{window_name}'", id),
 		func(lines []string, failed bool) {
 			if !failed && len(lines) > 0 {
-				if tab, _ := s.windowFromLine(lines[0]); tab != nil {
+				if tab, _, _ := s.windowFromLine(lines[0]); tab != nil {
 					s.selectTabItem(tab)
 				}
 			}
@@ -224,7 +224,7 @@ func (s *tmuxSession) LayoutChanged(id int, layout string) {
 		tabControl.Refresh()
 
 		if root.inShownTab() {
-			root.TryFocus()
+			s.DiscovePane(id)
 		}
 	})
 }
@@ -513,14 +513,45 @@ func (s *tmuxSession) DiscoveWindow() {
 			return
 		}
 		var activeTab *container.TabItem
+		var activeTabId int
 		for _, l := range lines {
-			if tab, active := s.windowFromLine(l); tab != nil && active {
+			if tab, active, id := s.windowFromLine(l); tab != nil && active {
 				activeTab = tab
+				activeTabId = id
 			}
 		}
 
 		if activeTab != nil {
 			s.selectTabItem(activeTab)
+			s.DiscovePane(activeTabId)
+		}
+	})
+}
+
+func (s *tmuxSession) DiscovePane(window int) {
+	s.sendCommand(fmt.Sprintf("list-panes -F '#{pane_id} #{pane_active}' -t @%d", window), func(lines []string, failed bool) {
+		if failed {
+			// Output the error message
+			s.control.term.Print(strings.Join(lines, "\n") + "\n")
+			return
+		}
+
+		var activePane *Pane
+		for _, l := range lines {
+			paneStr, active, _ := strings.Cut(l, " ")
+			if active == "1" {
+				if paneId, ok := tmuxID(paneStr, '%'); ok {
+					activePane, _ = s.panes[paneId]
+				}
+
+				break
+			}
+		}
+
+		if activePane != nil {
+			fyne.Do(func() {
+				activePane.Focus()
+			})
 		}
 	})
 }
