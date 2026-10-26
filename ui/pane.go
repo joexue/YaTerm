@@ -283,7 +283,7 @@ func (p *Pane) Close() {
 	quit.TearDown()
 
 	pa.Refresh()
-	pa.TryFocus()
+	pa.Focus()
 }
 
 func (p *Pane) Split(direction int, ratio float32) {
@@ -320,7 +320,7 @@ func (p *Pane) Split(direction int, ratio float32) {
 	p.ratio = ratio
 	p.root.lastFocus = p.second
 	p.Refresh()
-	p.second.TryFocus()
+	p.second.Focus()
 }
 
 func (p *Pane) SetRatio(ratio float32) {
