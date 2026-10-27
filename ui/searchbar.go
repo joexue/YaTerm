@@ -131,6 +131,9 @@ func (b *SearchBar) Focus() {
 	if c != nil {
 		c.Focus(b.Entry)
 	}
+
+	// Like in most apps, the text is selected, so typing replaces it
+	b.Entry.Entry.TypedShortcut(&fyne.ShortcutSelectAll{})
 }
 
 // Tapped takes clicks on the bar between its widgets, so they do not reach
@@ -166,6 +169,17 @@ func (e *searchEntry) TypedKey(key *fyne.KeyEvent) {
 		return
 	}
 	e.Entry.TypedKey(key)
+}
+
+// TypedShortcut selects the text on the search shortcut, the entry has the
+// focus, so the shortcut comes here and not to the pane or the window
+func (e *searchEntry) TypedShortcut(sc fyne.Shortcut) {
+	if cs, ok := sc.(*desktop.CustomShortcut); ok {
+		if act, ok := actionFor(cs.KeyName, cs.Modifier); ok && act == actSearch {
+			sc = &fyne.ShortcutSelectAll{}
+		}
+	}
+	e.Entry.TypedShortcut(sc)
 }
 
 func (e *searchEntry) KeyDown(key *fyne.KeyEvent) {

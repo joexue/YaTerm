@@ -34,6 +34,7 @@ const (
 	actCopy2      action = "copy2"
 	actPaste      action = "paste"
 	actPaste2     action = "paste2"
+	actSearch     action = "search"
 )
 
 // actions are all the actions, in the order the settings show them, with
@@ -55,6 +56,7 @@ var actions = []struct {
 	{actCopy2, "Copy (second key)"},
 	{actPaste, "Paste"},
 	{actPaste2, "Paste (second key)"},
+	{actSearch, "Search"},
 }
 
 // keyBinding is a key with its modifiers, the zero value is no key
@@ -84,6 +86,7 @@ var defaultBindings = map[action]keyBinding{
 	actCopy2:      {fyne.KeyInsert, fyne.KeyModifierControl},
 	actPaste:      clipboardKey(fyne.KeyV),
 	actPaste2:     {fyne.KeyInsert, fyne.KeyModifierShift},
+	actSearch:     {fyne.KeyF, fyne.KeyModifierControl},
 }
 
 // clipboardKey is the default key of copy (C) or paste (V): Ctrl+Shift, as
@@ -260,6 +263,8 @@ func (p *Pane) runAction(act action) {
 		p.copySelection()
 	case actPaste, actPaste2:
 		p.paste(fyne.CurrentApp().Clipboard())
+	case actSearch:
+		p.ShowSearch()
 	}
 }
 
