@@ -208,7 +208,7 @@ func (p *Pane) Take(sub *Pane) {
 	}
 }
 
-// Called by TabControl or complete close
+// Exit all terminals in it
 func (p *Pane) TearDown() {
 	if p.split == splitNone {
 		t := p.term
@@ -258,6 +258,7 @@ func (p *Pane) Close() {
 	}
 
 	if p == p.root {
+		p.TearDown()
 		CloseTab(p)
 		return
 	}
