@@ -32,3 +32,8 @@ Windows, MacOS, Linux, BSD family
 
 ### Standalone program
 Download and use, no installation needed.
+
+## Tmux control mode for windows version
+The windows use conpty.dll to provide the pty functionality equivalent to Unix/Linux system. But the released built-in is lack of tmux control mode support. If you need to use tmux control mode for windows version, please download the conpty package (https://globalcdn.nuget.org/packages/microsoft.windows.console.conpty.1.25.260930003.nupkg?packageVersion=1.25.260930003) and find the conpty.dll and openconsole.exe of your machine's architecture and put aside to yaterm.exe wherever you put. On the "general" section of settings, you will find if it is being used.
+<img width="1648" height="1292" alt="yaterm_conpty" src="https://github.com/user-attachments/assets/75a6202b-1f11-4e74-bed9-779ae50460bf" />
+
