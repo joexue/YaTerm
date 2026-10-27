@@ -414,11 +414,15 @@ func shortcutsPage(s *settings, w fyne.Window) fyne.CanvasObject {
 	note.Wrapping = fyne.TextWrapWord
 
 	keyLabels := map[action]*widget.Label{}
+	// A key is in the theme's success color (green) to stand out from the
+	// action names, an action with none is grayed
 	refresh := func() {
 		for act, l := range keyLabels {
 			if b := s.bindings[act]; b.none() {
+				l.Importance = widget.LowImportance
 				l.SetText("None")
 			} else {
+				l.Importance = widget.SuccessImportance
 				l.SetText(b.String())
 			}
 		}
@@ -483,7 +487,6 @@ func shortcutsPage(s *settings, w fyne.Window) fyne.CanvasObject {
 	for _, k := range []struct{ action, keys string }{
 		{"Copy", "Select with the mouse"},
 		{"Select a word", "Double click"},
-		{"Search", "Menu > Search"},
 		{"Scroll back", "Mouse wheel"},
 	} {
 		builtIn.Append(k.action, widget.NewLabel(k.keys))
