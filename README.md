@@ -26,3 +26,6 @@ Yet another terminal
 
 ### Settings and themes
 <img width="800" height="600" alt="yaterm_theme" src="https://github.com/user-attachments/assets/cec01317-f2ef-4033-9c4d-eb663a6ecd2f" />
+
+### Multiple OS support
+Windows, MacOS, Linux, BSD family
