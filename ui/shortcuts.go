@@ -21,6 +21,7 @@ import (
 type action string
 
 const (
+	actNewTab     action = "newTab"
 	actNextTab    action = "nextTab"
 	actPrevTab    action = "prevTab"
 	actPaneRight  action = "paneRight"
@@ -41,6 +42,7 @@ var actions = []struct {
 	id   action
 	name string
 }{
+	{actNewTab, "New tab"},
 	{actNextTab, "Next tab"},
 	{actPrevTab, "Previous tab"},
 	{actPaneRight, "Right pane"},
@@ -69,6 +71,7 @@ func (b keyBinding) none() bool {
 // look like the divider they make: "\" for panes side by side, "-" for one
 // over the other.
 var defaultBindings = map[action]keyBinding{
+	actNewTab:     {fyne.KeyN, fyne.KeyModifierControl},
 	actNextTab:    {fyne.KeyRight, fyne.KeyModifierControl},
 	actPrevTab:    {fyne.KeyLeft, fyne.KeyModifierControl},
 	actPaneRight:  {fyne.KeyRight, fyne.KeyModifierAlt},
@@ -225,6 +228,9 @@ func (p *Pane) runShortcut(key fyne.KeyName, mods fyne.KeyModifier) bool {
 // may still have the focus, e.g. after a switch to a markdown tab.
 func (p *Pane) runAction(act action) {
 	switch act {
+	case actNewTab:
+		openNewTab()
+		return
 	case actNextTab:
 		switchTab(1)
 		return
@@ -289,6 +295,9 @@ func registerWindowShortcuts() {
 // anywhere, the pane actions on the last focused pane of the shown tab
 func runWindowAction(act action) {
 	switch act {
+	case actNewTab:
+		openNewTab()
+		return
 	case actNextTab:
 		switchTab(1)
 		return
@@ -324,6 +333,17 @@ func shownPane() *Pane {
 		p = p.first
 	}
 	return p
+}
+
+// openNewTab makes a tab like the + of the tab bar does: a tmux window when
+// a tmux window is shown, else a tab with the default program
+func openNewTab() {
+	if tabControl == nil || tabControl.CreateTab == nil {
+		return
+	}
+	if it := tabControl.CreateTab(); it != nil {
+		tabControl.Append(it)
+	}
 }
 
 // switchTab selects the tab by steps from the selected one, round the ends
