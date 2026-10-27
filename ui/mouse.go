@@ -14,9 +14,22 @@ func (p *Pane) Tapped(pe *fyne.PointEvent) {
 	p.Focus()
 }
 
+// TappedSecondary is the right click: the menu, or a paste when the buttons
+// are swapped in the settings
 func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 	p.Focus()
 
+	if rightClickPastes {
+		if p.split == splitNone {
+			p.paste(fyne.CurrentApp().Clipboard())
+		}
+		return
+	}
+	p.showMenu(pe.Position)
+}
+
+// showMenu opens the pane's menu at pos, a position in the pane
+func (p *Pane) showMenu(pos fyne.Position) {
 	if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
 		splitRightItem := fyne.NewMenuItemWithIcon("Split Right", theme.NewThemedResource(assert.HSplitIconRes), func() {
 			p.Split(splitRight, 0.5)
@@ -51,13 +64,14 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 		}
 		menuItems := []*fyne.MenuItem{splitRightItem, splitDownItem, separatorItem, showMarkDownItem, separatorItem, searchItem, quickCommandsItem, separatorItem, closePaneItem, closeTabItem}
 		popUpMenu := widget.NewPopUpMenu(fyne.NewMenu("", menuItems...), c)
-		popUpMenu.ShowAtRelativePosition(pe.Position, p)
+		popUpMenu.ShowAtRelativePosition(pos, p)
 	}
 }
 
 /*
  * ================================
  *  Selection: drag or double click to select and copy, middle click pastes
+ *  (or right click, see rightClickPastes)
  * ================================
  */
 
@@ -105,8 +119,14 @@ func (p *Pane) MouseDown(ev *desktop.MouseEvent) {
 			p.screen.SelectStart(p.screenPos(ev.Position))
 		}
 
+	// Middle click pastes, or opens the menu when the buttons are swapped
 	case desktop.MouseButtonTertiary:
-		p.paste(fyne.CurrentApp().Clipboard())
+		if rightClickPastes {
+			p.Focus()
+			p.showMenu(ev.Position)
+		} else {
+			p.paste(fyne.CurrentApp().Clipboard())
+		}
 	}
 }
 

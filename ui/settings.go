@@ -27,6 +27,7 @@ const (
 	prefFontSize    = "fontSize"
 	prefCursorShape = "cursorShape"
 	prefProgram     = "program"
+	prefRightClick  = "rightClick"
 )
 
 // The font sizes the setting offers
@@ -46,11 +47,23 @@ func LoadSettings(a fyne.App, th *yatheme.YatermTheme) {
 	th.SetCursorShape(yatheme.CursorShape(p.StringWithFallback(prefCursorShape, string(yatheme.DefaultCursorShape))))
 	bindings = loadBindings(a)
 	program = p.String(prefProgram)
+	rightClickPastes = p.String(prefRightClick) == "paste"
 }
 
 // program is the command line new tabs and panes run, "" for the platform's
 // default (PowerShell on Windows, bash elsewhere)
 var program string
+
+// rightClickPastes swaps the mouse buttons: right click pastes and middle
+// click opens the menu, else (the default) the other way round
+var rightClickPastes bool
+
+// What a click does as the settings show it, right click is one, middle
+// click the other
+const (
+	clickMenu  = "Menu"
+	clickPaste = "Paste"
+)
 
 // settings is what the settings dialog edits, applied only on Save
 type settings struct {
@@ -59,6 +72,7 @@ type settings struct {
 	cursorShape yatheme.CursorShape
 	bindings    map[action]keyBinding
 	program     string
+	rightPaste  bool
 }
 
 // cursorShapeNames are the cursor shapes as the settings show them
@@ -84,6 +98,7 @@ func ShowSettings(w fyne.Window) {
 		cursorShape: th.CursorShape(),
 		bindings:    copyBindings(bindings),
 		program:     program,
+		rightPaste:  rightClickPastes,
 	}
 
 	var d dialog.Dialog
@@ -444,12 +459,31 @@ func shortcutsPage(s *settings, w fyne.Window) fyne.CanvasObject {
 	}
 	refresh()
 
+	// Right click and middle click swap what they do, the menu or a paste
+	middleClick := widget.NewLabel("")
+	rightClick := widget.NewSelect([]string{clickMenu, clickPaste}, func(v string) {
+		s.rightPaste = v == clickPaste
+		if s.rightPaste {
+			middleClick.SetText(clickMenu)
+		} else {
+			middleClick.SetText(clickPaste)
+		}
+	})
+	if s.rightPaste {
+		rightClick.SetSelected(clickPaste)
+	} else {
+		rightClick.SetSelected(clickMenu)
+	}
+	mouseForm := widget.NewForm(
+		widget.NewFormItem("Right click", rightClick),
+		widget.NewFormItem("Middle click", middleClick),
+	)
+
 	builtIn := widget.NewForm()
 	for _, k := range []struct{ action, keys string }{
 		{"Copy", "Select with the mouse"},
-		{"Paste", "Middle click"},
 		{"Select a word", "Double click"},
-		{"Search", "Right click > Search"},
+		{"Search", "Menu > Search"},
 		{"Scroll back", "Mouse wheel"},
 	} {
 		builtIn.Append(k.action, widget.NewLabel(k.keys))
@@ -460,7 +494,8 @@ func shortcutsPage(s *settings, w fyne.Window) fyne.CanvasObject {
 		l.TextStyle = fyne.TextStyle{Bold: true}
 		return l
 	}
-	content := container.NewVBox(title("Actions"), actionsForm, note, widget.NewSeparator(), title("Built in"), builtIn)
+	content := container.NewVBox(title("Actions"), actionsForm, note, widget.NewSeparator(),
+		title("Mouse"), mouseForm, widget.NewSeparator(), title("Built in"), builtIn)
 	return container.NewVScroll(content)
 }
 
@@ -524,6 +559,12 @@ func applySettings(s *settings, th *yatheme.YatermTheme) {
 	a.Preferences().SetString(prefCursorShape, string(s.cursorShape))
 	a.Preferences().SetString(prefProgram, s.program)
 	program = s.program
+	rightClick := "menu"
+	if s.rightPaste {
+		rightClick = "paste"
+	}
+	a.Preferences().SetString(prefRightClick, rightClick)
+	rightClickPastes = s.rightPaste
 	if s.bindings != nil {
 		bindings = copyBindings(s.bindings)
 		saveBindings(a, bindings)
