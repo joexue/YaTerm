@@ -122,7 +122,13 @@ func (b *SearchBar) next(up bool) {
 
 // focus puts the keyboard focus into the entry
 func (b *SearchBar) Focus() {
-	if c := fyne.CurrentApp().Driver().CanvasForObject(b); c != nil {
+	// A bar just made has no canvas until the next frame draws it, the
+	// window's canvas finds it in the tree already
+	c := fyne.CurrentApp().Driver().CanvasForObject(b)
+	if c == nil && win != nil {
+		c = win.Canvas()
+	}
+	if c != nil {
 		c.Focus(b.Entry)
 	}
 }
