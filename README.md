@@ -29,3 +29,6 @@ Yet another terminal
 
 ### Multiple OS support
 Windows, MacOS, Linux, BSD family
+
+### Standalone program
+Download and use, no installation needed.
