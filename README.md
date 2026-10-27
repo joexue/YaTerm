@@ -7,25 +7,26 @@ Yet another terminal
 
 ### Split by shortcut or mouse
 
-<img width="800" height="600" alt="yaterm_split" src="https://github.com/user-attachments/assets/00b99a69-4b4b-4f04-b54c-48db66632c19" />
+<img width="400" height="314" alt="yaterm_split" src="https://github.com/user-attachments/assets/008c9dca-a525-41c1-a82c-50e4a1b3a973" />
+
 
 ### Show text as markdown
-<img width="800" height="600" alt="yaterm_markdown" src="https://github.com/user-attachments/assets/d244b01e-836a-48f7-9e3b-7a1b5d2af9af" />
+<img width="400" height="318" alt="yaterm_markdown" src="https://github.com/user-attachments/assets/897a91b5-67bc-421a-80a5-d235b7badfdd" />
 
 ### Search in terminal
-<img width="800" height="600" alt="yaterm_search" src="https://github.com/user-attachments/assets/8b912f89-d828-4499-988e-f48b24ea3977" />
+<img width="400" height="316" alt="yaterm_search" src="https://github.com/user-attachments/assets/33a5ac8c-26a9-47d3-a512-775f376bca1e" />
 
 ### Quick commands
-<img width="800" height="600" alt="yaterm_quickcommand" src="https://github.com/user-attachments/assets/75b8cdc6-f49c-43b1-89e6-fe8cbbbba4f8" />
+<img width="400" height="314" alt="yaterm_quickcommand" src="https://github.com/user-attachments/assets/2623d3a6-5271-4670-9119-6542a5a8d2f3" />
 
 ### Close panel or tab by mouse
-<img width="800" height="600" alt="yaterm_close" src="https://github.com/user-attachments/assets/9329a052-6651-44fe-8fb6-dffa73582228" />
+<img width="400" height="316" alt="yaterm_close" src="https://github.com/user-attachments/assets/4733a253-d94f-48bf-94d1-ed1e0afe9412" />
 
 ### Tmux control mode
-<img width="800" height="600" alt="yaterm_tmux" src="https://github.com/user-attachments/assets/df1f6209-9698-40ff-9f0d-f2e317f51e2e" />
+<img width="400" height="314" alt="yaterm_tmux" src="https://github.com/user-attachments/assets/376a7501-297f-4ef6-981e-57de041f538d" />
 
 ### Settings and themes
-<img width="800" height="600" alt="yaterm_theme" src="https://github.com/user-attachments/assets/cec01317-f2ef-4033-9c4d-eb663a6ecd2f" />
+<img width="400" height="315" alt="yaterm_theme" src="https://github.com/user-attachments/assets/b11608da-a5ea-49b1-9428-8dce5b4f137e" />
 
 ### Multiple OS support
 Windows, MacOS, Linux, BSD family
