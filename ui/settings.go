@@ -116,9 +116,9 @@ func ShowSettings(w fyne.Window) {
 		d.Hide()
 	}
 
-	// Each page ends with the project's page and the buttons, so the link
-	// lines up with the page and not with the tabs on its left. A widget can
-	// be in one place only, so every page gets its own row.
+	// Each page ends with the buttons, so they line up with the page and not
+	// with the tabs on its left. A widget can be in one place only, so every
+	// page gets its own row.
 	page := func(body fyne.CanvasObject) fyne.CanvasObject {
 		return container.NewBorder(nil, bottomRow(save, cancel), nil, nil, body)
 	}
@@ -127,6 +127,7 @@ func ShowSettings(w fyne.Window) {
 		container.NewTabItem("Appearance", page(appearancePage(s))),
 		container.NewTabItem("Shortcuts", page(shortcutsPage(s, w))),
 		container.NewTabItem("General", page(generalPage(s))),
+		container.NewTabItem("Version", page(versionPage())),
 	)
 	tabs.SetTabLocation(container.TabLocationLeading)
 
@@ -135,13 +136,11 @@ func ShowSettings(w fyne.Window) {
 	d.Show()
 }
 
-// bottomRow is the row at the end of a settings page: the project's page on
-// the left, Cancel and Save on the right with some room between them. The
-// buttons are made here, not by a confirm dialog, so the link can be in the
-// same row.
+// bottomRow is the row at the end of a settings page: Cancel and Save on the
+// right with some room between them
 func bottomRow(save, cancel func()) fyne.CanvasObject {
 	buttons, _ := saveCancelButtons(save, cancel)
-	return container.NewBorder(nil, nil, projectLink(), buttons)
+	return container.NewBorder(nil, nil, nil, buttons)
 }
 
 // saveCancelButtons are the Cancel and Save buttons of YaTerm's dialogs, with
@@ -158,16 +157,19 @@ func saveCancelButtons(save, cancel func()) (fyne.CanvasObject, *widget.Button) 
 	return container.NewHBox(cancelBtn, gap, saveBtn), saveBtn
 }
 
-// projectURL is the project's page
-const projectURL = "https://github.com/joexue/yaterm"
-
-// projectLink is a link to the project's page, opened in the browser
-func projectLink() fyne.CanvasObject {
-	u, err := url.Parse(projectURL)
-	if err != nil {
-		return widget.NewLabel(projectURL)
+// versionPage shows the version and revision of the build, and a link to the
+// source code, opened in the browser
+func versionPage() fyne.CanvasObject {
+	var source fyne.CanvasObject = widget.NewLabel(projectURL)
+	if u, err := url.Parse(projectURL); err == nil {
+		source = widget.NewHyperlink(projectURL, u)
 	}
-	return widget.NewHyperlink("github.com/joexue/yaterm", u)
+
+	return widget.NewForm(
+		widget.NewFormItem("Version", widget.NewLabel(buildVersion())),
+		widget.NewFormItem("Revision", widget.NewLabel(buildRevision())),
+		widget.NewFormItem("Source code", source),
+	)
 }
 
 // generalPage has the program new tabs and panes run

@@ -32,3 +32,6 @@ go.work.sum
 # .vscode/
 
 *.un~
+
+# Made by make for a build (version and revision), see Makefile
+ui/zz_buildstamp.go
