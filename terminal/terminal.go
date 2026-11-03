@@ -126,6 +126,8 @@ type Terminal struct {
 	appCursorKeys  bool // DECCKM ?1: the cursor keys send "ESC O x"
 	cursorHidden   bool // DECTCEM ?25 reset
 	bracketedPaste bool // ?2004: a paste comes between "ESC [200~" and "ESC [201~"
+	mouseMode      int  // ?9, ?1000, ?1002 or ?1003: the program gets the mouse, see mouse.go
+	mouseEnc       int  // ?1005, ?1006 or ?1015: how the mouse is reported
 
 	// lastChar is the last character written, REP ("CSI n b") repeats it
 	lastChar rune

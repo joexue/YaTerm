@@ -96,6 +96,18 @@ type Pane struct {
 	modKeys map[fyne.KeyName]bool
 	mods    fyne.KeyModifier
 
+	// The mouse of a program that gets it (mouse tracking): a button is held
+	// whose press went to the program, and which one, the cell of the last
+	// report, so a move in the same cell is not sent again, the wheel turned
+	// less than a notch, and a right click that went to the program, so its
+	// tap does not open the menu
+	mouseHeld        bool
+	mouseBtn         int
+	mouseRow         int
+	mouseCol         int
+	wheelAcc         float32
+	skipSecondaryTap bool
+
 	isTmux bool
 	// Callback from creater, called on the root with the title of the
 	// focused pane's program (OSC 0/2), e.g. to show it in the tab
@@ -389,6 +401,10 @@ func (p *Pane) ConnectTerm() {
 	p.term.OnTmuxControl = func() terminal.TmuxHandler {
 		return StartTmux(p)
 	}
+
+	// The screen moves with the terminal, its mouse comes to this pane now
+	p.screen.OnWheel = p.mouseWheel
+	p.screen.OnHover = p.mouseHover
 }
 
 // inShownTab tells if the pane is in the tab that is shown

@@ -150,6 +150,12 @@ type Screen struct {
 	bar       *scrollBar
 
 	size fyne.Size
+
+	// Set by the pane showing the screen, for a program that gets the mouse.
+	// OnWheel takes the wheel, true when it did, else the view scrolls.
+	// OnHover gets the moves of the mouse. Positions are in the screen.
+	OnWheel func(pos fyne.Position, dy float32) bool
+	OnHover func(pos fyne.Position)
 }
 
 func NewScreen() *Screen {
@@ -601,6 +607,10 @@ func (s *Screen) updateCursor() {
 // Scrolled shows the history lines when the mouse wheel scrolls up, and
 // the scroll bar with them
 func (s *Screen) Scrolled(ev *fyne.ScrollEvent) {
+	if s.OnWheel != nil && s.OnWheel(ev.Position, ev.Scrolled.DY) {
+		return
+	}
+
 	defer s.bar.reveal()
 
 	s.scrollAcc += ev.Scrolled.DY
@@ -1152,6 +1162,24 @@ func (s *Screen) MouseMoved(ev *desktop.MouseEvent) {
 	if ev.Position.X >= s.Size().Width-scrollEdge {
 		s.bar.reveal()
 	}
+	if s.OnHover != nil {
+		s.OnHover(ev.Position)
+	}
+}
+
+// LiveCell returns the cell of the live screen under a position in the
+// screen, kept inside it, false when the view is scrolled back into the
+// history, as the program does not know those lines
+func (s *Screen) LiveCell(pos fyne.Position) (row, col int, ok bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.offset != 0 || s.row == 0 || s.col == 0 {
+		return 0, 0, false
+	}
+	row = max(0, min(int(pos.Y/s.cellSize.Height), s.row-1))
+	col = max(0, min(int(pos.X/s.cellSize.Width), s.col-1))
+	return row, col, true
 }
 
 func (s *Screen) MouseOut() {}

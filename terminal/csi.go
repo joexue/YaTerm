@@ -319,6 +319,9 @@ func (t *Terminal) setPrivateMode(mode int, on bool) {
 		t.screen.SetCursorVisible(on)
 	case 2004:
 		t.bracketedPaste = on
+
+	case 9, 1000, 1002, 1003, 1005, 1006, 1015:
+		t.setMouseMode(mode, on)
 	}
 }
 
@@ -335,6 +338,8 @@ func (t *Terminal) privateModeState(mode int) int {
 		set = t.alternate
 	case 2004:
 		set = t.bracketedPaste
+	case 9, 1000, 1002, 1003, 1005, 1006, 1015:
+		set = t.mouseModeSet(mode)
 	default:
 		return 0
 	}
@@ -349,6 +354,8 @@ func (t *Terminal) privateModeState(mode int) int {
 func (t *Terminal) resetModes() {
 	t.appCursorKeys = false
 	t.bracketedPaste = false
+	t.mouseMode = mouseOff
+	t.mouseEnc = mouseEncDefault
 	t.cursorHidden = false
 	t.screen.SetCursorVisible(true)
 }
