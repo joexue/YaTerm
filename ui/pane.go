@@ -336,9 +336,13 @@ func (p *Pane) Split(direction int, ratio float32) {
 	p.second.Focus()
 }
 
-func (p *Pane) SetRatio(ratio float32) {
+func (p *Pane) SetRatio(ratio float32, changing bool) {
 	p.ratio = ratio
 	p.Refresh()
+
+	if changing {
+		return
+	}
 
 	if s := ActiveTmux(); s != nil && p.isTmux {
 		s.SetRatio(p)

@@ -295,7 +295,7 @@ func (s *TmuxSession) resizeNode(p *Pane, n *tmuxLayout) bool {
 	}
 	if p.ratio != ratio {
 		fyne.Do(func() {
-			p.SetRatio(ratio)
+			p.SetRatio(ratio, true)
 		})
 	}
 	return true

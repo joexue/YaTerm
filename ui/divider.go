@@ -21,7 +21,7 @@ type DividerObject interface {
 	fyne.CanvasObject
 
 	SplitDirection() int
-	SetRatio(float32)
+	SetRatio(float32, bool)
 }
 
 type Divider struct {
@@ -32,6 +32,7 @@ type Divider struct {
 	dragging       bool
 	startDragOff   *fyne.Position
 	currentDragPos fyne.Position
+	ratio          float32
 }
 
 func NewDivider(obj DividerObject) *Divider {
@@ -67,6 +68,7 @@ func (d *Divider) DragEnd() {
 	d.startDragOff = nil
 	d.dragging = false
 	d.Refresh()
+	d.obj.SetRatio(d.ratio, false)
 }
 
 func (d *Divider) Dragged(e *fyne.DragEvent) {
@@ -91,7 +93,8 @@ func (d *Divider) Dragged(e *fyne.DragEvent) {
 		ratio = y / (d.obj.Size().Height - DividerThickness(d))
 	}
 
-	d.obj.SetRatio(ratio)
+	d.ratio = ratio
+	d.obj.SetRatio(ratio, true)
 }
 
 func (d *Divider) MouseIn(event *desktop.MouseEvent) {
