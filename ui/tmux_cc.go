@@ -55,6 +55,9 @@ type TmuxSession struct {
 	response   []string
 	windows    map[int]*tmuxWindow
 	panes      map[int]*Pane
+
+	// The panes to draw again for characters ConPTY broke, see tmux_repair.go
+	repair tmuxRepair
 }
 
 func ActiveTmux() *TmuxSession {
@@ -97,6 +100,7 @@ func (s *TmuxSession) End() {
 	if tmuxActive == nil {
 		return
 	}
+	s.stopRepair()
 
 	for _, w := range s.windows {
 		fyne.Do(func() {
@@ -579,7 +583,11 @@ func (s *TmuxSession) notification(line string) {
 	case "%output":
 		pane, data, _ := strings.Cut(rest, " ")
 		if id, ok := tmuxID(pane, '%'); ok {
-			s.Output(id, decodeTmux(data))
+			out := decodeTmux(data)
+			if cutByConpty(out) {
+				s.damage(id)
+			}
+			s.Output(id, out)
 		}
 
 	// The window, its layout, then its visible layout and flags

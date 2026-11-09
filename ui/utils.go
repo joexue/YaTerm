@@ -95,6 +95,10 @@ func decodeTmux(s string) []byte {
 	out := make([]byte, 0, len(s))
 	for i := 0; i < len(s); i++ {
 		c := s[i]
+		if c < ' ' {
+			continue
+		}
+
 		if c != '\\' || i+1 >= len(s) {
 			out = append(out, c)
 			continue

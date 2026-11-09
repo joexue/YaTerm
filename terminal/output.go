@@ -97,12 +97,10 @@ func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 	t.stateMu.Lock()
 	defer t.stateMu.Unlock()
 
-	var data []byte
+	data := bytes[:num]
 	if len(t.leftOver) > 0 {
-		data = append(t.leftOver, bytes...)
+		data = append(t.leftOver, data...)
 		t.leftOver = nil
-	} else {
-		data = bytes[:num]
 	}
 
 	for len(data) > 0 {
@@ -114,13 +112,11 @@ func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 		}
 
 		r, size := utf8.DecodeRune(data)
-		// Not UTF-8, but is not splited, still show it as "�" let user know
-		if r == utf8.RuneError && size == 1 {
-			// This maybe part of UTF-8, the rest is comming from pty
-			if len(data) < utf8.UTFMax {
-				t.leftOver = append(t.leftOver, data...)
-				break
-			}
+		// The start of a character whose rest comes with the next output.
+		// Any other byte that is not UTF-8 is shown as "�" right away.
+		if r == utf8.RuneError && size == 1 && !utf8.FullRune(data) {
+			t.leftOver = append([]byte(nil), data...)
+			break
 		}
 
 		if isC1ControlCharacter(r) {
