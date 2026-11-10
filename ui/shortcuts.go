@@ -35,6 +35,11 @@ const (
 	actPaste      action = "paste"
 	actPaste2     action = "paste2"
 	actSearch     action = "search"
+
+	actDividerLeft  action = "dividerLeft"
+	actDividerRight action = "dividerRight"
+	actDividerUp    action = "dividerUp"
+	actDividerDown  action = "dividerDown"
 )
 
 // actions are all the actions, in the order the settings show them, with
@@ -50,6 +55,10 @@ var actions = []struct {
 	{actPaneLeft, "Left pane"},
 	{actPaneUp, "Upper pane"},
 	{actPaneDown, "Lower pane"},
+	{actDividerLeft, "Move divider left"},
+	{actDividerRight, "Move divider right"},
+	{actDividerUp, "Move divider up"},
+	{actDividerDown, "Move divider down"},
 	{actSplitRight, "Split right"},
 	{actSplitDown, "Split down"},
 	{actCopy, "Copy"},
@@ -87,6 +96,11 @@ var defaultBindings = map[action]keyBinding{
 	actPaste:      clipboardKey(fyne.KeyV),
 	actPaste2:     {fyne.KeyInsert, fyne.KeyModifierShift},
 	actSearch:     {fyne.KeyF, fyne.KeyModifierControl},
+
+	actDividerLeft:  {fyne.KeyLeft, fyne.KeyModifierControl | fyne.KeyModifierShift},
+	actDividerRight: {fyne.KeyRight, fyne.KeyModifierControl | fyne.KeyModifierShift},
+	actDividerUp:    {fyne.KeyUp, fyne.KeyModifierControl | fyne.KeyModifierShift},
+	actDividerDown:  {fyne.KeyDown, fyne.KeyModifierControl | fyne.KeyModifierShift},
 }
 
 // clipboardKey is the default key of copy (C) or paste (V): Ctrl+Shift, as
@@ -255,6 +269,14 @@ func (p *Pane) runAction(act action) {
 		p.focusNeighbor(0, -1)
 	case actPaneDown:
 		p.focusNeighbor(0, 1)
+	case actDividerLeft:
+		p.moveDivider(splitRight, -dividerStepCols)
+	case actDividerRight:
+		p.moveDivider(splitRight, dividerStepCols)
+	case actDividerUp:
+		p.moveDivider(splitDown, -dividerStepRows)
+	case actDividerDown:
+		p.moveDivider(splitDown, dividerStepRows)
 	case actSplitRight:
 		p.Split(splitRight, 0.5)
 	case actSplitDown:
@@ -349,6 +371,44 @@ func openNewTab() {
 	if it := tabControl.CreateTab(); it != nil {
 		tabControl.Append(it)
 	}
+}
+
+// How far the divider shortcuts move a divider: columns for one between panes
+// side by side, rows for one between panes one over the other
+const (
+	dividerStepCols = 8
+	dividerStepRows = 2
+)
+
+// moveDivider moves the divider of the nearest split around the pane that
+// splits in the direction (splitRight: a divider between panes side by side,
+// moved left or right; splitDown: up or down) by cells, negative to the left
+// or up. Each side keeps room for a few cells, as a split needs.
+func (p *Pane) moveDivider(direction, cells int) {
+	q := p.parent
+	for q != nil && q.split != direction {
+		q = q.parent
+	}
+	if q == nil {
+		return
+	}
+
+	cell, total := measureCell(), q.Size()
+	step, room := cell.Width, total.Width
+	if direction == splitDown {
+		step, room = cell.Height, total.Height
+	}
+	room -= SplitDefaultThickness
+	if room <= 0 {
+		return
+	}
+
+	least := (3*step + 2*panePadding) / room
+	if least >= 0.5 {
+		return // too small to move at all
+	}
+	ratio := q.ratio + float32(cells)*step/room
+	q.SetRatio(max(least, min(ratio, 1-least)), false)
 }
 
 // switchTab selects the tab by steps from the selected one, round the ends
