@@ -353,13 +353,22 @@ func (s *TmuxSession) syncPane(tp *Pane) {
 			captured = lines
 		}
 	})
-	s.sendCommand(fmt.Sprintf("display-message -p -t %%%d '#{cursor_x} #{cursor_y}'", tp.extId), func(lines []string, failed bool) {
+	// The cursor, and the mouse modes the program set, which the capture
+	// does not have, e.g. vim's "set mouse=a" in a session attached again
+	s.sendCommand(fmt.Sprintf("display-message -p -t %%%d '#{cursor_x} #{cursor_y} "+
+		"#{mouse_standard_flag} #{mouse_button_flag} #{mouse_all_flag} #{mouse_sgr_flag} #{mouse_utf8_flag}'",
+		tp.extId), func(lines []string, failed bool) {
 		if failed || captured == nil {
 			return
 		}
-		x, y := 0, 0
+		var f []string
 		if len(lines) > 0 {
-			fmt.Sscanf(lines[0], "%d %d", &x, &y)
+			f = strings.Fields(lines[0])
+		}
+		x, y := 0, 0
+		if len(f) >= 2 {
+			x, _ = strconv.Atoi(f[0])
+			y, _ = strconv.Atoi(f[1])
 		}
 
 		var b bytes.Buffer
@@ -371,8 +380,35 @@ func (s *TmuxSession) syncPane(tp *Pane) {
 			b.Write(decodeTmux(l))
 		}
 		fmt.Fprintf(&b, "\x1b[%d;%dH", y+1, x+1)
+		b.WriteString(mouseModes(f[min(2, len(f)):]))
 		tp.term.ProcessOutput(b.Bytes(), b.Len())
 	})
+}
+
+// mouseModes are the DECSETs of the mouse modes of a tmux pane, from its
+// flags "standard button all sgr utf8", each "1" when set. Each flag is its
+// own mode (mouse_any_flag only tells one of them is set). An older tmux
+// without the flags gives none, then no mode is set.
+func mouseModes(flags []string) string {
+	on := func(i int) bool { return i < len(flags) && flags[i] == "1" }
+
+	var b strings.Builder
+	// The tracking modes replace each other, the widest is the one in use
+	switch {
+	case on(2):
+		b.WriteString("\x1b[?1003h")
+	case on(1):
+		b.WriteString("\x1b[?1002h")
+	case on(0):
+		b.WriteString("\x1b[?1000h")
+	}
+	if on(3) {
+		b.WriteString("\x1b[?1006h")
+	}
+	if on(4) {
+		b.WriteString("\x1b[?1005h")
+	}
+	return b.String()
 }
 
 // output is what a program in a tmux pane wrote
