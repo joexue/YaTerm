@@ -57,6 +57,7 @@ func (t *Terminal) processRune(r rune) {
 		if r == '\\' {
 			t.processOsc(StringTerminator)
 		} else {
+			t.processOsc(StringTerminator)
 			t.state = stateESC
 			t.processEsc(r)
 		}
@@ -68,6 +69,7 @@ func (t *Terminal) processRune(r rune) {
 		if r == '\\' {
 			t.processApc(StringTerminator)
 		} else {
+			t.processApc(StringTerminator)
 			t.state = stateESC
 			t.processEsc(r)
 		}
@@ -84,6 +86,7 @@ func (t *Terminal) processRune(r rune) {
 		if r == '\\' {
 			t.processDcs(StringTerminator)
 		} else {
+			t.processDcs(StringTerminator)
 			t.state = stateESC
 			t.processEsc(r)
 		}

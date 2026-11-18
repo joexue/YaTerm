@@ -606,6 +606,11 @@ func (s *TmuxSession) DiscovePane(window int) {
 
 // notification handles a line that is not in a reply
 func (s *TmuxSession) notification(line string) {
+	if !strings.HasPrefix(line, "%") {
+		s.control.term.Print(line + "\n")
+		return
+	}
+
 	name, rest, _ := strings.Cut(line, " ")
 	switch name {
 	case "%session-changed":
