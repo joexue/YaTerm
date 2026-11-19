@@ -38,6 +38,12 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 // showMenu opens the pane's menu at pos, a position in the pane
 func (p *Pane) showMenu(pos fyne.Position) {
 	if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
+		// With auto copy the selection is in the clipboard already
+		copyItem := fyne.NewMenuItemWithIcon("Copy", theme.ContentCopyIcon(), func() {
+			p.copySelection()
+		})
+		copyItem.Disabled = autoCopy
+
 		pasteItem := fyne.NewMenuItemWithIcon("Paste", theme.ContentPasteIcon(), func() {
 			p.paste(fyne.CurrentApp().Clipboard())
 		})
@@ -60,7 +66,7 @@ func (p *Pane) showMenu(pos fyne.Position) {
 		})
 
 		showMarkDownItem := fyne.NewMenuItemWithIcon("Show as Markdown", theme.NewThemedResource(assert.MarkdownIconRes), func() {
-			NewMarkdownTab()
+			NewMarkdownTab(p.screen.SelectedText())
 		})
 
 		searchItem := fyne.NewMenuItemWithIcon("Search", theme.Icon(theme.IconNameSearch), func() {
@@ -73,7 +79,7 @@ func (p *Pane) showMenu(pos fyne.Position) {
 		if p.tmuxControl != nil {
 			quickCommandsItem.Disabled = true
 		}
-		menuItems := []*fyne.MenuItem{splitRightItem, splitDownItem, separatorItem, showMarkDownItem, separatorItem, pasteItem, searchItem, quickCommandsItem, separatorItem, closePaneItem, closeTabItem}
+		menuItems := []*fyne.MenuItem{splitRightItem, splitDownItem, separatorItem, showMarkDownItem, separatorItem, copyItem, pasteItem, separatorItem, searchItem, quickCommandsItem, separatorItem, closePaneItem, closeTabItem}
 		popUpMenu := widget.NewPopUpMenu(fyne.NewMenu("", menuItems...), c)
 		popUpMenu.ShowAtRelativePosition(pos, p)
 	}
@@ -129,7 +135,9 @@ func (p *Pane) MouseDown(ev *desktop.MouseEvent) {
 
 		if double {
 			p.screen.SelectWord(p.screenPos(ev.Position))
-			p.copySelection()
+			if autoCopy {
+				p.copySelection()
+			}
 			p.lastClick = time.Time{} // a third click starts again
 		} else {
 			p.screen.SelectStart(p.screenPos(ev.Position))
@@ -260,7 +268,9 @@ func (p *Pane) DragEnd() {
 
 	p.Focus()
 
-	p.copySelection()
+	if autoCopy {
+		p.copySelection()
+	}
 }
 
 // copySelection puts the selected text into the clipboard

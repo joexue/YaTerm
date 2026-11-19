@@ -30,15 +30,15 @@ func CloseTab(pane *Pane) {
 	tabControl.CloseTabByObj(pane)
 }
 
-func NewMarkdownTab() {
+func NewMarkdownTab(text string) {
 	markdownTabId++
 
 	defaultText := `
-# The content is empty
-You need to select text from terminal then show them
+# The selection is empty
+You need to select text from terminal then show it as markdown style
 `
-	content := fyne.CurrentApp().Clipboard().Content()
-	if len(content) == 0 {
+	content := text
+	if len(text) == 0 {
 		content = defaultText
 	}
 

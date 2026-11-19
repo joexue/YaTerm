@@ -28,6 +28,7 @@ const (
 	prefCursorShape = "cursorShape"
 	prefProgram     = "program"
 	prefRightClick  = "rightClick"
+	prefAutoCopy    = "autoCopy"
 )
 
 // The font sizes the setting offers
@@ -48,6 +49,7 @@ func LoadSettings(a fyne.App, th *yatheme.YatermTheme) {
 	bindings = loadBindings(a)
 	program = p.String(prefProgram)
 	rightClickPastes = p.String(prefRightClick) == "paste"
+	autoCopy = p.BoolWithFallback(prefAutoCopy, true)
 }
 
 // program is the command line new tabs and panes run, "" for the platform's
@@ -57,6 +59,10 @@ var program string
 // rightClickPastes swaps the mouse buttons: right click pastes and middle
 // click opens the menu, else (the default) the other way round
 var rightClickPastes bool
+
+// autoCopy copies the selection to the clipboard as it is made (the
+// default), else it is copied by the Copy of the menu or the shortcut
+var autoCopy = true
 
 // What a click does as the settings show it, right click is one, middle
 // click the other
@@ -73,6 +79,7 @@ type settings struct {
 	bindings    map[action]keyBinding
 	program     string
 	rightPaste  bool
+	autoCopy    bool
 }
 
 // cursorShapeNames are the cursor shapes as the settings show them
@@ -99,6 +106,7 @@ func ShowSettings(w fyne.Window) {
 		bindings:    copyBindings(bindings),
 		program:     program,
 		rightPaste:  rightClickPastes,
+		autoCopy:    autoCopy,
 	}
 
 	var d dialog.Dialog
@@ -172,7 +180,7 @@ func versionPage() fyne.CanvasObject {
 	)
 }
 
-// generalPage has the program new tabs and panes run
+// generalPage has the program new tabs and panes run and the auto copy
 func generalPage(s *settings) fyne.CanvasObject {
 	prog := widget.NewEntry()
 	prog.SetPlaceHolder(pty.DefaultProgram())
@@ -202,7 +210,15 @@ func generalPage(s *settings) fyne.CanvasObject {
 	tmuxHint.Wrapping = fyne.TextWrapWord
 	tmuxHint.Importance = widget.LowImportance
 
-	form := widget.NewForm(widget.NewFormItem("Default program", container.NewBorder(nil, nil, nil, reset, prog)))
+	copyCheck := widget.NewCheck("Copy the selection when it is made", func(on bool) {
+		s.autoCopy = on
+	})
+	copyCheck.SetChecked(s.autoCopy)
+
+	form := widget.NewForm(
+		widget.NewFormItem("Default program", container.NewBorder(nil, nil, nil, reset, prog)),
+		widget.NewFormItem("Auto copy", copyCheck),
+	)
 	page := container.NewVBox(form, hint, widget.NewSeparator(), tmuxHint)
 	if runtime.GOOS == "windows" {
 		page.Add(widget.NewSeparator())
@@ -570,6 +586,8 @@ func applySettings(s *settings, th *yatheme.YatermTheme) {
 	}
 	a.Preferences().SetString(prefRightClick, rightClick)
 	rightClickPastes = s.rightPaste
+	a.Preferences().SetBool(prefAutoCopy, s.autoCopy)
+	autoCopy = s.autoCopy
 	if s.bindings != nil {
 		bindings = copyBindings(s.bindings)
 		saveBindings(a, bindings)
