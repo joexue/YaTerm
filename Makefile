@@ -1,13 +1,28 @@
-.PHONY: all windows linux macos macos-sign darwin-image
+# Makefile for YaTerm
+#
+# Copyright 2026 Joe Xue (lgxue@hotmail.com)
+#
+# Builds the YaTerm packages with fyne-cross: make windows | linux | macos,
+# or all of them.
+#
+# Needs:
+#  - Docker, and the user in the docker group, so make runs without sudo:
+#        sudo usermod -aG docker $USER
+#  - fyne-cross (CROSS):  go install github.com/fyne-io/fyne-cross@latest
+#  - git, for the version and revision: the version is the latest tag
+#  - zip, for the Windows package
+#  - macos only: the macOS SDK (MACOS_SDK, 12 or later, see there), perl and
+#    rcodesign (RCODESIGN, of apple-codesign)
+#
+# The packages go to fyne-cross/dist as Yaterm-<os>-<arch>-<version>.
 
-CROSS = /home/joe/go/bin/fyne-cross
+CROSS      = ~/go/bin/fyne-cross
+APPID      = com.github.joexue.yaterm
+ICON       = assert/icons/yaterm.png
 
-# The version and revision the settings show, from git. They go into a Go
-# file made for the build and removed after it, not into -ldflags -X:
-# fyne-cross quotes an env value with "=", so fyne package does not find the
-# -ldflags in GOFLAGS, and its own -ldflags replace them.
 VERSION    = $(shell git describe --tags --abbrev=0 2>/dev/null)
 REVISION   = $(shell git rev-parse --short HEAD 2>/dev/null)
+
 STAMP_FILE = ui/zz_buildstamp.go
 STAMP      = printf 'package ui\n\n// Made by make for a build, see Makefile\n\nfunc init() { buildStamp = "%s,%s" }\n' "$(VERSION)" "$(REVISION)" > $(STAMP_FILE)
 
@@ -15,21 +30,35 @@ STAMP      = printf 'package ui\n\n// Made by make for a build, see Makefile\n\n
 # works or not
 stamped = $(STAMP) && { $(1); rc=$$?; rm -f $(STAMP_FILE); exit $$rc; }
 
+# The packages to release, named Yaterm-<os>-<arch>-<version>, next to the
+# folders fyne-cross makes in its dist
+DIST       = fyne-cross/dist
+package    = $(DIST)/Yaterm-$(1)-$(2)-$(VERSION)
+
+# The Windows package has the newer ConPTY next to yaterm.exe, for tmux -CC,
+# see pty/pty_windows.go. They are added to the zip of fyne-cross.
+WIN_ZIP    = $(call package,windows,x86_64).zip
+WIN_EXTRA  = assert/windows/conpty.dll assert/windows/OpenConsole.exe
+
+.PHONY: all windows linux macos macos-sign darwin-image
 all: windows macos linux
 
 windows:
-	$(call stamped,$(CROSS) windows -app-id com.github.joexue.yaterm -icon assert/icons/yaterm.png -output yaterm)
+	$(call stamped,$(CROSS) windows -app-id $(APPID) -icon $(ICON) -output yaterm)
+	cp $(DIST)/windows-amd64/yaterm.zip $(WIN_ZIP)
+	zip -q -j $(WIN_ZIP) $(WIN_EXTRA)
 
 linux:
-	$(call stamped,$(CROSS) linux -app-id com.github.joexue.yaterm -icon assert/icons/yaterm.png -output yaterm)
+	$(call stamped,$(CROSS) linux -app-id $(APPID) -icon $(ICON) -output yaterm)
+	cp $(DIST)/linux-amd64/yaterm.tar.xz $(call package,linux,x86_64).tar.xz
+
 # The macOS SDK must be 12 or later: Go 1.26 needs macOS 12, its crypto/x509
 # links SecTrustCopyCertificateChain, which older SDKs do not have
-MACOS_SDK = /home/joe/SDKs/MacOSX26.5.sdk
-
+MACOS_SDK = ~/SDKs/MacOSX26.5.sdk
 MACOS_MIN = 12.0
 
 macos: darwin-image
-	$(call stamped,$(CROSS) darwin -image $(DARWIN_IMAGE) -arch=arm64 --macosx-sdk-path $(MACOS_SDK) -macosx-version-min $(MACOS_MIN) -app-id com.github.joexue.yaterm -icon assert/icons/yaterm.png)
+	$(call stamped,$(CROSS) darwin -image $(DARWIN_IMAGE) -arch=arm64 --macosx-sdk-path $(MACOS_SDK) -macosx-version-min $(MACOS_MIN) -app-id $(APPID) -icon $(ICON))
 	$(MAKE) macos-sign
 
 # The app from fyne-cross only has the linker's ad-hoc signature on its
@@ -41,7 +70,7 @@ macos: darwin-image
 # copied first. The Info.plist gets the real minimum macOS, fyne-cross
 # leaves 10.11 there, it must change before signing as the signature
 # covers it.
-RCODESIGN    = /home/joe/go/bin/rcodesign
+RCODESIGN    = ~/go/bin/rcodesign
 MACOS_DIST   = fyne-cross/dist/darwin-arm64
 MACOS_SIGNED = fyne-cross/dist/darwin-arm64-signed
 
@@ -51,7 +80,7 @@ macos-sign:
 	cp -R $(MACOS_DIST)/YaTerm.app $(MACOS_SIGNED)/
 	perl -0pi -e 's#(<key>LSMinimumSystemVersion</key>\s*<string>)[^<]*#$${1}$(MACOS_MIN)#' $(MACOS_SIGNED)/YaTerm.app/Contents/Info.plist
 	$(RCODESIGN) sign $(MACOS_SIGNED)/YaTerm.app
-	tar -C $(MACOS_SIGNED) -czf $(MACOS_SIGNED)/YaTerm-macos-arm64.tar.gz YaTerm.app
+	tar -C $(MACOS_SIGNED) -czf $(call package,macos,arm64).tar.gz YaTerm.app
 
 # The darwin image of fyne-cross with the frameworks of the macOS SDK where
 # its linker looks for them. fyne-cross mounts the SDK at /sdk and links with
@@ -70,4 +99,3 @@ export DARWIN_DOCKERFILE
 
 darwin-image:
 	printf '%s\n' "$$DARWIN_DOCKERFILE" | docker build -t $(DARWIN_IMAGE) -
-

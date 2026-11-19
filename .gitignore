@@ -35,3 +35,5 @@ go.work.sum
 
 # Made by make for a build (version and revision), see Makefile
 ui/zz_buildstamp.go
+
+fyne-cross
