@@ -18,10 +18,10 @@ stamped = $(STAMP) && { $(1); rc=$$?; rm -f $(STAMP_FILE); exit $$rc; }
 all: windows macos linux
 
 windows:
-	$(call stamped,$(CROSS) windows -app-id com.github.joexue.yaterm -icon assert/Resource/icons/yaterm.png -output yaterm)
+	$(call stamped,$(CROSS) windows -app-id com.github.joexue.yaterm -icon assert/icons/yaterm.png -output yaterm)
 
 linux:
-	$(call stamped,$(CROSS) linux -app-id com.github.joexue.yaterm -icon assert/Resource/icons/yaterm.png -output yaterm)
+	$(call stamped,$(CROSS) linux -app-id com.github.joexue.yaterm -icon assert/icons/yaterm.png -output yaterm)
 # The macOS SDK must be 12 or later: Go 1.26 needs macOS 12, its crypto/x509
 # links SecTrustCopyCertificateChain, which older SDKs do not have
 MACOS_SDK = /home/joe/SDKs/MacOSX26.5.sdk
@@ -29,7 +29,7 @@ MACOS_SDK = /home/joe/SDKs/MacOSX26.5.sdk
 MACOS_MIN = 12.0
 
 macos: darwin-image
-	$(call stamped,$(CROSS) darwin -image $(DARWIN_IMAGE) -arch=arm64 --macosx-sdk-path $(MACOS_SDK) -macosx-version-min $(MACOS_MIN) -app-id com.github.joexue.yaterm -icon assert/Resource/icons/yaterm.png)
+	$(call stamped,$(CROSS) darwin -image $(DARWIN_IMAGE) -arch=arm64 --macosx-sdk-path $(MACOS_SDK) -macosx-version-min $(MACOS_MIN) -app-id com.github.joexue.yaterm -icon assert/icons/yaterm.png)
 	$(MAKE) macos-sign
 
 # The app from fyne-cross only has the linker's ad-hoc signature on its

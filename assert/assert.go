@@ -5,7 +5,7 @@ import (
 	"fyne.io/fyne/v2"
 )
 
-//go:embed Resource/icons/yaterm.png
+//go:embed icons/yaterm.png
 var yatermIcon []byte
 
 var YatermIconRes = &fyne.StaticResource{
@@ -13,7 +13,7 @@ var YatermIconRes = &fyne.StaticResource{
 	StaticContent: yatermIcon,
 }
 
-//go:embed Resource/icons/hsplit.svg
+//go:embed icons/hsplit.svg
 var hsplitIcon []byte
 
 var HSplitIconRes = &fyne.StaticResource{
@@ -21,7 +21,7 @@ var HSplitIconRes = &fyne.StaticResource{
 	StaticContent: hsplitIcon,
 }
 
-//go:embed Resource/icons/vsplit.svg
+//go:embed icons/vsplit.svg
 var vsplitIcon []byte
 
 var VSplitIconRes = &fyne.StaticResource{
@@ -29,7 +29,7 @@ var VSplitIconRes = &fyne.StaticResource{
 	StaticContent: vsplitIcon,
 }
 
-//go:embed Resource/icons/markdown_color.svg
+//go:embed icons/markdown_color.svg
 var markdownIconColor []byte
 
 var MarkdownIconColorRes = &fyne.StaticResource{
@@ -37,7 +37,7 @@ var MarkdownIconColorRes = &fyne.StaticResource{
 	StaticContent: markdownIconColor,
 }
 
-//go:embed Resource/icons/markdown.svg
+//go:embed icons/markdown.svg
 var markdownIcon []byte
 
 var MarkdownIconRes = &fyne.StaticResource{
@@ -45,7 +45,7 @@ var MarkdownIconRes = &fyne.StaticResource{
 	StaticContent: markdownIcon,
 }
 
-//go:embed Resource/icons/tmux.svg
+//go:embed icons/tmux.svg
 var tmuxIcon []byte
 
 var TmuxIconRes = &fyne.StaticResource{
@@ -74,7 +74,7 @@ var ResourceJetBrainsMonoItalicTtf = &fyne.StaticResource{
 	StaticContent: resourceJetBrainsMonoItalic,
 }
 
-//go:embed Resource/icons/command.svg
+//go:embed icons/command.svg
 var commandIcon []byte
 
 var CommandIconRes = &fyne.StaticResource{
