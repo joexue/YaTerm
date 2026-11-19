@@ -38,6 +38,10 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 // showMenu opens the pane's menu at pos, a position in the pane
 func (p *Pane) showMenu(pos fyne.Position) {
 	if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
+		pasteItem := fyne.NewMenuItemWithIcon("Paste", theme.ContentPasteIcon(), func() {
+			p.paste(fyne.CurrentApp().Clipboard())
+		})
+
 		splitRightItem := fyne.NewMenuItemWithIcon("Split Right", theme.NewThemedResource(assert.HSplitIconRes), func() {
 			p.Split(splitRight, 0.5)
 		})
@@ -69,7 +73,7 @@ func (p *Pane) showMenu(pos fyne.Position) {
 		if p.tmuxControl != nil {
 			quickCommandsItem.Disabled = true
 		}
-		menuItems := []*fyne.MenuItem{splitRightItem, splitDownItem, separatorItem, showMarkDownItem, separatorItem, searchItem, quickCommandsItem, separatorItem, closePaneItem, closeTabItem}
+		menuItems := []*fyne.MenuItem{splitRightItem, splitDownItem, separatorItem, showMarkDownItem, separatorItem, pasteItem, searchItem, quickCommandsItem, separatorItem, closePaneItem, closeTabItem}
 		popUpMenu := widget.NewPopUpMenu(fyne.NewMenu("", menuItems...), c)
 		popUpMenu.ShowAtRelativePosition(pos, p)
 	}
