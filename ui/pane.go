@@ -465,7 +465,12 @@ func (p *Pane) FocusGained() {
 	}
 
 	if p.parent != nil {
-		p.border.StrokeColor = theme.Color(theme.ColorNamePrimary)
+		if p.isTmux {
+			// The color theme is from TMUX icon
+			p.border.StrokeColor = color.RGBA{R: 0x1b, G: 0xb9, B: 0x1f, A: 0xff}
+		} else {
+			p.border.StrokeColor = theme.Color(theme.ColorNamePrimary)
+		}
 		p.border.Refresh()
 	}
 }
