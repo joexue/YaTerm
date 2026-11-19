@@ -53,9 +53,21 @@ macos-sign:
 	$(RCODESIGN) sign $(MACOS_SIGNED)/YaTerm.app
 	tar -C $(MACOS_SIGNED) -czf $(MACOS_SIGNED)/YaTerm-macos-arm64.tar.gz YaTerm.app
 
-# The darwin image of fyne-cross with the SDK frameworks where zig looks for
-# them, see build/darwin/Dockerfile
+# The darwin image of fyne-cross with the frameworks of the macOS SDK where
+# its linker looks for them. fyne-cross mounts the SDK at /sdk and links with
+# "zig cc --sysroot /sdk -F/System/Library/Frameworks", but zig does not apply
+# the sysroot to -F, so it looks in /System/Library/Frameworks of the
+# container and finds no framework ("unable to find framework 'Security'").
+# The link points there. The image has no /System, the rm is in case a later
+# one does. The Dockerfile comes on stdin, the build needs no context.
 DARWIN_IMAGE = yaterm/fyne-cross-darwin
+
+define DARWIN_DOCKERFILE
+FROM fyneio/fyne-cross-images:darwin
+RUN rm -rf /System/Library/Frameworks && mkdir -p /System/Library && ln -s /sdk/System/Library/Frameworks /System/Library/Frameworks
+endef
+export DARWIN_DOCKERFILE
+
 darwin-image:
-	docker build -t $(DARWIN_IMAGE) build/darwin
+	printf '%s\n' "$$DARWIN_DOCKERFILE" | docker build -t $(DARWIN_IMAGE) -
 
