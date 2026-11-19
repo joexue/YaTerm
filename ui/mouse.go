@@ -39,7 +39,11 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 func (p *Pane) showMenu(pos fyne.Position) {
 	if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
 		// With auto copy the selection is in the clipboard already
-		copyItem := fyne.NewMenuItemWithIcon("Copy", theme.ContentCopyIcon(), func() {
+		copyLabel := "Copy"
+		if autoCopy {
+			copyLabel = "Copy (auto copied)"
+		}
+		copyItem := fyne.NewMenuItemWithIcon(copyLabel, theme.ContentCopyIcon(), func() {
 			p.copySelection()
 		})
 		copyItem.Disabled = autoCopy
