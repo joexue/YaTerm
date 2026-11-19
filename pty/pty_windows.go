@@ -289,3 +289,67 @@ func (p *Pty) Close() {
 	// which may wait for this (UI) thread
 	go p.closePty()
 }
+
+/*
+ * ================================
+ *  ConPTY parses the output of the programs in it too. A program that ends
+ *  inside a DCS, e.g. ssh cut off in tmux control mode ("ESC P 1000p" with
+ *  no ST), leaves its parser in that string: what the shell writes next, its
+ *  prompt, is taken as part of it. The prompt is passed on to YaTerm but
+ *  ConPTY's cursor does not move, so the shell (PSReadLine) draws what is
+ *  typed over the prompt. CloseString ends that string with an ST written
+ *  to the console of the shell, as a program in it would.
+ * ================================
+ */
+
+var (
+	kernel32          = windows.NewLazySystemDLL("kernel32.dll")
+	procAttachConsole = kernel32.NewProc("AttachConsole")
+	procFreeConsole   = kernel32.NewProc("FreeConsole")
+	procGetConsoleWnd = kernel32.NewProc("GetConsoleWindow")
+)
+
+// consoleMu: a process has one console at a time, the panes take turns
+var consoleMu sync.Mutex
+
+// CloseString writes an ST ("ESC \") to the pseudo console, see above. Not
+// with a console of YaTerm's own (a console build), it would be lost.
+func (p *Pty) CloseString() {
+	p.mu.Lock()
+	process := p.process
+	p.mu.Unlock()
+	if process == nil {
+		return
+	}
+
+	consoleMu.Lock()
+	defer consoleMu.Unlock()
+
+	if hwnd, _, _ := procGetConsoleWnd.Call(); hwnd != 0 {
+		return
+	}
+	if r, _, _ := procAttachConsole.Call(uintptr(process.Pid)); r == 0 {
+		return // the shell is gone
+	}
+	defer func() { _, _, _ = procFreeConsole.Call() }()
+
+	name, _ := windows.UTF16PtrFromString("CONOUT$")
+	h, err := windows.CreateFile(name, windows.GENERIC_READ|windows.GENERIC_WRITE,
+		windows.FILE_SHARE_READ|windows.FILE_SHARE_WRITE, nil, windows.OPEN_EXISTING, 0, 0)
+	if err != nil {
+		return
+	}
+	defer windows.CloseHandle(h)
+
+	// The ST only goes to the parser with VT processing on, the mode is the
+	// shell's, it gets it back
+	var mode uint32
+	if err := windows.GetConsoleMode(h, &mode); err != nil {
+		return
+	}
+	_ = windows.SetConsoleMode(h, mode|windows.ENABLE_PROCESSED_OUTPUT|windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING)
+	st, _ := windows.UTF16FromString("\x1b\\")
+	var written uint32
+	_ = windows.WriteConsole(h, &st[0], uint32(len(st)-1), &written, nil)
+	_ = windows.SetConsoleMode(h, mode)
+}

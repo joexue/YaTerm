@@ -134,7 +134,7 @@ type Terminal struct {
 
 	// Replies to the program, written in order by one goroutine, see reply
 	replyMu  sync.Mutex
-	replies  []string
+	replies  []func()
 	replying bool
 }
 

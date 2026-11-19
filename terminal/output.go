@@ -86,6 +86,9 @@ func (t *Terminal) processRune(r rune) {
 		if r == '\\' {
 			t.processDcs(StringTerminator)
 		} else {
+			if t.tmux != nil {
+				t.closePtyString()
+			}
 			t.processDcs(StringTerminator)
 			t.state = stateESC
 			t.processEsc(r)

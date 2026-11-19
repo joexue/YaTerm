@@ -94,9 +94,15 @@ func (t *Terminal) reply(s string) {
 	if s == "" {
 		return
 	}
+	t.inOrder(func() { _, _ = t.Write([]byte(s)) })
+}
+
+// inOrder runs f on the goroutine of the replies, after the replies and
+// before the next ones
+func (t *Terminal) inOrder(f func()) {
 	t.replyMu.Lock()
 	defer t.replyMu.Unlock()
-	t.replies = append(t.replies, s)
+	t.replies = append(t.replies, f)
 	if t.replying {
 		return
 	}
@@ -109,12 +115,29 @@ func (t *Terminal) reply(s string) {
 				t.replyMu.Unlock()
 				return
 			}
-			s := t.replies[0]
+			f := t.replies[0]
 			t.replies = t.replies[1:]
 			t.replyMu.Unlock()
-			_, _ = t.Write([]byte(s))
+			f()
 		}
 	}()
+}
+
+// stringCloser is a pty that parses the output itself and can be left in a
+// string (DCS) by a program that ended in it: ConPTY on Windows
+type stringCloser interface {
+	CloseString()
+}
+
+// closePtyString ends the string the pty may be left in, see stringCloser.
+// Called when the tmux control mode was cut off by other output, e.g. the
+// shell after ssh went away: tmux never sent its ST. In the order of the
+// replies, so ConPTY has it before the answer to the cursor position it
+// asks for next, before the shell writes the prompt.
+func (t *Terminal) closePtyString() {
+	if c, ok := t.pty.(stringCloser); ok {
+		t.inOrder(c.CloseString)
+	}
 }
 
 // sgrString is the SGR parameters that set the current colors and attributes
