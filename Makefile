@@ -1,6 +1,6 @@
 # Makefile for YaTerm
 #
-# Copyright 2026 Joe Xue (lgxue@hotmail.com)
+# Copyright (c) 2026 Joe Xue (lgxue@hotmail.com)
 #
 # Builds the YaTerm packages with fyne-cross: make windows | linux | macos,
 # or all of them.
