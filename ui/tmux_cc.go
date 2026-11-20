@@ -606,6 +606,8 @@ func (s *TmuxSession) DiscovePane(window int) {
 
 // notification handles a line that is not in a reply
 func (s *TmuxSession) notification(line string) {
+	// Leaking message, e.g. ssh connection closed by peer, the tmux control
+	// mode is not aware yet now.
 	if !strings.HasPrefix(line, "%") {
 		s.control.term.Print(line + "\n")
 		return

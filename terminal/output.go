@@ -86,6 +86,9 @@ func (t *Terminal) processRune(r rune) {
 		if r == '\\' {
 			t.processDcs(StringTerminator)
 		} else {
+			// If ssh connection is closed by peer, Conpty stucks in DCS state.
+			// Need to give it extra instruction to restore it back. Otherwise
+			// the cursor will not right (Conpty has its own state machine).
 			if t.tmux != nil {
 				t.closePtyString()
 			}
