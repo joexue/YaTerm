@@ -29,5 +29,6 @@ func main() {
 	t := ui.NewTabControl(a, w)
 
 	w.SetContent(t)
+	ui.KeepSizeWhenMinimized(w)
 	w.ShowAndRun()
 }
