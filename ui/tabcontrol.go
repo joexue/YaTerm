@@ -58,7 +58,7 @@ You need to select text from terminal then show it as markdown style
 func NewTab() *container.TabItem {
 	tabId++
 	pane := NewPane(nil, nil, tabId, true)
-	tab := container.NewTabItem(fmt.Sprintf("Tab %d", tabId), pane)
+	tab := container.NewTabItemWithIcon(fmt.Sprintf("Tab %d", tabId), assert.LocalIconRes, pane)
 
 	// The title the program sets (OSC 0/2) replaces "Tab n"
 	pane.OnTitle = func(title string) {

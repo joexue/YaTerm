@@ -48,6 +48,11 @@ var (
 	panePadding     = (paneBorderWidth * 3)
 )
 
+var (
+	tmuxColor  = color.RGBA{R: 0x1b, G: 0xb9, B: 0x1f, A: 0xff}
+	localColor = color.RGBA{R: 0x02, G: 0x77, B: 0xBC, A: 0xff}
+)
+
 type Pane struct {
 	widget.BaseWidget
 
@@ -467,9 +472,9 @@ func (p *Pane) FocusGained() {
 	if p.parent != nil {
 		if p.isTmux {
 			// The color theme is from TMUX icon
-			p.border.StrokeColor = color.RGBA{R: 0x1b, G: 0xb9, B: 0x1f, A: 0xff}
+			p.border.StrokeColor = tmuxColor
 		} else {
-			p.border.StrokeColor = theme.Color(theme.ColorNamePrimary)
+			p.border.StrokeColor = localColor
 		}
 		p.border.Refresh()
 	}

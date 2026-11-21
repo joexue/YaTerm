@@ -68,6 +68,13 @@ var TmuxIconRes = &fyne.StaticResource{
 	StaticContent: tmuxIcon,
 }
 
+//go:embed icons/local.svg
+var localIcon []byte
+var LocalIconRes = &fyne.StaticResource{
+	StaticName:    "local.svg",
+	StaticContent: localIcon,
+}
+
 //go:embed icons/command.svg
 var commandIcon []byte
 var CommandIconRes = &fyne.StaticResource{
