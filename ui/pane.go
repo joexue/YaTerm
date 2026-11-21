@@ -206,7 +206,8 @@ func (p *Pane) Take(sub *Pane) {
 	p.first = sub.first
 	p.second = sub.second
 	p.ratio = sub.ratio
-	p.divider = sub.divider
+	// The divider of sub would still set sub's ratio, which is out of the tree
+	p.divider = NewDivider(p)
 	if p.split == splitNone {
 		p.term = sub.term
 		p.screen = sub.screen
@@ -301,7 +302,17 @@ func (p *Pane) Close() {
 	quit.TearDown()
 
 	pa.Refresh()
-	pa.Focus()
+	// stay may be split: only a pane with a screen takes the focus
+	pa.firstLeaf().Focus()
+}
+
+// firstLeaf is the first pane in p that has a terminal, p itself if it is not
+// split
+func (p *Pane) firstLeaf() *Pane {
+	for p.split != splitNone {
+		p = p.first
+	}
+	return p
 }
 
 func (p *Pane) Split(direction int, ratio float32) {
