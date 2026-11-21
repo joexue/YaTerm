@@ -23,12 +23,22 @@ func (t *Terminal) indexedColor(i int) color.Color {
 			}
 			return uint8(55 + v*40)
 		}
-		return color.RGBA{R: level(i / 36), G: level(i / 6 % 6), B: level(i % 6), A: 0xff}
+		return color.RGBA{
+			R: level(i / 36),
+			G: level(i / 6 % 6),
+			B: level(i % 6),
+			A: 0xff,
+		}
 
 	// 24 grayscale steps
 	default:
 		g := uint8(8 + (i-232)*10)
-		return color.RGBA{R: g, G: g, B: g, A: 0xff}
+		return color.RGBA{
+			R: g,
+			G: g,
+			B: g,
+			A: 0xff,
+		}
 	}
 }
 
@@ -67,7 +77,12 @@ func (t *Terminal) handleExtendedColor(mode int, args []string, colon bool) int 
 		if len(rgb) < 3 {
 			return len(args)
 		}
-		c = color.RGBA{R: clampByte(atoi(rgb[0])), G: clampByte(atoi(rgb[1])), B: clampByte(atoi(rgb[2])), A: 0xff}
+		c = color.RGBA{
+			R: clampByte(atoi(rgb[0])),
+			G: clampByte(atoi(rgb[1])),
+			B: clampByte(atoi(rgb[2])),
+			A: 0xff,
+		}
 		used = 4
 
 	default:

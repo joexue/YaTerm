@@ -666,13 +666,6 @@ type YatermTheme struct {
 	cursorShape CursorShape
 }
 
-// isDark tells if a background is dark, by its luminance
-func isDark(c color.Color) bool {
-	r, g, b, _ := c.RGBA()
-	// Rec. 709 luma, on the 16 bit channels
-	return 0.2126*float64(r)+0.7152*float64(g)+0.0722*float64(b) < 0.5*0xffff
-}
-
 // Color is the color of the scheme, else the one of the default theme
 func (t *YatermTheme) Color(name fyne.ThemeColorName, _ fyne.ThemeVariant) color.Color {
 	if c, ok := t.scheme.Colors[name]; ok {
@@ -721,12 +714,19 @@ func (t *YatermTheme) SetScheme(name string) bool {
 		return false
 	}
 
+	isDark := func(c color.Color) bool {
+		r, g, b, _ := c.RGBA()
+		// Rec. 709 luma, on the 16 bit channels
+		return 0.2126*float64(r)+0.7152*float64(g)+0.0722*float64(b) < 0.5*0xffff
+	}
+
 	t.scheme = s
 
 	t.variant = theme.VariantDark
 	if !isDark(s.Colors[ColorBackground]) {
 		t.variant = theme.VariantLight
 	}
+
 	return true
 }
 

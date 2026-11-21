@@ -157,11 +157,15 @@ func (s *screen) nearestMatch(up bool) int {
 	top := s.histTotal - s.offset
 	if up {
 		bottom := top + s.row - 1
-		i := sort.Search(n, func(i int) bool { return s.find.matches[i].start.line > bottom })
+		i := sort.Search(n, func(i int) bool {
+			return s.find.matches[i].start.line > bottom
+		})
 		return (i - 1 + n) % n
 	}
 
-	i := sort.Search(n, func(i int) bool { return s.find.matches[i].start.line >= top })
+	i := sort.Search(n, func(i int) bool {
+		return s.find.matches[i].start.line >= top
+	})
 	return i % n
 }
 
@@ -187,7 +191,9 @@ func (s *screen) revealMatch() {
 // Called with mu held.
 func (s *screen) markMatches(buf []cell, abs int) {
 	ms := s.find.matches
-	i := sort.Search(len(ms), func(i int) bool { return ms[i].end.line >= abs })
+	i := sort.Search(len(ms), func(i int) bool {
+		return ms[i].end.line >= abs
+	})
 
 	var all, cur, curFg color.Color
 	for ; i < len(ms) && ms[i].start.line <= abs; i++ {
@@ -221,7 +227,9 @@ func (s *screen) markMatches(buf []cell, abs int) {
 // hasMatches tells if line abs has a match. Called with mu held.
 func (s *screen) hasMatches(abs int) bool {
 	ms := s.find.matches
-	i := sort.Search(len(ms), func(i int) bool { return ms[i].end.line >= abs })
+	i := sort.Search(len(ms), func(i int) bool {
+		return ms[i].end.line >= abs
+	})
 	return i < len(ms) && ms[i].start.line <= abs
 }
 

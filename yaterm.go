@@ -8,9 +8,6 @@ import (
 	"yaterm/ui"
 )
 
-// appID names YaTerm to Fyne and the system, e.g. its settings are kept in
-// a folder of that name. Dots, not slashes: it is a folder name, a macOS
-// bundle identifier and a Wayland app ID too.
 const appID = "com.github.joexue.yaterm"
 
 func main() {
