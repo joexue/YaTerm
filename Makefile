@@ -11,6 +11,8 @@
 #  - fyne-cross (CROSS):  go install github.com/fyne-io/fyne-cross@latest
 #  - git, for the version and revision: the version is the latest tag
 #  - zip, for the Windows package
+#  - msix only: makeappx (MAKEAPPX) and the identity of Partner Center, see
+#    there
 #  - macos only: the macOS SDK (MACOS_SDK, 12 or later, see there), perl and
 #    rcodesign (RCODESIGN, of apple-codesign)
 #
@@ -99,3 +101,31 @@ export DARWIN_DOCKERFILE
 
 darwin-image:
 	printf '%s\n' "$$DARWIN_DOCKERFILE" | docker build -t $(DARWIN_IMAGE) -
+
+# The MSIX package for the Microsoft Store: the Windows build with the newer
+# ConPTY, the logos and assert/msix/AppxManifest.xml. It is not signed, the
+# Store signs it. The identity is the one Partner Center shows under Product
+# identity, the version the latest tag with a 0 revision (the Store needs it).
+# makeappx is of the NuGet package Microsoft.Windows.SDK.BuildTools, it runs
+# from the Windows drive, so it gets Windows paths (wslpath -w).
+MAKEAPPX                    = /mnt/c/Users/lgxue/tools/winsdk-buildtools/makeappx.exe
+MSIX_IDENTITY_NAME          = yaterm
+MSIX_PUBLISHER              = CN=Joe Xue, O=Joe Xue, C=CA
+MSIX_PUBLISHER_DISPLAY_NAME = Joe Xue
+MSIX_DIR                    = fyne-cross/msix
+MSIX                        = $(call package,windows,x86_64).msix
+
+msix: windows
+	@test -n "$(MSIX_IDENTITY_NAME)" -a -n "$(MSIX_PUBLISHER)" -a -n "$(MSIX_PUBLISHER_DISPLAY_NAME)" || \
+		{ echo "Set MSIX_IDENTITY_NAME, MSIX_PUBLISHER and MSIX_PUBLISHER_DISPLAY_NAME from Partner Center"; exit 1; }
+	rm -rf $(MSIX_DIR) $(MSIX)
+	mkdir -p $(MSIX_DIR)/Assets
+	unzip -q $(DIST)/windows-amd64/yaterm.zip -d $(MSIX_DIR)
+	cp $(WIN_EXTRA) $(MSIX_DIR)/
+	cp assert/msix/*.png $(MSIX_DIR)/Assets/
+	sed -e 's|@IDENTITY_NAME@|$(MSIX_IDENTITY_NAME)|' \
+	    -e 's|@PUBLISHER@|$(MSIX_PUBLISHER)|' \
+	    -e 's|@PUBLISHER_DISPLAY_NAME@|$(MSIX_PUBLISHER_DISPLAY_NAME)|' \
+	    -e 's|@VERSION@|$(VERSION).0|' \
+	    assert/msix/AppxManifest.xml > $(MSIX_DIR)/AppxManifest.xml
+	$(MAKEAPPX) pack /o /d "$$(wslpath -w $(MSIX_DIR))" /p "$$(wslpath -w $(DIST))\$(notdir $(MSIX))"
