@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"yaterm/assert"
 )
 
 // closeIcon is the small "x" glyph embedded inside a tabButton. It only
@@ -264,13 +265,27 @@ func (t *Tabs) Refresh() {
 		t.tabBarBg.Refresh()
 	}
 
+	// The icon of a local tab only tells it from the tmux tabs, it is shown
+	// while there are some
+	hasTmux := false
+	for _, item := range t.Items {
+		if item.Icon == assert.TmuxIconRes {
+			hasTmux = true
+			break
+		}
+	}
+
 	// 1. Build and render the existing document tabs
 	for i, item := range t.Items {
 		idx := i
 		itm := item
 		selected := idx == t.SelectedIndex
 
-		tab := newTabButton(itm.Text, itm.Icon, selected, func() { t.Select(idx) }, func() { t.CloseTab(itm) })
+		icon := itm.Icon
+		if icon == assert.LocalIconRes && !hasTmux {
+			icon = nil
+		}
+		tab := newTabButton(itm.Text, icon, selected, func() { t.Select(idx) }, func() { t.CloseTab(itm) })
 		t.tabBar.Add(tab)
 
 		if selected {
