@@ -26,7 +26,7 @@ func main() {
 
 	w.Resize(fyne.NewSize(800, 600))
 
-	t := ui.NewTabControl(a, w)
+	t := ui.NewTabControl(w)
 
 	w.SetContent(t)
 	ui.KeepSizeWhenMinimized(w)

@@ -14,7 +14,6 @@ import (
 
 var (
 	win fyne.Window
-	app fyne.App
 
 	tabControl *Tabs
 
@@ -77,9 +76,8 @@ func NewTab() *container.TabItem {
 }
 
 // NewTabControl makes the tab bar of window w, with a first tab
-func NewTabControl(a fyne.App, w fyne.Window) fyne.CanvasObject {
+func NewTabControl(w fyne.Window) fyne.CanvasObject {
 	win = w
-	app = a
 
 	t := NewTab()
 	tabControl = NewTabs(t)
