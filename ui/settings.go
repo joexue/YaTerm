@@ -89,10 +89,10 @@ var cursorShapeNames = map[yatheme.CursorShape]string{
 	yatheme.CursorUnderline: "Underline",
 }
 
-// ShowSettings opens the settings dialog: the kinds of settings in tabs on
+// showSettings opens the settings dialog: the kinds of settings in tabs on
 // the left, like in Windows Terminal. Save applies them to all panes and
 // keeps them, Cancel drops them.
-func ShowSettings(w fyne.Window) {
+func showSettings(w fyne.Window) {
 	th := currentTheme()
 	if th == nil {
 		dialog.ShowInformation("Settings", "The settings need the YaTerm theme.", w)
@@ -604,9 +604,9 @@ func applySettings(s *settings, th *yatheme.YatermTheme) {
 	if tabControl == nil {
 		return
 	}
-	for _, tab := range tabControl.Items {
-		if p, ok := tab.Content.(*Pane); ok {
-			p.ApplyTheme(th)
+	for _, tab := range tabControl.items {
+		if p, ok := tab.Content.(*pane); ok {
+			p.applyTheme(th)
 		}
 	}
 }

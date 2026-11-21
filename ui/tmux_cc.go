@@ -33,15 +33,15 @@ import (
 // the control pane, used on the UI thread.
 var (
 	tmuxMu     sync.Mutex
-	tmuxActive *TmuxSession
+	tmuxActive *tmuxSession
 )
 
-// TmuxSession is a tmux control mode session
-type TmuxSession struct {
+// tmuxSession is a tmux control mode session
+type tmuxSession struct {
 	sessionID int
 
 	// the pane tmux -CC runs in
-	control *Pane
+	control *pane
 
 	// The callbacks of the commands sent, in order, each gets the lines
 	// between "%begin" and "%end" (or "%error"). mu also keeps the order of
@@ -54,14 +54,14 @@ type TmuxSession struct {
 	inResponse bool
 	response   []string
 	windows    map[int]*tmuxWindow
-	panes      map[int]*Pane
+	panes      map[int]*pane
 
 	// The panes to draw again for characters ConPTY broke, see tmux_repair.go
 	repair tmuxRepair
 }
 
-// ActiveTmux is the tmux control mode session in use, nil when none
-func ActiveTmux() *TmuxSession {
+// activeTmux is the tmux control mode session in use, nil when none
+func activeTmux() *tmuxSession {
 	tmuxMu.Lock()
 	defer tmuxMu.Unlock()
 	return tmuxActive
@@ -71,12 +71,12 @@ type tmuxWindow struct {
 	id       int
 	title    string
 	tab      *container.TabItem
-	root     *Pane
+	root     *pane
 	checksum string // of the layout shown, the same one again is ignored
 }
 
-// Attach is implicitly called when tmux cc starts, see StartTmux()
-func (s *TmuxSession) Attach(lines []string, failed bool) {
+// attach is implicitly called when tmux cc starts, see startTmux()
+func (s *tmuxSession) attach(lines []string, failed bool) {
 	if failed {
 		s.control.term.Print(strings.Join(lines, "\n") + "\n")
 		return
@@ -86,16 +86,16 @@ func (s *TmuxSession) Attach(lines []string, failed bool) {
 	s.control.term.Print("Tmux control mode, press q to detach\n")
 }
 
-// Detach ends the session, called when the user presses 'q' in the control
+// detach ends the session, called when the user presses 'q' in the control
 // pane
-func (s *TmuxSession) Detach() {
+func (s *tmuxSession) detach() {
 	s.sendCommand("detach", nil)
 }
 
-// End is the end of the session: its tabs close, the control pane is a
+// end is the end of the session: its tabs close, the control pane is a
 // terminal again. It comes by %exit and by the end of the control mode in
 // the terminal (TmuxEnd), the second time does nothing.
-func (s *TmuxSession) End() {
+func (s *tmuxSession) end() {
 	tmuxMu.Lock()
 	defer tmuxMu.Unlock()
 
@@ -106,7 +106,7 @@ func (s *TmuxSession) End() {
 
 	for _, w := range s.windows {
 		fyne.Do(func() {
-			tabControl.Remove(w.tab)
+			tabControl.remove(w.tab)
 		})
 	}
 
@@ -114,18 +114,18 @@ func (s *TmuxSession) End() {
 	tmuxActive = nil
 }
 
-// SendClientSize tells tmux the size of the tab area in cells, the size of
+// sendClientSize tells tmux the size of the tab area in cells, the size of
 // every tmux window
-func (s *TmuxSession) SendClientSize(row, col int) {
+func (s *tmuxSession) sendClientSize(row, col int) {
 	s.sendCommand(fmt.Sprintf("refresh-client -C %dx%d", col, row), nil)
 }
 
-// MoveTmuxControl moves the session to the pane the control terminal moved
+// moveTmuxControl moves the session to the pane the control terminal moved
 // to: a split moves it to the first pane, a close of the pane next to it to
 // the parent. Else q would go to tmux as a key, and the commands to a pane
 // with no terminal.
-func MoveTmuxControl(from, to *Pane) {
-	s := ActiveTmux()
+func moveTmuxControl(from, to *pane) {
+	s := activeTmux()
 	if s == nil || s.control != from || from == to {
 		return
 	}
@@ -135,7 +135,7 @@ func MoveTmuxControl(from, to *Pane) {
 
 // windowFromLine makes the tab of a window from a line of
 // "#{window_id} #{window_active} #{window_layout} #{window_name}"
-func (s *TmuxSession) windowFromLine(line string) (*container.TabItem, bool, int) {
+func (s *tmuxSession) windowFromLine(line string) (*container.TabItem, bool, int) {
 	f := strings.SplitN(line, " ", 4)
 	if len(f) < 3 {
 		return nil, false, 0
@@ -151,8 +151,8 @@ func (s *TmuxSession) windowFromLine(line string) (*container.TabItem, bool, int
 	return s.createWindow(id, name, f[2]), f[1] == "1", id
 }
 
-// WindowAdded asks for the layout of a new window, tmux does not send it
-func (s *TmuxSession) WindowAdded(id int) {
+// windowAdded asks for the layout of a new window, tmux does not send it
+func (s *tmuxSession) windowAdded(id int) {
 	if s.windows[id] != nil {
 		return
 	}
@@ -160,7 +160,7 @@ func (s *TmuxSession) WindowAdded(id int) {
 		func(lines []string, failed bool) {
 			if !failed && len(lines) > 0 {
 				if tab, _, _ := s.windowFromLine(lines[0]); tab != nil {
-					s.SelectTabItem(tab)
+					s.selectTabItem(tab)
 				}
 			}
 		})
@@ -168,7 +168,7 @@ func (s *TmuxSession) WindowAdded(id int) {
 
 // createWindow makes the tab of a window, nil if it is there or the layout
 // can not be read
-func (s *TmuxSession) createWindow(id int, name, layout string) *container.TabItem {
+func (s *tmuxSession) createWindow(id int, name, layout string) *container.TabItem {
 	if s.windows[id] != nil {
 		return nil
 	}
@@ -187,16 +187,16 @@ func (s *TmuxSession) createWindow(id int, name, layout string) *container.TabIt
 	}
 	s.windows[id] = w
 	fyne.Do(func() {
-		tabControl.Append(w.tab)
+		tabControl.append(w.tab)
 	})
 	return w.tab
 }
 
-// LayoutChanged shows the new layout of a window. The same one again (by its
+// layoutChanged shows the new layout of a window. The same one again (by its
 // checksum) is ignored. New sizes only, e.g. a pane resized in tmux or a new
 // client size, go to the panes there are. Else, e.g. after a split or a pane
 // that ended, the panes are made again, the terminals stay.
-func (s *TmuxSession) LayoutChanged(window int, layout string) {
+func (s *tmuxSession) layoutChanged(window int, layout string) {
 	w := s.windows[window]
 	if w == nil {
 		return // not shown yet, windowAdded makes it
@@ -234,12 +234,12 @@ func (s *TmuxSession) LayoutChanged(window int, layout string) {
 		w.tab.Content = root
 		tabControl.Refresh()
 
-		s.DiscovePane(window)
+		s.discovePane(window)
 	})
 }
 
 // parseLayout reads a layout, nil when it can not
-func (s *TmuxSession) parseLayout(layout string) *tmuxLayout {
+func (s *tmuxSession) parseLayout(layout string) *tmuxLayout {
 	node, err := parseTmuxLayout(layout)
 	if err != nil {
 		fyne.LogError("tmux: can not read the layout "+layout, err)
@@ -250,7 +250,7 @@ func (s *TmuxSession) parseLayout(layout string) *tmuxLayout {
 
 // buildWindow makes the pane tree of a window from its layout, the panes not
 // in it any more are gone
-func (s *TmuxSession) buildWindow(window int, node *tmuxLayout) *Pane {
+func (s *tmuxSession) buildWindow(window int, node *tmuxLayout) *pane {
 	used := map[int]bool{}
 	root := s.buildNode(node, nil, window, used)
 	for id, tp := range s.panes {
@@ -259,13 +259,13 @@ func (s *TmuxSession) buildWindow(window int, node *tmuxLayout) *Pane {
 		}
 	}
 
-	root.lastFocus = root.Leaves()[0]
+	root.lastFocus = root.leaves()[0]
 	return root
 }
 
 // buildNode makes the pane of a layout node. tmux splits a cell in any
 // number of parts, a pane in two, so more parts are split one by one.
-func (s *TmuxSession) buildNode(n *tmuxLayout, parent *Pane, window int, used map[int]bool) *Pane {
+func (s *tmuxSession) buildNode(n *tmuxLayout, parent *pane, window int, used map[int]bool) *pane {
 	if n.kind == 0 {
 		return s.leaf(n, parent, window, used)
 	}
@@ -274,7 +274,7 @@ func (s *TmuxSession) buildNode(n *tmuxLayout, parent *Pane, window int, used ma
 	}
 
 	direction, first, rest, ratio := n.split()
-	p := NewSplitPane(parent, direction, window, ratio)
+	p := newSplitPane(parent, direction, window, ratio)
 	p.first = s.buildNode(first, p, window, used)
 	p.second = s.buildNode(rest, p, window, used)
 	return p
@@ -283,7 +283,7 @@ func (s *TmuxSession) buildNode(n *tmuxLayout, parent *Pane, window int, used ma
 // resizeNode gives the panes of a tree the sizes of a layout of the same
 // shape: its ratios to the splits, its sizes to the terminals. False when the
 // shape is another, e.g. a pane was added, then the tree is made again.
-func (s *TmuxSession) resizeNode(p *Pane, n *tmuxLayout) bool {
+func (s *tmuxSession) resizeNode(p *pane, n *tmuxLayout) bool {
 	if n.kind == 0 {
 		if p.split != splitNone || !p.isTmux || p.extID != n.pane {
 			return false
@@ -309,18 +309,18 @@ func (s *TmuxSession) resizeNode(p *Pane, n *tmuxLayout) bool {
 
 // leaf makes the pane of a tmux pane, with its terminal at the size tmux
 // gives it
-func (s *TmuxSession) leaf(n *tmuxLayout, parent *Pane, window int, used map[int]bool) *Pane {
+func (s *tmuxSession) leaf(n *tmuxLayout, parent *pane, window int, used map[int]bool) *pane {
 	tp := s.panes[n.pane]
 	created := tp == nil
 	if created {
-		screen := NewScreen()
+		screen := newScreen()
 		term := terminal.NewWithPty(screen, &tmuxPty{session: s, pane: n.pane})
 		if th := currentTheme(); th != nil {
 			term.SetColors(th.Scheme().ANSI, queryThemeColor())
-			screen.SetCursorShape(th.CursorShape())
+			screen.setCursorShape(th.CursorShape())
 		}
 
-		tp = NewPane(parent, term, window, false)
+		tp = newPane(parent, term, window, false)
 		s.panes[n.pane] = tp
 	}
 
@@ -348,9 +348,9 @@ func (s *TmuxSession) leaf(n *tmuxLayout, parent *Pane, window int, used map[int
 
 // syncPane fills a new pane with what tmux shows in it, with its history,
 // and puts the cursor where it is
-func (s *TmuxSession) syncPane(tp *Pane) {
+func (s *tmuxSession) syncPane(tp *pane) {
 	var captured []string
-	s.sendCommand(fmt.Sprintf("capture-pane -p -e -C -t %%%d -S -%d", tp.extID, HistoryLines), func(lines []string, failed bool) {
+	s.sendCommand(fmt.Sprintf("capture-pane -p -e -C -t %%%d -S -%d", tp.extID, historyLines), func(lines []string, failed bool) {
 		if !failed {
 			captured = lines
 		}
@@ -413,15 +413,15 @@ func mouseModes(flags []string) string {
 	return b.String()
 }
 
-// Output is what a program in a tmux pane wrote
-func (s *TmuxSession) Output(pane int, data []byte) {
+// output is what a program in a tmux pane wrote
+func (s *tmuxSession) output(pane int, data []byte) {
 	if tp := s.panes[pane]; tp != nil && len(data) > 0 {
 		tp.term.ProcessOutput(data, len(data))
 	}
 }
 
-// CloseWindow removes the tab of a window that is gone in tmux
-func (s *TmuxSession) CloseWindow(id int) {
+// closeWindow removes the tab of a window that is gone in tmux
+func (s *tmuxSession) closeWindow(id int) {
 	w := s.windows[id]
 	if w == nil {
 		return
@@ -433,12 +433,12 @@ func (s *TmuxSession) CloseWindow(id int) {
 		}
 	}
 	fyne.Do(func() {
-		tabControl.Remove(w.tab)
+		tabControl.remove(w.tab)
 	})
 }
 
-// TabClosed is called when the user closed a tab, the window ends in tmux
-func (s *TmuxSession) TabClosed(tab *container.TabItem) {
+// tabClosed is called when the user closed a tab, the window ends in tmux
+func (s *tmuxSession) tabClosed(tab *container.TabItem) {
 	for id, w := range s.windows {
 		if w.tab == tab {
 			delete(s.windows, id)
@@ -448,19 +448,19 @@ func (s *TmuxSession) TabClosed(tab *container.TabItem) {
 	}
 }
 
-// TabFocus is called when the user selected a tab, tmux gets the window
-func (s *TmuxSession) TabFocus(tab *container.TabItem) {
+// tabFocus is called when the user selected a tab, tmux gets the window
+func (s *tmuxSession) tabFocus(tab *container.TabItem) {
 	for id, w := range s.windows {
 		if w.tab == tab {
-			ShowTitle(w.title)
+			showTitle(w.title)
 			s.sendCommand(fmt.Sprintf("select-window -t @%d", id), nil)
 			return
 		}
 	}
 }
 
-// OwnsTab tells if a tab is a tmux window
-func (s *TmuxSession) OwnsTab(tab *container.TabItem) bool {
+// ownsTab tells if a tab is a tmux window
+func (s *tmuxSession) ownsTab(tab *container.TabItem) bool {
 	for _, w := range s.windows {
 		if w.tab == tab {
 			return true
@@ -469,25 +469,25 @@ func (s *TmuxSession) OwnsTab(tab *container.TabItem) bool {
 	return false
 }
 
-// PaneFocused tells tmux the pane the user works in
-func (s *TmuxSession) PaneFocused(paneID int) {
+// paneFocused tells tmux the pane the user works in
+func (s *tmuxSession) paneFocused(paneID int) {
 	s.sendCommand(fmt.Sprintf("select-pane -t %%%d", paneID), nil)
 }
 
-// SelectTabItem shows the tab of a tmux window, e.g. the one tmux made active
-func (s *TmuxSession) SelectTabItem(tab *container.TabItem) {
+// selectTabItem shows the tab of a tmux window, e.g. the one tmux made active
+func (s *tmuxSession) selectTabItem(tab *container.TabItem) {
 	fyne.Do(func() {
-		for i, t := range tabControl.Items {
-			if t == tab && tabControl.SelectedIndex != i {
-				tabControl.Select(i)
+		for i, t := range tabControl.items {
+			if t == tab && tabControl.selectedIndex != i {
+				tabControl.selectTab(i)
 			}
 		}
 	})
 }
 
-// SetRatio tells tmux the sizes of the panes of the split p, after its
+// setRatio tells tmux the sizes of the panes of the split p, after its
 // divider was dragged
-func (s *TmuxSession) SetRatio(p *Pane) {
+func (s *tmuxSession) setRatio(p *pane) {
 	if p.split == splitNone {
 		return
 	}
@@ -506,8 +506,8 @@ func (s *TmuxSession) SetRatio(p *Pane) {
 	}
 }
 
-// Split splits a tmux pane, the layout change makes the new pane
-func (s *TmuxSession) Split(paneID, direction int) {
+// split splits a tmux pane, the layout change makes the new pane
+func (s *tmuxSession) split(paneID, direction int) {
 	flag := "-h"
 	if direction == splitDown {
 		flag = "-v"
@@ -515,23 +515,23 @@ func (s *TmuxSession) Split(paneID, direction int) {
 	s.sendCommand(fmt.Sprintf("split-window %s -t %%%d", flag, paneID), nil)
 }
 
-// KillPane closes a tmux pane
-func (s *TmuxSession) KillPane(paneID int) {
+// killPane closes a tmux pane
+func (s *tmuxSession) killPane(paneID int) {
 	s.sendCommand(fmt.Sprintf("kill-pane -t %%%d", paneID), nil)
 }
 
-func (s *TmuxSession) killWindow(window int) {
+func (s *tmuxSession) killWindow(window int) {
 	s.sendCommand(fmt.Sprintf("kill-window -t @%d", window), nil)
 }
 
-// NewWindow makes a tmux window, its tab comes with %window-add
-func (s *TmuxSession) NewWindow() {
+// newWindow makes a tmux window, its tab comes with %window-add
+func (s *tmuxSession) newWindow() {
 	s.sendCommand("new-window", nil)
 }
 
-// SendKeys types into a tmux pane: text as it is (-l), other bytes like ESC
+// sendKeys types into a tmux pane: text as it is (-l), other bytes like ESC
 // sequences as hex (-H), each command a line of its own
-func (s *TmuxSession) SendKeys(pane int, data []byte) {
+func (s *tmuxSession) sendKeys(pane int, data []byte) {
 	for len(data) > 0 {
 		n := 0
 		for n < len(data) && data[n] >= 0x20 && data[n] != 0x7f {
@@ -555,8 +555,8 @@ func (s *TmuxSession) SendKeys(pane int, data []byte) {
 	}
 }
 
-// DiscoveWindow asks tmux for the windows of the session and makes their tabs
-func (s *TmuxSession) DiscoveWindow() {
+// discoveWindow asks tmux for the windows of the session and makes their tabs
+func (s *tmuxSession) discoveWindow() {
 	s.sendCommand(fmt.Sprintf("list-windows -F '#{window_id} #{window_active} #{window_layout} #{window_name}' -t $%d", s.sessionID), func(lines []string, failed bool) {
 		if failed {
 			// Output the error message
@@ -572,17 +572,17 @@ func (s *TmuxSession) DiscoveWindow() {
 			} else {
 				activeTabID = id
 			}
-			s.DiscovePane(activeTabID)
+			s.discovePane(activeTabID)
 		}
 
 		if activeTab != nil {
-			s.SelectTabItem(activeTab)
+			s.selectTabItem(activeTab)
 		}
 	})
 }
 
-// DiscovePane asks tmux for the panes of a window, and focuses the active one
-func (s *TmuxSession) DiscovePane(window int) {
+// discovePane asks tmux for the panes of a window, and focuses the active one
+func (s *tmuxSession) discovePane(window int) {
 	s.sendCommand(fmt.Sprintf("list-panes -F '#{pane_id} #{pane_active}' -t @%d", window), func(lines []string, failed bool) {
 		if failed {
 			// Output the error message
@@ -590,7 +590,7 @@ func (s *TmuxSession) DiscovePane(window int) {
 			return
 		}
 
-		var activePane *Pane
+		var activePane *pane
 		for _, l := range lines {
 			paneStr, active, _ := strings.Cut(l, " ")
 			if active == "1" {
@@ -605,8 +605,8 @@ func (s *TmuxSession) DiscovePane(window int) {
 		if activePane != nil {
 			fyne.Do(func() {
 				activePane.root.lastFocus = activePane
-				if activePane.InFocusTab() {
-					activePane.Focus()
+				if activePane.inFocusTab() {
+					activePane.focus()
 				}
 			})
 		}
@@ -614,7 +614,7 @@ func (s *TmuxSession) DiscovePane(window int) {
 }
 
 // notification handles a line that is not in a reply
-func (s *TmuxSession) notification(line string) {
+func (s *tmuxSession) notification(line string) {
 	// Leaking message, e.g. ssh connection closed by peer, the tmux control
 	// mode is not aware yet now.
 	if !strings.HasPrefix(line, "%") {
@@ -628,8 +628,8 @@ func (s *TmuxSession) notification(line string) {
 		session, _, _ := strings.Cut(rest, " ")
 		if id, ok := tmuxID(session, '$'); ok {
 			s.sessionID = id
-			s.SendClientSize(s.control.root.row, s.control.root.col)
-			s.DiscoveWindow()
+			s.sendClientSize(s.control.root.row, s.control.root.col)
+			s.discoveWindow()
 		}
 
 	case "%output":
@@ -639,7 +639,7 @@ func (s *TmuxSession) notification(line string) {
 			if cutByConpty(out) {
 				s.damage(id)
 			}
-			s.Output(id, out)
+			s.output(id, out)
 		}
 
 	// The window, its layout, then its visible layout and flags
@@ -647,18 +647,18 @@ func (s *TmuxSession) notification(line string) {
 		f := strings.Fields(rest)
 		if len(f) >= 2 {
 			if id, ok := tmuxID(f[0], '@'); ok {
-				s.LayoutChanged(id, f[1])
+				s.layoutChanged(id, f[1])
 			}
 		}
 
 	case "%window-add":
 		if id, ok := tmuxID(rest, '@'); ok {
-			s.WindowAdded(id)
+			s.windowAdded(id)
 		}
 
 	case "%window-close", "%unlinked-window-close":
 		if id, ok := tmuxID(rest, '@'); ok {
-			s.CloseWindow(id)
+			s.closeWindow(id)
 		}
 
 	case "%window-renamed":
@@ -667,7 +667,7 @@ func (s *TmuxSession) notification(line string) {
 			if win := s.windows[id]; win != nil {
 				win.title = name
 				fyne.Do(func() {
-					ShowTitle(name)
+					showTitle(name)
 				})
 			}
 		}
@@ -677,12 +677,12 @@ func (s *TmuxSession) notification(line string) {
 	// %session-window-changed): YaTerm keeps its own focus and tab
 
 	case "%exit":
-		s.End()
+		s.end()
 	}
 }
 
 // reply hands a reply to its command, the first one is to no command
-func (s *TmuxSession) handleCommandResponse(lines []string, failed bool) {
+func (s *tmuxSession) handleCommandResponse(lines []string, failed bool) {
 	s.cmdMutex.Lock()
 	var done func([]string, bool)
 	if len(s.pendingHandlers) > 0 {
@@ -697,7 +697,7 @@ func (s *TmuxSession) handleCommandResponse(lines []string, failed bool) {
 }
 
 // send writes a command to tmux, handler gets its reply, handler may be nil
-func (s *TmuxSession) sendCommand(cmd string, handler func(lines []string, failed bool)) {
+func (s *tmuxSession) sendCommand(cmd string, handler func(lines []string, failed bool)) {
 	//s.control.term.Print("DEBUG COMMAND: " + cmd + "\n")
 	s.cmdMutex.Lock()
 	defer s.cmdMutex.Unlock()
@@ -712,7 +712,7 @@ func (s *TmuxSession) sendCommand(cmd string, handler func(lines []string, faile
 // lock held. The session works on the UI thread: its windows and panes are
 // tabs and widgets, and the UI uses its maps, which must not be used by two
 // goroutines at once.
-func (s *TmuxSession) TmuxLine(line string) {
+func (s *tmuxSession) TmuxLine(line string) {
 	//s.control.term.Print("DEBUG: " + line)
 	//s.control.term.Print("\n")
 	if s.inResponse {
@@ -736,8 +736,8 @@ func (s *TmuxSession) TmuxLine(line string) {
 
 // TmuxEnd tells the control mode ended in the terminal, by its ST, or by the
 // end of the program, e.g. tmux went away without %exit
-func (s *TmuxSession) TmuxEnd() {
-	s.End()
+func (s *tmuxSession) TmuxEnd() {
+	s.end()
 }
 
 /*
@@ -765,7 +765,7 @@ func (r *tmuxRefuser) TmuxEnd() {
 // tmuxPty is the pty of a tmux pane: what is typed goes to tmux as keys, the
 // output comes from the session, the size from the tmux layout
 type tmuxPty struct {
-	session *TmuxSession
+	session *tmuxSession
 	pane    int
 }
 
@@ -773,7 +773,7 @@ func (p *tmuxPty) Write(b []byte) (int, error) {
 	// Replies of the terminal come from other goroutines, the keys go to
 	// tmux in order from the UI thread
 	data := append([]byte(nil), b...)
-	p.session.SendKeys(p.pane, data)
+	p.session.sendKeys(p.pane, data)
 	return len(b), nil
 }
 
@@ -800,7 +800,7 @@ type tmuxLayout struct {
 	kids       []*tmuxLayout
 }
 
-// Split is how a cell of two or more cells is shown by panes, which split in
+// split is how a cell of two or more cells is shown by panes, which split in
 // two: the direction, the first cell, the rest as one cell, and the part of
 // the first. The part is by the size in units the two need to show their
 // cells, with the dividers and paddings of the panes.
@@ -835,7 +835,7 @@ func (n *tmuxLayout) outer(direction int) float32 {
 		for _, k := range n.kids {
 			sum += k.outer(direction)
 		}
-		return sum + float32(len(n.kids)-1)*SplitDefaultThickness
+		return sum + float32(len(n.kids)-1)*splitDefaultThickness
 	default:
 		return n.kids[0].outer(direction)
 	}
@@ -954,9 +954,9 @@ func (p *layoutParser) cell() (*tmuxLayout, error) {
  * ===========================================================================
  */
 
-// StartTmux is the control pane's OnTmuxControl: a session, or one that
+// startTmux is the control pane's OnTmuxControl: a session, or one that
 // detaches right away when another is in use
-func StartTmux(control *Pane) terminal.TmuxHandler {
+func startTmux(control *pane) terminal.TmuxHandler {
 	tmuxMu.Lock()
 	defer tmuxMu.Unlock()
 	if tmuxActive != nil {
@@ -966,13 +966,13 @@ func StartTmux(control *Pane) terminal.TmuxHandler {
 		return &tmuxRefuser{}
 	}
 
-	tmuxActive = &TmuxSession{
+	tmuxActive = &tmuxSession{
 		control: control,
 		windows: map[int]*tmuxWindow{},
-		panes:   map[int]*Pane{},
+		panes:   map[int]*pane{},
 	}
 
 	// the fist response from the outside command "tmux -CC", but we need to handle it
-	tmuxActive.sendCommand("", tmuxActive.Attach)
+	tmuxActive.sendCommand("", tmuxActive.attach)
 	return tmuxActive
 }

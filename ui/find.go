@@ -25,10 +25,10 @@ type findState struct {
 	stale   bool
 }
 
-// Search highlights every match of re in the history and the screen, and
+// search highlights every match of re in the history and the screen, and
 // makes the one nearest to the view in the search direction the current
 // one. A nil re clears the search. Returns the number of matches.
-func (s *Screen) Search(re *regexp.Regexp, up bool) int {
+func (s *screen) search(re *regexp.Regexp, up bool) int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -45,10 +45,10 @@ func (s *Screen) Search(re *regexp.Regexp, up bool) int {
 	return len(s.find.matches)
 }
 
-// FindNext makes the next match the current one, up goes to older text,
+// findNext makes the next match the current one, up goes to older text,
 // it wraps around at the ends. Returns the current match, 1 based, and the
 // number of matches.
-func (s *Screen) FindNext(up bool) (int, int) {
+func (s *screen) findNext(up bool) (int, int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -77,7 +77,7 @@ func (s *Screen) FindNext(up bool) (int, int) {
 // runSearch finds all matches again. A logical line, the lines joined by
 // auto wrap, is searched as one string, so a match may go over a wrap.
 // Called with mu held.
-func (s *Screen) runSearch() {
+func (s *screen) runSearch() {
 	s.find.stale = false
 
 	// Keep the current match where it was if it is still found
@@ -148,7 +148,7 @@ func (s *Screen) runSearch() {
 // nearestMatch returns the match to start from: searching up, the last one
 // that starts in or above the bottom of the view, searching down, the first
 // one in or below its top. Called with mu held.
-func (s *Screen) nearestMatch(up bool) int {
+func (s *screen) nearestMatch(up bool) int {
 	n := len(s.find.matches)
 	if n == 0 {
 		return 0
@@ -167,7 +167,7 @@ func (s *Screen) nearestMatch(up bool) int {
 
 // revealMatch scrolls the view so the current match is in it, in the middle
 // when it has to move. Called with mu held.
-func (s *Screen) revealMatch() {
+func (s *screen) revealMatch() {
 	if s.find.cur >= len(s.find.matches) {
 		return
 	}
@@ -185,7 +185,7 @@ func (s *Screen) revealMatch() {
 // markMatches paints the matches on line abs into buf, the current one
 // stronger and with the text in the background color so it stays readable.
 // Called with mu held.
-func (s *Screen) markMatches(buf []cell, abs int) {
+func (s *screen) markMatches(buf []cell, abs int) {
 	ms := s.find.matches
 	i := sort.Search(len(ms), func(i int) bool { return ms[i].end.line >= abs })
 
@@ -219,7 +219,7 @@ func (s *Screen) markMatches(buf []cell, abs int) {
 }
 
 // hasMatches tells if line abs has a match. Called with mu held.
-func (s *Screen) hasMatches(abs int) bool {
+func (s *screen) hasMatches(abs int) bool {
 	ms := s.find.matches
 	i := sort.Search(len(ms), func(i int) bool { return ms[i].end.line >= abs })
 	return i < len(ms) && ms[i].start.line <= abs

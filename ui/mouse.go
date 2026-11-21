@@ -12,14 +12,14 @@ import (
 )
 
 // Tapped focuses the pane, see fyne.Tappable
-func (p *Pane) Tapped(pe *fyne.PointEvent) {
-	p.Focus()
+func (p *pane) Tapped(pe *fyne.PointEvent) {
+	p.focus()
 }
 
 // TappedSecondary is the right click: the menu, or a paste when the buttons
 // are swapped in the settings
-func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
-	p.Focus()
+func (p *pane) TappedSecondary(pe *fyne.PointEvent) {
+	p.focus()
 
 	// The right click went to the program
 	if p.skipSecondaryTap {
@@ -37,7 +37,7 @@ func (p *Pane) TappedSecondary(pe *fyne.PointEvent) {
 }
 
 // showMenu opens the pane's menu at pos, a position in the pane
-func (p *Pane) showMenu(pos fyne.Position) {
+func (p *pane) showMenu(pos fyne.Position) {
 	if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
 		// With auto copy the selection is in the clipboard already
 		copyLabel := "Copy"
@@ -54,28 +54,28 @@ func (p *Pane) showMenu(pos fyne.Position) {
 		})
 
 		splitRightItem := fyne.NewMenuItemWithIcon("Split Right", theme.NewThemedResource(assert.HSplitIconRes), func() {
-			p.Split(splitRight, 0.5)
+			p.splitPane(splitRight, 0.5)
 		})
 		splitDownItem := fyne.NewMenuItemWithIcon("Split Down", theme.NewThemedResource(assert.VSplitIconRes), func() {
-			p.Split(splitDown, 0.5)
+			p.splitPane(splitDown, 0.5)
 		})
 
 		separatorItem := fyne.NewMenuItemSeparator()
 
 		closePaneItem := fyne.NewMenuItemWithIcon("Close Pane", theme.Icon(theme.IconNameWindowClose), func() {
-			p.Close()
+			p.close()
 		})
 
 		closeTabItem := fyne.NewMenuItemWithIcon("Close Tab", theme.Icon(theme.IconNameWindowClose), func() {
-			CloseTab(p.root)
+			closeTab(p.root)
 		})
 
 		showMarkDownItem := fyne.NewMenuItemWithIcon("Show as Markdown", theme.NewThemedResource(assert.MarkdownIconRes), func() {
-			NewMarkdownTab(p.screen.SelectedText())
+			newMarkdownTab(p.screen.selectedText())
 		})
 
 		searchItem := fyne.NewMenuItemWithIcon("Search", theme.Icon(theme.IconNameSearch), func() {
-			p.ShowSearch()
+			p.showSearch()
 		})
 
 		quickCommandsItem := fyne.NewMenuItemWithIcon("Quick Commands", quickCommandIcon(), nil)
@@ -112,14 +112,14 @@ const (
 )
 
 // screenPos converts a position in the pane to one in its screen
-func (p *Pane) screenPos(pos fyne.Position) fyne.Position {
+func (p *pane) screenPos(pos fyne.Position) fyne.Position {
 	return pos.Subtract(fyne.NewPos(panePadding, panePadding))
 }
 
 // MouseDown gives a press to the program that asked for the mouse, else
 // starts a selection, or pastes or opens the menu with the middle button,
 // see desktop.Mouseable
-func (p *Pane) MouseDown(ev *desktop.MouseEvent) {
+func (p *pane) MouseDown(ev *desktop.MouseEvent) {
 	if p.split != splitNone {
 		return
 	}
@@ -142,19 +142,19 @@ func (p *Pane) MouseDown(ev *desktop.MouseEvent) {
 		p.lastClick, p.lastClickPos = now, ev.Position
 
 		if double {
-			p.screen.SelectWord(p.screenPos(ev.Position))
+			p.screen.selectWord(p.screenPos(ev.Position))
 			if autoCopy {
 				p.copySelection()
 			}
 			p.lastClick = time.Time{} // a third click starts again
 		} else {
-			p.screen.SelectStart(p.screenPos(ev.Position))
+			p.screen.selectStart(p.screenPos(ev.Position))
 		}
 
 	// Middle click pastes, or opens the menu when the buttons are swapped
 	case desktop.MouseButtonTertiary:
 		if rightClickPastes {
-			p.Focus()
+			p.focus()
 			p.showMenu(ev.Position)
 		} else {
 			p.paste(fyne.CurrentApp().Clipboard())
@@ -164,13 +164,13 @@ func (p *Pane) MouseDown(ev *desktop.MouseEvent) {
 
 // MouseUp gives the release to the program that asked for the mouse, see
 // desktop.Mouseable
-func (p *Pane) MouseUp(ev *desktop.MouseEvent) {
+func (p *pane) MouseUp(ev *desktop.MouseEvent) {
 	p.pressed = false
 	p.mouseRelease(p.screenPos(ev.Position), ev.Modifier)
 }
 
 // Dragged selects from where the mouse went down to where it is now
-func (p *Pane) Dragged(ev *fyne.DragEvent) {
+func (p *pane) Dragged(ev *fyne.DragEvent) {
 	if p.split != splitNone {
 		return
 	}
@@ -191,7 +191,7 @@ func (p *Pane) Dragged(ev *fyne.DragEvent) {
 
 	p.dragging = true
 	p.dragPos = p.screenPos(ev.Position)
-	p.screen.SelectTo(p.dragPos)
+	p.screen.selectTo(p.dragPos)
 
 	// Past the top or bottom, keep scrolling even when the mouse stops, as
 	// Dragged only comes when it moves
@@ -204,7 +204,7 @@ func (p *Pane) Dragged(ev *fyne.DragEvent) {
 
 // dragScrollLines returns how many lines to scroll for the drag position,
 // positive to go back into the history, 0 when it is inside the screen
-func (p *Pane) dragScrollLines() int {
+func (p *pane) dragScrollLines() int {
 	h := p.screen.cellSize.Height
 	switch {
 	case p.dragPos.Y < 0:
@@ -217,7 +217,7 @@ func (p *Pane) dragScrollLines() int {
 
 // startDragScroll scrolls the view and extends the selection every
 // dragScrollInterval until stopDragScroll
-func (p *Pane) startDragScroll() {
+func (p *pane) startDragScroll() {
 	if p.dragScrollStop != nil {
 		return
 	}
@@ -238,10 +238,10 @@ func (p *Pane) startDragScroll() {
 						return
 					}
 					if n := p.dragScrollLines(); n != 0 {
-						p.screen.ScrollLines(n)
+						p.screen.scrollLines(n)
 						// The row is clamped to the screen, so the selection
 						// reaches the line that just scrolled into view
-						p.screen.SelectTo(p.dragPos)
+						p.screen.selectTo(p.dragPos)
 					}
 				})
 			}
@@ -249,7 +249,7 @@ func (p *Pane) startDragScroll() {
 	}()
 }
 
-func (p *Pane) stopDragScroll() {
+func (p *pane) stopDragScroll() {
 	if p.dragScrollStop != nil {
 		close(p.dragScrollStop)
 		p.dragScrollStop = nil
@@ -257,7 +257,7 @@ func (p *Pane) stopDragScroll() {
 }
 
 // DragEnd copies the selection, like xterm there is no separate copy step
-func (p *Pane) DragEnd() {
+func (p *pane) DragEnd() {
 	// The drag of a button held for the program ends with its release, in
 	// case MouseUp does not come, at the last cell reported
 	if p.mouseHeld {
@@ -265,7 +265,7 @@ func (p *Pane) DragEnd() {
 		if p.term != nil {
 			p.term.SendMouse(terminal.MouseRelease, p.mouseBtn, p.mouseRow, p.mouseCol, mouseMods(p.mods))
 		}
-		p.Focus()
+		p.focus()
 		return
 	}
 
@@ -276,7 +276,7 @@ func (p *Pane) DragEnd() {
 	}
 	p.dragging = false
 
-	p.Focus()
+	p.focus()
 
 	if autoCopy {
 		p.copySelection()
@@ -284,8 +284,8 @@ func (p *Pane) DragEnd() {
 }
 
 // copySelection puts the selected text into the clipboard
-func (p *Pane) copySelection() {
-	if text := p.screen.SelectedText(); text != "" {
+func (p *pane) copySelection() {
+	if text := p.screen.selectedText(); text != "" {
 		fyne.CurrentApp().Clipboard().SetContent(text)
 	}
 }
@@ -300,7 +300,7 @@ func (p *Pane) copySelection() {
 
 // wantsMouse tells the mouse goes to the program of this pane, with the
 // modifier keys held
-func (p *Pane) wantsMouse(mods fyne.KeyModifier) bool {
+func (p *pane) wantsMouse(mods fyne.KeyModifier) bool {
 	return p.split == splitNone && p.term != nil && p.tmuxControl == nil &&
 		mods&fyne.KeyModifierShift == 0 && p.term.MouseTracking()
 }
@@ -336,8 +336,8 @@ func mouseMods(m fyne.KeyModifier) int {
 
 // sendMouse reports the mouse at a position in the screen, false when it is
 // not reported, e.g. the view is scrolled back or the mode does not report it
-func (p *Pane) sendMouse(action terminal.MouseAction, button int, pos fyne.Position, mods fyne.KeyModifier) bool {
-	row, col, ok := p.screen.LiveCell(pos)
+func (p *pane) sendMouse(action terminal.MouseAction, button int, pos fyne.Position, mods fyne.KeyModifier) bool {
+	row, col, ok := p.screen.liveCell(pos)
 	if !ok {
 		return false
 	}
@@ -351,7 +351,7 @@ func (p *Pane) sendMouse(action terminal.MouseAction, button int, pos fyne.Posit
 
 // mousePress sends a press to the program, false when the mouse stays with
 // YaTerm
-func (p *Pane) mousePress(ev *desktop.MouseEvent) bool {
+func (p *pane) mousePress(ev *desktop.MouseEvent) bool {
 	p.skipSecondaryTap = false
 	btn, ok := mouseButton(ev.Button)
 	if !ok || !p.wantsMouse(ev.Modifier) {
@@ -362,13 +362,13 @@ func (p *Pane) mousePress(ev *desktop.MouseEvent) bool {
 	}
 	p.mouseHeld, p.mouseBtn = true, btn
 	p.skipSecondaryTap = btn == terminal.MouseRight
-	p.Focus()
+	p.focus()
 	return true
 }
 
 // mouseRelease sends the release of the button pressed, at a position in
 // the screen
-func (p *Pane) mouseRelease(pos fyne.Position, mods fyne.KeyModifier) {
+func (p *pane) mouseRelease(pos fyne.Position, mods fyne.KeyModifier) {
 	if !p.mouseHeld {
 		return
 	}
@@ -380,11 +380,11 @@ func (p *Pane) mouseRelease(pos fyne.Position, mods fyne.KeyModifier) {
 
 // mouseWheel sends the wheel to the program, one report a notch, false when
 // the view is to scroll instead
-func (p *Pane) mouseWheel(pos fyne.Position, dy float32) bool {
+func (p *pane) mouseWheel(pos fyne.Position, dy float32) bool {
 	if !p.wantsMouse(p.mods) {
 		return false
 	}
-	if _, _, ok := p.screen.LiveCell(pos); !ok {
+	if _, _, ok := p.screen.liveCell(pos); !ok {
 		return false
 	}
 
@@ -407,7 +407,7 @@ func (p *Pane) mouseWheel(pos fyne.Position, dy float32) bool {
 
 // mouseHover sends a move with no button down (mode 1003), a move with one
 // down comes by Dragged
-func (p *Pane) mouseHover(pos fyne.Position) {
+func (p *pane) mouseHover(pos fyne.Position) {
 	if p.mouseHeld || !p.wantsMouse(p.mods) {
 		return
 	}

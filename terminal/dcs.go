@@ -254,7 +254,7 @@ func (t *Terminal) handleDcs() {
 // else inside a DCS is kept as text (see parseEscState). CAN or SUB cancel it.
 func (t *Terminal) processDcs(r rune) {
 	switch r {
-	case StringTerminator:
+	case stringTerminator:
 		// Not by the state: the "ESC \" of tmux comes in stateDCSTermination
 		if t.tmux != nil {
 			t.endTmux()

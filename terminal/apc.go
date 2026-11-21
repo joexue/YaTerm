@@ -17,7 +17,7 @@ func (t *Terminal) handleApc() {
 // CAN and SUB cancel it.
 func (t *Terminal) processApc(r rune) {
 	switch r {
-	case StringTerminator:
+	case stringTerminator:
 		t.handleApc()
 		t.param = nil
 		t.state = stateGROUND

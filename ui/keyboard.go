@@ -210,17 +210,17 @@ func metaChar(name fyne.KeyName, shift bool) int {
 }
 
 // TypedRune sends a typed character to the program, see fyne.Focusable
-func (p *Pane) TypedRune(r rune) {
+func (p *pane) TypedRune(r rune) {
 	// The pane running tmux -CC takes commands for tmux, typing would send
 	// them, only q detaches
 	if s := p.tmuxControl; s != nil {
 		if r == 'q' || r == 'Q' {
-			s.Detach()
+			s.detach()
 		}
 		return
 	}
 
-	p.screen.ScrollToBottom()
+	p.screen.scrollToBottom()
 	b := make([]byte, utf8.UTFMax)
 	size := utf8.EncodeRune(b, r)
 	_, _ = p.term.Write(b[:size])
@@ -229,12 +229,12 @@ func (p *Pane) TypedRune(r rune) {
 // TypedKey gets keys without Ctrl, Alt or Super, those go to TypedShortcut.
 // It is called for printable keys too, which send nothing here as their
 // character comes through TypedRune.
-func (p *Pane) TypedKey(ke *fyne.KeyEvent) {
+func (p *pane) TypedKey(ke *fyne.KeyEvent) {
 	if p.tmuxControl != nil {
 		return
 	}
 	if seq := p.keySequence(ke.Name, p.mods); seq != nil {
-		p.screen.ScrollToBottom()
+		p.screen.scrollToBottom()
 		_, _ = p.term.Write(seq)
 	}
 }
@@ -243,7 +243,7 @@ func (p *Pane) TypedKey(ke *fyne.KeyEvent) {
 // standard shortcuts like copy and paste. Those are taken as their keys, so
 // they are YaTerm's shortcuts only as set (e.g. paste), else they go to the
 // terminal.
-func (p *Pane) TypedShortcut(sc fyne.Shortcut) {
+func (p *pane) TypedShortcut(sc fyne.Shortcut) {
 	// On macOS the standard shortcuts are Cmd+key, elsewhere Ctrl+key
 	ctrl := fyne.KeyModifierControl
 	if runtime.GOOS == "darwin" {
@@ -309,7 +309,7 @@ func (p *Pane) TypedShortcut(sc fyne.Shortcut) {
 		seq = shortcutChars(name, mods)
 	}
 	if seq != nil {
-		p.screen.ScrollToBottom()
+		p.screen.scrollToBottom()
 		_, _ = p.term.Write(seq)
 	}
 }
@@ -345,7 +345,7 @@ func shortcutChars(name fyne.KeyName, mods fyne.KeyModifier) []byte {
 // keySequence is keySequence for the program of this pane: with application
 // cursor keys (DECCKM) set, e.g. by vim or less, the arrows, Home and End
 // without modifiers send "ESC O x" instead of "ESC [ x"
-func (p *Pane) keySequence(name fyne.KeyName, mods fyne.KeyModifier) []byte {
+func (p *pane) keySequence(name fyne.KeyName, mods fyne.KeyModifier) []byte {
 	seq := keySequence(name, mods)
 	if len(seq) == 3 && seq[0] == 27 && seq[1] == '[' && strings.IndexByte("ABCDHF", seq[2]) >= 0 &&
 		p.term.AppCursorKeys() {
@@ -355,7 +355,7 @@ func (p *Pane) keySequence(name fyne.KeyName, mods fyne.KeyModifier) []byte {
 }
 
 // paste sends the clipboard text, new lines are sent as Enter (CR) like typing
-func (p *Pane) paste(cb fyne.Clipboard) {
+func (p *pane) paste(cb fyne.Clipboard) {
 	if cb == nil || p.tmuxControl != nil {
 		return
 	}
@@ -375,13 +375,13 @@ func (p *Pane) paste(cb fyne.Clipboard) {
 		text = "\x1b[200~" + strings.ReplaceAll(text, "\x1b[201~", "") + "\x1b[201~"
 	}
 
-	p.screen.ScrollToBottom()
+	p.screen.scrollToBottom()
 	_, _ = p.term.Write([]byte(text))
 }
 
 // KeyDown and KeyUp track the modifier keys, TypedKey has no modifiers in its
 // event, but needs Shift for keys like Shift+Tab and Shift+Arrow.
-func (p *Pane) KeyDown(ke *fyne.KeyEvent) {
+func (p *pane) KeyDown(ke *fyne.KeyEvent) {
 	if m := modifierOf(ke.Name); m != 0 {
 		if p.modKeys == nil {
 			p.modKeys = map[fyne.KeyName]bool{}
@@ -392,7 +392,7 @@ func (p *Pane) KeyDown(ke *fyne.KeyEvent) {
 }
 
 // KeyUp forgets a modifier key let go, see desktop.Keyable
-func (p *Pane) KeyUp(ke *fyne.KeyEvent) {
+func (p *pane) KeyUp(ke *fyne.KeyEvent) {
 	if modifierOf(ke.Name) != 0 {
 		delete(p.modKeys, ke.Name)
 		p.updateMods()
@@ -401,7 +401,7 @@ func (p *Pane) KeyUp(ke *fyne.KeyEvent) {
 
 // updateMods works out the held modifiers, left and right keys are tracked
 // apart so releasing one side while the other is held keeps the modifier.
-func (p *Pane) updateMods() {
+func (p *pane) updateMods() {
 	p.mods = 0
 	for name := range p.modKeys {
 		p.mods |= modifierOf(name)
@@ -410,6 +410,6 @@ func (p *Pane) updateMods() {
 
 // AcceptsTab keeps Tab for the program instead of moving the focus, see
 // fyne.Tabbable
-func (p *Pane) AcceptsTab() bool {
+func (p *pane) AcceptsTab() bool {
 	return true
 }

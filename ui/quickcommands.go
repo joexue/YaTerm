@@ -66,7 +66,7 @@ func saveQuickCommands(cmds []quickCommand) {
 // quickCommandsMenu is the Quick Commands submenu: the editor of the commands, then
 // one item for each saved command, which types it into this pane's terminal,
 // and a submenu for each folder
-func (p *Pane) quickCommandsMenu() *fyne.Menu {
+func (p *pane) quickCommandsMenu() *fyne.Menu {
 	items := []*fyne.MenuItem{
 		fyne.NewMenuItemWithIcon("Manage commands...", theme.Icon(theme.IconNameSettings), func() {
 			showQuickCommands(win)
@@ -81,7 +81,7 @@ func (p *Pane) quickCommandsMenu() *fyne.Menu {
 }
 
 // quickItems are the menu items of commands and folders
-func (p *Pane) quickItems(cmds []quickCommand) []*fyne.MenuItem {
+func (p *pane) quickItems(cmds []quickCommand) []*fyne.MenuItem {
 	var items []*fyne.MenuItem
 	for _, c := range cmds {
 		if !c.Folder {
@@ -111,11 +111,11 @@ func quickCommandIcon() fyne.Resource {
 
 // typeText types text into the terminal like a paste: new lines are sent as
 // Enter, so a command saved with a new line at its end runs right away
-func (p *Pane) typeText(text string) {
+func (p *pane) typeText(text string) {
 	text = strings.ReplaceAll(text, "\r\n", "\r")
 	text = strings.ReplaceAll(text, "\n", "\r")
 
-	p.screen.ScrollToBottom()
+	p.screen.scrollToBottom()
 	_, _ = p.term.Write([]byte(text))
 
 	// The menu took the focus, give it back to type on

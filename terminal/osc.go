@@ -21,9 +21,9 @@ func cleanTitle(s string) string {
 	}, s)
 }
 
-// SetClipboard handles "52;<targets>;<base64>". Reading the clipboard with
+// setClipboard handles "52;<targets>;<base64>". Reading the clipboard with
 // "?" is not allowed, any program in the terminal could read it then.
-func (t *Terminal) SetClipboard(arg string) {
+func (t *Terminal) setClipboard(arg string) {
 	_, data, ok := strings.Cut(arg, ";")
 	if !ok || data == "?" || t.OnClipboard == nil {
 		return
@@ -54,7 +54,7 @@ func (t *Terminal) handleOsc(end rune) {
 
 	// Window title, shown in the tab
 	case "0", "2":
-		t.SetTitle(cleanTitle(arg))
+		t.setTitle(cleanTitle(arg))
 
 	// Icon name, there are no icons
 	case "1":
@@ -64,14 +64,14 @@ func (t *Terminal) handleOsc(end rune) {
 
 	// 7 working directory
 	case "7":
-		t.SetCwd(arg)
+		t.setCwd(arg)
 
 	// 8 hyperlinks
 	case "8":
 
 	// Set the clipboard: "52;c;<base64>"
 	case "52":
-		t.SetClipboard(arg)
+		t.setClipboard(arg)
 
 	default:
 	}
@@ -82,7 +82,7 @@ func (t *Terminal) handleOsc(end rune) {
 // A '\' alone is text, e.g. ConPTY sends a title like "C:\WINDOWS\...".
 func (t *Terminal) processOsc(r rune) {
 	switch r {
-	case asciiBell, asciiNull, StringTerminator:
+	case asciiBell, asciiNull, stringTerminator:
 		t.handleOsc(r)
 		t.param = nil
 		t.state = stateGROUND

@@ -44,7 +44,7 @@ func cutByConpty(data []byte) bool {
 
 // damage marks a tmux pane to be drawn again, after repairDelay without
 // another broken character
-func (s *TmuxSession) damage(pane int) {
+func (s *tmuxSession) damage(pane int) {
 	r := &s.repair
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -65,7 +65,7 @@ func (s *TmuxSession) damage(pane int) {
 
 // stopRepair stops the repairs when the session ends, a command sent after
 // it would go to the shell of the control pane
-func (s *TmuxSession) stopRepair() {
+func (s *tmuxSession) stopRepair() {
 	r := &s.repair
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -78,7 +78,7 @@ func (s *TmuxSession) stopRepair() {
 }
 
 // repairDamaged draws the damaged panes again, on the timer's goroutine
-func (s *TmuxSession) repairDamaged() {
+func (s *tmuxSession) repairDamaged() {
 	r := &s.repair
 	r.mu.Lock()
 	panes := r.damaged
@@ -86,7 +86,7 @@ func (s *TmuxSession) repairDamaged() {
 	stopped := r.stopped
 	r.mu.Unlock()
 
-	if stopped || ActiveTmux() != s {
+	if stopped || activeTmux() != s {
 		return
 	}
 	for id := range panes {
@@ -98,7 +98,7 @@ func (s *TmuxSession) repairDamaged() {
 // where tmux has it. Each line goes to its row by a cursor move, so a scroll
 // region the program set does not scroll them. The replies are handled on
 // the control pane's goroutine, like %output.
-func (s *TmuxSession) repairPane(id int) {
+func (s *tmuxSession) repairPane(id int) {
 	var captured []string
 	s.sendCommand(fmt.Sprintf("capture-pane -p -e -C -t %%%d", id), func(lines []string, failed bool) {
 		if !failed {

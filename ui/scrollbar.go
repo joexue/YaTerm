@@ -45,7 +45,7 @@ var (
 type scrollBar struct {
 	widget.BaseWidget
 
-	screen *Screen
+	screen *screen
 	track  *canvas.Rectangle
 	thumb  *canvas.Rectangle
 
@@ -59,7 +59,7 @@ type scrollBar struct {
 	hideGen  int     // a newer reveal makes older hide timers do nothing
 }
 
-func newScrollBar(s *Screen) *scrollBar {
+func newScrollBar(s *screen) *scrollBar {
 	b := &scrollBar{
 		screen: s,
 		track:  canvas.NewRectangle(color.Transparent),
@@ -161,7 +161,7 @@ func (b *scrollBar) scrollToTop(y float32) {
 		return
 	}
 	y = max(0, min(y, travel))
-	b.screen.ScrollTo(b.hist - int(math.Round(float64(y/travel*float32(b.hist)))))
+	b.screen.scrollTo(b.hist - int(math.Round(float64(y/travel*float32(b.hist)))))
 }
 
 func (b *scrollBar) Dragged(ev *fyne.DragEvent) {
@@ -191,9 +191,9 @@ func (b *scrollBar) Tapped(ev *fyne.PointEvent) {
 	top, height, _ := b.thumbGeometry()
 	switch {
 	case ev.Position.Y < top:
-		b.screen.ScrollLines(b.rows)
+		b.screen.scrollLines(b.rows)
 	case ev.Position.Y >= top+height:
-		b.screen.ScrollLines(-b.rows)
+		b.screen.scrollLines(-b.rows)
 	}
 	b.reveal()
 }

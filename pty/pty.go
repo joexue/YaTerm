@@ -40,11 +40,11 @@ func DefaultProgram() string {
 	return defaultProgram
 }
 
-// SplitCommand splits a command line into the program and its arguments, at
+// splitCommand splits a command line into the program and its arguments, at
 // spaces. Quotes keep spaces in a word, e.g. a path like
 // "C:\Program Files\PowerShell\7\pwsh.exe". Backslashes are no escapes, so
 // Windows paths work as written.
-func SplitCommand(cmd string) []string {
+func splitCommand(cmd string) []string {
 	var (
 		words   []string
 		word    strings.Builder
@@ -82,7 +82,7 @@ func SplitCommand(cmd string) []string {
 // in PATH when it has none, and the arguments. ok is false when there is no
 // such program.
 func FindProgram(cmd string) (path string, args []string, ok bool) {
-	words := SplitCommand(cmd)
+	words := splitCommand(cmd)
 	if len(words) == 0 {
 		return "", nil, false
 	}

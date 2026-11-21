@@ -15,28 +15,28 @@ import (
 var (
 	win fyne.Window
 
-	tabControl *Tabs
+	tabControl *tabs
 
 	tabID, markdownTabID int
 )
 
-// ShowTitle puts title in the title of the window
-func ShowTitle(title string) {
+// showTitle puts title in the title of the window
+func showTitle(title string) {
 	win.SetTitle("YaTerm: " + title)
 }
 
-// CloseTab closes the tab of the root pane, a tmux tab by killing its window
-func CloseTab(pane *Pane) {
-	if s := ActiveTmux(); s != nil && pane.isTmux {
-		s.killWindow(pane.tabID)
+// closeTab closes the tab of the root pane, a tmux tab by killing its window
+func closeTab(root *pane) {
+	if s := activeTmux(); s != nil && root.isTmux {
+		s.killWindow(root.tabID)
 		return
 	}
 
-	tabControl.CloseTabByObj(pane)
+	tabControl.closeTabByObj(root)
 }
 
-// NewMarkdownTab opens a tab showing text as Markdown
-func NewMarkdownTab(text string) {
+// newMarkdownTab opens a tab showing text as Markdown
+func newMarkdownTab(text string) {
 	markdownTabID++
 
 	defaultText := `
@@ -57,18 +57,18 @@ You need to select text from terminal then show it as markdown style
 
 	mtab := container.NewTabItemWithIcon(fmt.Sprintf("MD %d", markdownTabID), assert.MarkdownIconColorRes, container.NewScroll(rt))
 	fyne.Do(func() {
-		tabControl.Append(mtab)
+		tabControl.append(mtab)
 	})
 }
 
-// NewTab makes a local tab: a pane running the default program
-func NewTab() *container.TabItem {
+// newTab makes a local tab: a pane running the default program
+func newTab() *container.TabItem {
 	tabID++
-	pane := NewPane(nil, nil, tabID, true)
-	tab := container.NewTabItemWithIcon(fmt.Sprintf("Tab %d", tabID), assert.LocalIconRes, pane)
+	p := newPane(nil, nil, tabID, true)
+	tab := container.NewTabItemWithIcon(fmt.Sprintf("Tab %d", tabID), assert.LocalIconRes, p)
 
 	// The title the program sets (OSC 0/2) replaces "Tab n"
-	pane.OnTitle = func(title string) {
+	p.onTitle = func(title string) {
 		win.SetTitle("YaTerm: " + title)
 	}
 
@@ -79,41 +79,41 @@ func NewTab() *container.TabItem {
 func NewTabControl(w fyne.Window) fyne.CanvasObject {
 	win = w
 
-	t := NewTab()
-	tabControl = NewTabs(t)
+	t := newTab()
+	tabControl = newTabs(t)
 
 	// On a tmux window the + makes a tmux window, its tab comes from tmux
-	tabControl.CreateTab = func() *container.TabItem {
-		if s := ActiveTmux(); s != nil && tabControl.SelectedIndex >= 0 && s.OwnsTab(tabControl.Focused()) {
-			s.NewWindow()
+	tabControl.createTab = func() *container.TabItem {
+		if s := activeTmux(); s != nil && tabControl.selectedIndex >= 0 && s.ownsTab(tabControl.focused()) {
+			s.newWindow()
 			return nil
 		}
-		return NewTab()
+		return newTab()
 	}
 
-	tabControl.OnClosed = func(tab *container.TabItem) {
+	tabControl.onClosed = func(tab *container.TabItem) {
 		switch tab.Content.(type) {
-		case *Pane:
+		case *pane:
 			// A tmux window ends in tmux when its tab is closed, any other
 			// tab ends its programs
-			if s := ActiveTmux(); s != nil && s.OwnsTab(tab) {
-				s.TabClosed(tab)
+			if s := activeTmux(); s != nil && s.ownsTab(tab) {
+				s.tabClosed(tab)
 			} else {
-				tab.Content.(*Pane).TearDown()
+				tab.Content.(*pane).tearDown()
 			}
 		}
-		if len(tabControl.Items) == 0 {
+		if len(tabControl.items) == 0 {
 			win.Close()
 		}
 	}
 
-	tabControl.OnSelected = func(tab *container.TabItem) {
+	tabControl.onSelected = func(tab *container.TabItem) {
 		switch tab.Content.(type) {
-		case *Pane:
-			if s := ActiveTmux(); s != nil {
-				s.TabFocus(tab)
+		case *pane:
+			if s := activeTmux(); s != nil {
+				s.tabFocus(tab)
 			}
-			tab.Content.(*Pane).TryFocus()
+			tab.Content.(*pane).tryFocus()
 
 		default:
 			// A pane of the tab before would keep the focus while hidden and
@@ -123,15 +123,15 @@ func NewTabControl(w fyne.Window) fyne.CanvasObject {
 		}
 	}
 
-	tabControl.OnSettings = func() {
-		ShowSettings(w)
+	tabControl.onSettings = func() {
+		showSettings(w)
 	}
 
 	registerWindowShortcuts()
 
 	go func() {
 		fyne.Do(func() {
-			win.Canvas().Focus(t.Content.(*Pane))
+			win.Canvas().Focus(t.Content.(*pane))
 		})
 	}()
 

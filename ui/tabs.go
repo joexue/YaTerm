@@ -128,18 +128,18 @@ func (t *tabButton) MouseOut() {
 	t.bg.Refresh()
 }
 
-// Tabs is the tab bar of the window and the content of the selected tab
-type Tabs struct {
+// tabs is the tab bar of the window and the content of the selected tab
+type tabs struct {
 	widget.BaseWidget
-	SelectedIndex int
+	selectedIndex int
 
-	Items []*container.TabItem
+	items []*container.TabItem
 
-	CreateTab      func() *container.TabItem
-	CloseIntercept func(*container.TabItem)
-	OnClosed       func(*container.TabItem)
-	OnSelected     func(*container.TabItem)
-	OnSettings     func()
+	createTab      func() *container.TabItem
+	closeIntercept func(*container.TabItem)
+	onClosed       func(*container.TabItem)
+	onSelected     func(*container.TabItem)
+	onSettings     func()
 
 	// Internal UI elements
 	tabBar       *fyne.Container
@@ -150,21 +150,21 @@ type Tabs struct {
 	topContainer *fyne.Container
 }
 
-// NewTabs makes a tab bar with items
-func NewTabs(items ...*container.TabItem) *Tabs {
-	t := &Tabs{
-		Items:         items,
-		SelectedIndex: -1,
+// newTabs makes a tab bar with items
+func newTabs(items ...*container.TabItem) *tabs {
+	t := &tabs{
+		items:         items,
+		selectedIndex: -1,
 		tabBar:        container.NewHBox(),
 		contentArea:   container.NewStack(),
 	}
 	t.BaseWidget.ExtendBaseWidget(t)
 
 	t.settingsBtn = widget.NewButtonWithIcon("", theme.SettingsIcon(), func() {
-		if t.OnSettings != nil {
-			t.OnSettings()
+		if t.onSettings != nil {
+			t.onSettings()
 		}
-		t.Select(t.SelectedIndex)
+		t.selectTab(t.selectedIndex)
 	})
 	t.settingsBtn.Importance = widget.LowImportance
 
@@ -185,7 +185,7 @@ func NewTabs(items ...*container.TabItem) *Tabs {
 	t.topContainer = container.NewBorder(tabBarWithBg, nil, nil, nil, t.contentArea)
 
 	if len(items) > 0 {
-		t.Select(0)
+		t.selectTab(0)
 	} else {
 		t.Refresh()
 	}
@@ -193,44 +193,44 @@ func NewTabs(items ...*container.TabItem) *Tabs {
 	return t
 }
 
-// Select shows the tab at index, OnSelected is told
-func (t *Tabs) Select(index int) {
-	if index < 0 || index >= len(t.Items) {
+// selectTab shows the tab at index, onSelected is told
+func (t *tabs) selectTab(index int) {
+	if index < 0 || index >= len(t.items) {
 		return
 	}
-	t.SelectedIndex = index
+	t.selectedIndex = index
 	t.Refresh()
 
-	if t.OnSelected != nil {
-		t.OnSelected(t.Items[index])
+	if t.onSelected != nil {
+		t.onSelected(t.items[index])
 	}
 }
 
-// Append adds item as the last tab and selects it
-func (t *Tabs) Append(item *container.TabItem) {
-	t.Items = append(t.Items, item)
+// append adds item as the last tab and selects it
+func (t *tabs) append(item *container.TabItem) {
+	t.items = append(t.items, item)
 	// Newly created tabs become the focused tab.
-	t.Select(len(t.Items) - 1)
+	t.selectTab(len(t.items) - 1)
 
 	// Reveal the newly appended tab if the row is scrolled.
 	t.tabScroll.ScrollToOffset(fyne.NewPos(t.tabBar.MinSize().Width, 0))
 }
 
-// CloseTab closes item as its close button does: CloseIntercept decides when
+// closeTab closes item as its close button does: closeIntercept decides when
 // set, else it is removed
-func (t *Tabs) CloseTab(item *container.TabItem) {
-	if t.CloseIntercept != nil {
-		t.CloseIntercept(item)
+func (t *tabs) closeTab(item *container.TabItem) {
+	if t.closeIntercept != nil {
+		t.closeIntercept(item)
 		return
 	}
-	t.Remove(item)
+	t.remove(item)
 }
 
-// Remove takes item out of the tabs, another one is selected if it was, and
-// OnClosed is told
-func (t *Tabs) Remove(item *container.TabItem) {
+// remove takes item out of the tabs, another one is selected if it was, and
+// onClosed is told
+func (t *tabs) remove(item *container.TabItem) {
 	index := -1
-	for i, v := range t.Items {
+	for i, v := range t.items {
 		if v == item {
 			index = i
 			break
@@ -240,34 +240,34 @@ func (t *Tabs) Remove(item *container.TabItem) {
 		return
 	}
 
-	t.Items = append(t.Items[:index], t.Items[index+1:]...)
+	t.items = append(t.items[:index], t.items[index+1:]...)
 
-	if len(t.Items) == 0 {
-		t.SelectedIndex = -1
-	} else if t.SelectedIndex >= len(t.Items) {
-		t.Select(len(t.Items) - 1)
-	} else if t.SelectedIndex == index {
-		t.Select(t.SelectedIndex)
-	} else if t.SelectedIndex > index {
-		t.SelectedIndex--
+	if len(t.items) == 0 {
+		t.selectedIndex = -1
+	} else if t.selectedIndex >= len(t.items) {
+		t.selectTab(len(t.items) - 1)
+	} else if t.selectedIndex == index {
+		t.selectTab(t.selectedIndex)
+	} else if t.selectedIndex > index {
+		t.selectedIndex--
 		t.Refresh()
 	} else {
 		t.Refresh()
 	}
 
-	if t.OnClosed != nil {
-		t.OnClosed(item)
+	if t.onClosed != nil {
+		t.onClosed(item)
 	}
 }
 
 // CreateRenderer is a private method to Fyne which links this widget to its
 // renderer
-func (t *Tabs) CreateRenderer() fyne.WidgetRenderer {
+func (t *tabs) CreateRenderer() fyne.WidgetRenderer {
 	return widget.NewSimpleRenderer(t.topContainer)
 }
 
 // Refresh builds the tab bar again from Items and shows the selected tab
-func (t *Tabs) Refresh() {
+func (t *tabs) Refresh() {
 	t.tabBar.Objects = nil
 	t.contentArea.Objects = nil
 
@@ -279,7 +279,7 @@ func (t *Tabs) Refresh() {
 	// The icon of a local tab only tells it from the tmux tabs, it is shown
 	// while there are some
 	hasTmux := false
-	for _, item := range t.Items {
+	for _, item := range t.items {
 		if item.Icon == assert.TmuxIconRes {
 			hasTmux = true
 			break
@@ -287,16 +287,16 @@ func (t *Tabs) Refresh() {
 	}
 
 	// 1. Build and render the existing document tabs
-	for i, item := range t.Items {
+	for i, item := range t.items {
 		idx := i
 		itm := item
-		selected := idx == t.SelectedIndex
+		selected := idx == t.selectedIndex
 
 		icon := itm.Icon
 		if icon == assert.LocalIconRes && !hasTmux {
 			icon = nil
 		}
-		tab := newTabButton(itm.Text, icon, selected, func() { t.Select(idx) }, func() { t.CloseTab(itm) })
+		tab := newTabButton(itm.Text, icon, selected, func() { t.selectTab(idx) }, func() { t.closeTab(itm) })
 		t.tabBar.Add(tab)
 
 		if selected {
@@ -307,8 +307,8 @@ func (t *Tabs) Refresh() {
 
 	addBtn := widget.NewButtonWithIcon("", theme.ContentAddIcon(), func() {
 		// No tab when the new one comes later, e.g. a tmux window
-		if it := t.CreateTab(); it != nil {
-			t.Append(it)
+		if it := t.createTab(); it != nil {
+			t.append(it)
 		}
 
 	})
@@ -324,33 +324,33 @@ func (t *Tabs) Refresh() {
 	t.BaseWidget.Refresh()
 }
 
-// CloseTabByObj closes the tab whose content is obj
-func (t *Tabs) CloseTabByObj(obj fyne.CanvasObject) {
-	for _, item := range t.Items {
+// closeTabByObj closes the tab whose content is obj
+func (t *tabs) closeTabByObj(obj fyne.CanvasObject) {
+	for _, item := range t.items {
 		if item.Content == obj {
-			t.CloseTab(item)
+			t.closeTab(item)
 			break
 		}
 	}
 }
 
-// Focused is the selected tab
-func (t *Tabs) Focused() *container.TabItem {
-	return t.Items[t.SelectedIndex]
+// focused is the selected tab
+func (t *tabs) focused() *container.TabItem {
+	return t.items[t.selectedIndex]
 }
 
 // Tapped moves the focus back to the tab's pane when the user clicks the
 // empty area of the tab bar
-func (t *Tabs) Tapped(pe *fyne.PointEvent) {
-	t.Select(t.SelectedIndex)
+func (t *tabs) Tapped(pe *fyne.PointEvent) {
+	t.selectTab(t.selectedIndex)
 }
 
 // TappedSecondary moves the focus back to the tab's pane, as Tapped does
-func (t *Tabs) TappedSecondary(pe *fyne.PointEvent) {
-	t.Select(t.SelectedIndex)
+func (t *tabs) TappedSecondary(pe *fyne.PointEvent) {
+	t.selectTab(t.selectedIndex)
 }
 
 // AcceptsTab keeps Tab from moving the focus away, see fyne.Tabbable
-func (t *Tabs) AcceptsTab() bool {
+func (t *tabs) AcceptsTab() bool {
 	return true
 }

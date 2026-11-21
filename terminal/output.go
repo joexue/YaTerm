@@ -18,9 +18,9 @@ const (
 	stateAPCTermination
 )
 
-// StringTerminator is the 8 bit ST (C1), it ends an OSC, a DCS or an APC
+// stringTerminator is the 8 bit ST (C1), it ends an OSC, a DCS or an APC
 // string, as "ESC \" does
-const StringTerminator = 0x9c
+const stringTerminator = 0x9c
 
 // processRune runs one character of the output through the state machine
 func (t *Terminal) processRune(r rune) {
@@ -55,9 +55,9 @@ func (t *Terminal) processRune(r rune) {
 	// If it is 'ESC ST' pattern then let it go otherwise fallback to escape mode
 	case stateOSCTermination:
 		if r == '\\' {
-			t.processOsc(StringTerminator)
+			t.processOsc(stringTerminator)
 		} else {
-			t.processOsc(StringTerminator)
+			t.processOsc(stringTerminator)
 			t.state = stateESC
 			t.processEsc(r)
 		}
@@ -67,9 +67,9 @@ func (t *Terminal) processRune(r rune) {
 
 	case stateAPCTermination:
 		if r == '\\' {
-			t.processApc(StringTerminator)
+			t.processApc(stringTerminator)
 		} else {
-			t.processApc(StringTerminator)
+			t.processApc(stringTerminator)
 			t.state = stateESC
 			t.processEsc(r)
 		}
@@ -84,7 +84,7 @@ func (t *Terminal) processRune(r rune) {
 
 	case stateDCSTermination:
 		if r == '\\' {
-			t.processDcs(StringTerminator)
+			t.processDcs(stringTerminator)
 		} else {
 			// If ssh connection is closed by peer, Conpty stucks in DCS state.
 			// Need to give it extra instruction to restore it back. Otherwise
@@ -92,7 +92,7 @@ func (t *Terminal) processRune(r rune) {
 			if t.tmux != nil {
 				t.closePtyString()
 			}
-			t.processDcs(StringTerminator)
+			t.processDcs(stringTerminator)
 			t.state = stateESC
 			t.processEsc(r)
 		}

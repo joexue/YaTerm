@@ -13,7 +13,7 @@ import (
 const wordDelimiters = " \t\"'`()[]{}<>|;,"
 
 // selPos is a cell in the whole text: line is the absolute line (history and
-// screen together, see Screen.histTotal), col the column.
+// screen together, see screen.histTotal), col the column.
 type selPos struct {
 	line, col int
 }
@@ -38,7 +38,7 @@ func (sel selection) bounds() (selPos, selPos) {
 }
 
 // cellAt returns the cell under a position in the screen. Called with mu held.
-func (s *Screen) cellAt(pos fyne.Position) selPos {
+func (s *screen) cellAt(pos fyne.Position) selPos {
 	row := max(0, min(int(pos.Y/s.cellSize.Height), s.row-1))
 	col := max(0, min(int(pos.X/s.cellSize.Width), s.col-1))
 	return selPos{line: s.histTotal - s.offset + row, col: col}
@@ -46,7 +46,7 @@ func (s *Screen) cellAt(pos fyne.Position) selPos {
 
 // lineAt returns the cells of an absolute line, false when it is not kept
 // any more. Called with mu held.
-func (s *Screen) lineAt(abs int) (line, bool) {
+func (s *screen) lineAt(abs int) (line, bool) {
 	base := s.histTotal - s.hist.len()
 	switch {
 	case abs < base:
@@ -59,8 +59,8 @@ func (s *Screen) lineAt(abs int) (line, bool) {
 	return line{}, false
 }
 
-// SelectStart clears the selection and remembers where a drag starts
-func (s *Screen) SelectStart(pos fyne.Position) {
+// selectStart clears the selection and remembers where a drag starts
+func (s *screen) selectStart(pos fyne.Position) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -68,8 +68,8 @@ func (s *Screen) SelectStart(pos fyne.Position) {
 	s.setSelection(selection{anchor: p, head: p})
 }
 
-// SelectTo selects from the drag start to pos
-func (s *Screen) SelectTo(pos fyne.Position) {
+// selectTo selects from the drag start to pos
+func (s *screen) selectTo(pos fyne.Position) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -79,8 +79,8 @@ func (s *Screen) SelectTo(pos fyne.Position) {
 	s.setSelection(sel)
 }
 
-// SelectWord selects the word under pos, for a double click
-func (s *Screen) SelectWord(pos fyne.Position) {
+// selectWord selects the word under pos, for a double click
+func (s *screen) selectWord(pos fyne.Position) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -106,16 +106,8 @@ func (s *Screen) SelectWord(pos fyne.Position) {
 	})
 }
 
-// ClearSelection removes the selection
-func (s *Screen) ClearSelection() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.setSelection(selection{})
-}
-
 // setSelection changes the selection and redraws. Called with mu held.
-func (s *Screen) setSelection(sel selection) {
+func (s *screen) setSelection(sel selection) {
 	if sel == s.sel {
 		return
 	}
@@ -129,10 +121,10 @@ func (s *Screen) setSelection(sel selection) {
 	}
 }
 
-// SelectedText returns the selected text. Lines that were wrapped by the
+// selectedText returns the selected text. Lines that were wrapped by the
 // terminal are joined, others end with a new line, trailing blanks of each
 // line are dropped.
-func (s *Screen) SelectedText() string {
+func (s *screen) selectedText() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -185,7 +177,7 @@ func (s *Screen) SelectedText() string {
 // highlight returns the cells of a row with the search matches and the
 // selection painted in, or the cells as they are when the row has neither.
 // Called with mu held.
-func (s *Screen) highlight(l *screenLine, cells []cell, abs int) []cell {
+func (s *screen) highlight(l *screenLine, cells []cell, abs int) []cell {
 	selected := false
 	var start, end selPos
 	if s.sel.active {

@@ -213,14 +213,6 @@ func (t *Terminal) Resize(row, col int) {
 	}
 }
 
-// Size is the size of the terminal, its rows and columns
-func (t *Terminal) Size() (int, int) {
-	t.stateMu.Lock()
-	defer t.stateMu.Unlock()
-
-	return t.row, t.col
-}
-
 // RunCmd runs the program of the command line cmd, "" for the default one,
 // and its output through the parser until it ends, then calls OnExit
 func (t *Terminal) RunCmd(cmd string) {
@@ -286,16 +278,16 @@ func (t *Terminal) Screen() Screen {
 	return t.screen
 }
 
-// SetTitle keeps the title the program set (OSC 0 or 2) and tells the UI
-func (t *Terminal) SetTitle(title string) {
+// setTitle keeps the title the program set (OSC 0 or 2) and tells the UI
+func (t *Terminal) setTitle(title string) {
 	t.title = title
 	if f := t.OnTitleChange; f != nil {
 		f(title)
 	}
 }
 
-// SetCwd keeps the working directory the program told (OSC 7)
-func (t *Terminal) SetCwd(cwd string) {
+// setCwd keeps the working directory the program told (OSC 7)
+func (t *Terminal) setCwd(cwd string) {
 	t.cwd = cwd
 }
 

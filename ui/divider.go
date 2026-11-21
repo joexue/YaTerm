@@ -8,30 +8,30 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// SplitDefaultThickness is the thickness of a divider, between the panes
-var SplitDefaultThickness = float32(5)
+// splitDefaultThickness is the thickness of a divider, between the panes
+var splitDefaultThickness = float32(5)
 
 var (
-	_ fyne.CanvasObject  = (*Divider)(nil)
-	_ fyne.Draggable     = (*Divider)(nil)
-	_ desktop.Cursorable = (*Divider)(nil)
-	_ desktop.Hoverable  = (*Divider)(nil)
+	_ fyne.CanvasObject  = (*divider)(nil)
+	_ fyne.Draggable     = (*divider)(nil)
+	_ desktop.Cursorable = (*divider)(nil)
+	_ desktop.Hoverable  = (*divider)(nil)
 )
 
-// DividerObject is the split pane a divider sizes: its direction, and the
+// dividerObject is the split pane a divider sizes: its direction, and the
 // ratio of its first pane, set while dragging (changing) and at the end
-type DividerObject interface {
+type dividerObject interface {
 	fyne.CanvasObject
 
 	SplitDirection() int
 	SetRatio(float32, bool)
 }
 
-// Divider is the bar between the two panes of a split, dragged to resize them
-type Divider struct {
+// divider is the bar between the two panes of a split, dragged to resize them
+type divider struct {
 	widget.BaseWidget
 
-	obj            DividerObject
+	obj            dividerObject
 	hovered        bool
 	dragging       bool
 	startDragOff   *fyne.Position
@@ -39,9 +39,9 @@ type Divider struct {
 	ratio          float32
 }
 
-// NewDivider makes the divider of the split pane obj
-func NewDivider(obj DividerObject) *Divider {
-	d := &Divider{
+// newDivider makes the divider of the split pane obj
+func newDivider(obj dividerObject) *divider {
+	d := &divider{
 		obj: obj,
 	}
 
@@ -51,21 +51,21 @@ func NewDivider(obj DividerObject) *Divider {
 
 // CreateRenderer is a private method to Fyne which links this widget to its
 // renderer
-func (d *Divider) CreateRenderer() fyne.WidgetRenderer {
+func (d *divider) CreateRenderer() fyne.WidgetRenderer {
 	d.ExtendBaseWidget(d)
 	th := d.Theme()
 	v := fyne.CurrentApp().Settings().ThemeVariant()
 
 	background := canvas.NewRectangle(th.Color(theme.ColorNameMenuBackground, v))
-	return &DividerRenderer{
-		Divider:    d,
+	return &dividerRenderer{
+		divider:    d,
 		background: background,
 	}
 }
 
 // Cursor is the resize cursor of the split's direction, see
 // desktop.Cursorable
-func (d *Divider) Cursor() desktop.Cursor {
+func (d *divider) Cursor() desktop.Cursor {
 	if d.obj.SplitDirection() == splitRight {
 		return desktop.HResizeCursor
 	}
@@ -73,7 +73,7 @@ func (d *Divider) Cursor() desktop.Cursor {
 }
 
 // DragEnd sets the ratio the drag ended at, see fyne.Draggable
-func (d *Divider) DragEnd() {
+func (d *divider) DragEnd() {
 	d.startDragOff = nil
 	d.dragging = false
 	d.Refresh()
@@ -82,7 +82,7 @@ func (d *Divider) DragEnd() {
 
 // Dragged moves the divider with the mouse, the panes follow, see
 // fyne.Draggable
-func (d *Divider) Dragged(e *fyne.DragEvent) {
+func (d *divider) Dragged(e *fyne.DragEvent) {
 	if !d.dragging {
 		d.dragging = true
 		d.Refresh()
@@ -99,9 +99,9 @@ func (d *Divider) Dragged(e *fyne.DragEvent) {
 	x, y := d.currentDragPos.Components()
 	var ratio float32
 	if d.obj.SplitDirection() == splitRight {
-		ratio = x / (d.obj.Size().Width - DividerThickness(d))
+		ratio = x / (d.obj.Size().Width - dividerThickness(d))
 	} else {
-		ratio = y / (d.obj.Size().Height - DividerThickness(d))
+		ratio = y / (d.obj.Size().Height - dividerThickness(d))
 	}
 
 	d.ratio = ratio
@@ -109,72 +109,72 @@ func (d *Divider) Dragged(e *fyne.DragEvent) {
 }
 
 // MouseIn highlights the divider, see desktop.Hoverable
-func (d *Divider) MouseIn(event *desktop.MouseEvent) {
+func (d *divider) MouseIn(event *desktop.MouseEvent) {
 	d.hovered = true
 	d.Refresh()
 }
 
 // MouseMoved does nothing, see desktop.Hoverable
-func (d *Divider) MouseMoved(event *desktop.MouseEvent) {
+func (d *divider) MouseMoved(event *desktop.MouseEvent) {
 	// Nothing to do
 }
 
 // MouseOut ends the highlight, see desktop.Hoverable
-func (d *Divider) MouseOut() {
+func (d *divider) MouseOut() {
 	d.hovered = false
 	d.Refresh()
 }
 
-var _ fyne.WidgetRenderer = (*DividerRenderer)(nil)
+var _ fyne.WidgetRenderer = (*dividerRenderer)(nil)
 
-// DividerRenderer draws a divider: a bar in the color of the tab bar, the
+// dividerRenderer draws a divider: a bar in the color of the tab bar, the
 // accent color while hovered or dragged
-type DividerRenderer struct {
-	Divider    *Divider
+type dividerRenderer struct {
+	divider    *divider
 	background *canvas.Rectangle
 }
 
 // Destroy does nothing, the renderer has nothing to free
-func (r *DividerRenderer) Destroy() {
+func (r *dividerRenderer) Destroy() {
 }
 
 // Layout sizes the bar to the divider
-func (r *DividerRenderer) Layout(size fyne.Size) {
+func (r *dividerRenderer) Layout(size fyne.Size) {
 	r.background.Resize(size)
 }
 
 // MinSize is the thickness across the split and a short length along it
-func (r *DividerRenderer) MinSize() fyne.Size {
-	if r.Divider.obj.SplitDirection() == splitRight {
-		return fyne.NewSize(DividerThickness(r.Divider), DividerLength(r.Divider))
+func (r *dividerRenderer) MinSize() fyne.Size {
+	if r.divider.obj.SplitDirection() == splitRight {
+		return fyne.NewSize(dividerThickness(r.divider), dividerLength(r.divider))
 	}
-	return fyne.NewSize(DividerLength(r.Divider), DividerThickness(r.Divider))
+	return fyne.NewSize(dividerLength(r.divider), dividerThickness(r.divider))
 }
 
 // Objects is the bar
-func (r *DividerRenderer) Objects() []fyne.CanvasObject {
+func (r *dividerRenderer) Objects() []fyne.CanvasObject {
 	return []fyne.CanvasObject{r.background}
 }
 
 // Refresh colors the bar for the theme and the hover or drag
-func (r *DividerRenderer) Refresh() {
-	th := r.Divider.Theme()
+func (r *dividerRenderer) Refresh() {
+	th := r.divider.Theme()
 	v := fyne.CurrentApp().Settings().ThemeVariant()
 
 	// The color of the tab bar, so it stands out from the terminal's
 	// background in dark and light schemes alike, and the accent color while
 	// the mouse is on it or drags it
-	if r.Divider.hovered || r.Divider.dragging {
+	if r.divider.hovered || r.divider.dragging {
 		r.background.FillColor = th.Color(theme.ColorNamePrimary, v)
 	} else {
 		r.background.FillColor = th.Color(theme.ColorNameMenuBackground, v)
 	}
 	r.background.Refresh()
-	r.Layout(r.Divider.Size())
+	r.Layout(r.divider.Size())
 }
 
-// DividerTheme is the theme of d, the current one when d is nil
-func DividerTheme(d *Divider) fyne.Theme {
+// dividerTheme is the theme of d, the current one when d is nil
+func dividerTheme(d *divider) fyne.Theme {
 	if d == nil {
 		return theme.Current()
 	}
@@ -182,14 +182,14 @@ func DividerTheme(d *Divider) fyne.Theme {
 	return d.Theme()
 }
 
-// DividerThickness is the thickness of d across the split
-func DividerThickness(d *Divider) float32 {
-	pad := SplitDefaultThickness
+// dividerThickness is the thickness of d across the split
+func dividerThickness(d *divider) float32 {
+	pad := splitDefaultThickness
 	return pad
 }
 
-// DividerLength is the minimum length of d along the split
-func DividerLength(d *Divider) float32 {
-	th := DividerTheme(d)
+// dividerLength is the minimum length of d along the split
+func dividerLength(d *divider) float32 {
+	th := dividerTheme(d)
 	return th.Size(theme.SizeNamePadding) * 6
 }

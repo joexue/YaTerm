@@ -18,7 +18,7 @@ const (
 	ColorBackground          fyne.ThemeColorName = "background"
 	ColorForeground          fyne.ThemeColorName = "foreground"
 	ColorCursor              fyne.ThemeColorName = "cursorColor"
-	ColorSelectionBackground fyne.ThemeColorName = "selectionBackground"
+	colorSelectionBackground fyne.ThemeColorName = "selectionBackground"
 )
 
 // SizeNameTerminalText is the size of the terminal's text. It is apart from
@@ -59,8 +59,8 @@ type Scheme struct {
 // A scheme without a selectionBackground there gets #FFFFFF, the color
 // Windows Terminal uses then.
 
-// Campbell is the "Campbell" scheme of Windows Terminal
-var Campbell = Scheme{
+// campbell is the "Campbell" scheme of Windows Terminal
+var campbell = Scheme{
 	Name: "Campbell",
 
 	ANSI: [16]color.Color{
@@ -86,12 +86,12 @@ var Campbell = Scheme{
 		ColorBackground:          color.RGBA{R: 0x0C, G: 0x0C, B: 0x0C, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xCC, G: 0xCC, B: 0xCC, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
-		ColorSelectionBackground: color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
+		colorSelectionBackground: color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
 	},
 }
 
-// CampbellPowershell is the "Campbell Powershell" scheme of Windows Terminal
-var CampbellPowershell = Scheme{
+// campbellPowershell is the "Campbell Powershell" scheme of Windows Terminal
+var campbellPowershell = Scheme{
 	Name: "Campbell Powershell",
 
 	ANSI: [16]color.Color{
@@ -117,12 +117,12 @@ var CampbellPowershell = Scheme{
 		ColorBackground:          color.RGBA{R: 0x01, G: 0x24, B: 0x56, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xCC, G: 0xCC, B: 0xCC, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
-		ColorSelectionBackground: color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
+		colorSelectionBackground: color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
 	},
 }
 
-// Vintage is the "Vintage" scheme of Windows Terminal
-var Vintage = Scheme{
+// vintage is the "Vintage" scheme of Windows Terminal
+var vintage = Scheme{
 	Name: "Vintage",
 
 	ANSI: [16]color.Color{
@@ -148,12 +148,12 @@ var Vintage = Scheme{
 		ColorBackground:          color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xC0, G: 0xC0, B: 0xC0, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
-		ColorSelectionBackground: color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
+		colorSelectionBackground: color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
 	},
 }
 
-// OneHalfDark is the "One Half Dark" scheme of Windows Terminal
-var OneHalfDark = Scheme{
+// oneHalfDark is the "One Half Dark" scheme of Windows Terminal
+var oneHalfDark = Scheme{
 	Name: "One Half Dark",
 
 	ANSI: [16]color.Color{
@@ -179,12 +179,12 @@ var OneHalfDark = Scheme{
 		ColorBackground:          color.RGBA{R: 0x28, G: 0x2C, B: 0x34, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xDC, G: 0xDF, B: 0xE4, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
-		ColorSelectionBackground: color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
+		colorSelectionBackground: color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
 	},
 }
 
-// OneHalfLight is the "One Half Light" scheme of Windows Terminal
-var OneHalfLight = Scheme{
+// oneHalfLight is the "One Half Light" scheme of Windows Terminal
+var oneHalfLight = Scheme{
 	Name: "One Half Light",
 
 	ANSI: [16]color.Color{
@@ -210,12 +210,12 @@ var OneHalfLight = Scheme{
 		ColorBackground:          color.RGBA{R: 0xFA, G: 0xFA, B: 0xFA, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0x38, G: 0x3A, B: 0x42, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0x4F, G: 0x52, B: 0x5D, A: 0xff},
-		ColorSelectionBackground: color.RGBA{R: 0x38, G: 0x3A, B: 0x42, A: 0xff},
+		colorSelectionBackground: color.RGBA{R: 0x38, G: 0x3A, B: 0x42, A: 0xff},
 	},
 }
 
-// SolarizedDark is the "Solarized Dark" scheme of Windows Terminal
-var SolarizedDark = Scheme{
+// solarizedDark is the "Solarized Dark" scheme of Windows Terminal
+var solarizedDark = Scheme{
 	Name: "Solarized Dark",
 
 	ANSI: [16]color.Color{
@@ -241,12 +241,12 @@ var SolarizedDark = Scheme{
 		ColorBackground:          color.RGBA{R: 0x00, G: 0x2B, B: 0x36, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0x83, G: 0x94, B: 0x96, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
-		ColorSelectionBackground: color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
+		colorSelectionBackground: color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
 	},
 }
 
-// SolarizedLight is the "Solarized Light" scheme of Windows Terminal
-var SolarizedLight = Scheme{
+// solarizedLight is the "Solarized Light" scheme of Windows Terminal
+var solarizedLight = Scheme{
 	Name: "Solarized Light",
 
 	ANSI: [16]color.Color{
@@ -272,12 +272,12 @@ var SolarizedLight = Scheme{
 		ColorBackground:          color.RGBA{R: 0xFD, G: 0xF6, B: 0xE3, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0x65, G: 0x7B, B: 0x83, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0x00, G: 0x2B, B: 0x36, A: 0xff},
-		ColorSelectionBackground: color.RGBA{R: 0x2C, G: 0x4D, B: 0x57, A: 0xff},
+		colorSelectionBackground: color.RGBA{R: 0x2C, G: 0x4D, B: 0x57, A: 0xff},
 	},
 }
 
-// TangoDark is the "Tango Dark" scheme of Windows Terminal
-var TangoDark = Scheme{
+// tangoDark is the "Tango Dark" scheme of Windows Terminal
+var tangoDark = Scheme{
 	Name: "Tango Dark",
 
 	ANSI: [16]color.Color{
@@ -303,12 +303,12 @@ var TangoDark = Scheme{
 		ColorBackground:          color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xD3, G: 0xD7, B: 0xCF, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
-		ColorSelectionBackground: color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
+		colorSelectionBackground: color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
 	},
 }
 
-// TangoLight is the "Tango Light" scheme of Windows Terminal
-var TangoLight = Scheme{
+// tangoLight is the "Tango Light" scheme of Windows Terminal
+var tangoLight = Scheme{
 	Name: "Tango Light",
 
 	ANSI: [16]color.Color{
@@ -334,12 +334,12 @@ var TangoLight = Scheme{
 		ColorBackground:          color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0x55, G: 0x57, B: 0x53, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xff},
-		ColorSelectionBackground: color.RGBA{R: 0x14, G: 0x14, B: 0x14, A: 0xff},
+		colorSelectionBackground: color.RGBA{R: 0x14, G: 0x14, B: 0x14, A: 0xff},
 	},
 }
 
-// DarkPlus is the "Dark+" scheme of Windows Terminal
-var DarkPlus = Scheme{
+// darkPlus is the "Dark+" scheme of Windows Terminal
+var darkPlus = Scheme{
 	Name: "Dark+",
 
 	ANSI: [16]color.Color{
@@ -365,12 +365,12 @@ var DarkPlus = Scheme{
 		ColorBackground:          color.RGBA{R: 0x1E, G: 0x1E, B: 0x1E, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xCC, G: 0xCC, B: 0xCC, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0x80, G: 0x80, B: 0x80, A: 0xff},
-		ColorSelectionBackground: color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
+		colorSelectionBackground: color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
 	},
 }
 
-// VSCodeDarkModern is the "VSCode Dark Modern" scheme of Windows Terminal
-var VSCodeDarkModern = Scheme{
+// vsCodeDarkModern is the "VSCode Dark Modern" scheme of Windows Terminal
+var vsCodeDarkModern = Scheme{
 	Name: "VSCode Dark Modern",
 
 	ANSI: [16]color.Color{
@@ -396,12 +396,12 @@ var VSCodeDarkModern = Scheme{
 		ColorBackground:          color.RGBA{R: 0x1F, G: 0x1F, B: 0x1F, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xCC, G: 0xCC, B: 0xCC, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
-		ColorSelectionBackground: color.RGBA{R: 0x26, G: 0x4F, B: 0x78, A: 0xff},
+		colorSelectionBackground: color.RGBA{R: 0x26, G: 0x4F, B: 0x78, A: 0xff},
 	},
 }
 
-// VSCodeLightModern is the "VSCode Light Modern" scheme of Windows Terminal
-var VSCodeLightModern = Scheme{
+// vsCodeLightModern is the "VSCode Light Modern" scheme of Windows Terminal
+var vsCodeLightModern = Scheme{
 	Name: "VSCode Light Modern",
 
 	ANSI: [16]color.Color{
@@ -427,12 +427,12 @@ var VSCodeLightModern = Scheme{
 		ColorBackground:          color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0x3B, G: 0x3B, B: 0x3B, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xff},
-		ColorSelectionBackground: color.RGBA{R: 0xAD, G: 0xD6, B: 0xFF, A: 0xff},
+		colorSelectionBackground: color.RGBA{R: 0xAD, G: 0xD6, B: 0xFF, A: 0xff},
 	},
 }
 
-// CGA is the "CGA" scheme of Windows Terminal
-var CGA = Scheme{
+// cga is the "CGA" scheme of Windows Terminal
+var cga = Scheme{
 	Name: "CGA",
 
 	ANSI: [16]color.Color{
@@ -458,12 +458,12 @@ var CGA = Scheme{
 		ColorBackground:          color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xAA, G: 0xAA, B: 0xAA, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0x00, G: 0xAA, B: 0x00, A: 0xff},
-		ColorSelectionBackground: color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
+		colorSelectionBackground: color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
 	},
 }
 
-// IBM5153 is the "IBM 5153" scheme of Windows Terminal
-var IBM5153 = Scheme{
+// ibm5153 is the "IBM 5153" scheme of Windows Terminal
+var ibm5153 = Scheme{
 	Name: "IBM 5153",
 
 	ANSI: [16]color.Color{
@@ -489,12 +489,12 @@ var IBM5153 = Scheme{
 		ColorBackground:          color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xAA, G: 0xAA, B: 0xAA, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0x00, G: 0xAA, B: 0x00, A: 0xff},
-		ColorSelectionBackground: color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
+		colorSelectionBackground: color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
 	},
 }
 
-// Dimidium is the "Dimidium" scheme of Windows Terminal
-var Dimidium = Scheme{
+// dimidium is the "Dimidium" scheme of Windows Terminal
+var dimidium = Scheme{
 	Name: "Dimidium",
 
 	ANSI: [16]color.Color{
@@ -520,12 +520,12 @@ var Dimidium = Scheme{
 		ColorBackground:          color.RGBA{R: 0x14, G: 0x14, B: 0x14, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xBA, G: 0xB7, B: 0xB6, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0x37, G: 0xE5, B: 0x7B, A: 0xff},
-		ColorSelectionBackground: color.RGBA{R: 0x8D, G: 0xB8, B: 0xE5, A: 0xff},
+		colorSelectionBackground: color.RGBA{R: 0x8D, G: 0xB8, B: 0xE5, A: 0xff},
 	},
 }
 
-// Ottosson is the "Ottosson" scheme of Windows Terminal
-var Ottosson = Scheme{
+// ottosson is the "Ottosson" scheme of Windows Terminal
+var ottosson = Scheme{
 	Name: "Ottosson",
 
 	ANSI: [16]color.Color{
@@ -551,16 +551,16 @@ var Ottosson = Scheme{
 		ColorBackground:          color.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xBE, G: 0xBE, B: 0xBE, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
-		ColorSelectionBackground: color.RGBA{R: 0x92, G: 0xA4, B: 0xFD, A: 0xff},
+		colorSelectionBackground: color.RGBA{R: 0x92, G: 0xA4, B: 0xFD, A: 0xff},
 	},
 }
 
-// Ubuntu is the "Ubuntu" scheme of Ubuntu on WSL, which WSL gives to Windows
+// ubuntu is the "Ubuntu" scheme of Ubuntu on WSL, which WSL gives to Windows
 // Terminal. It is not from Windows Terminal: it comes from Canonical's
 // wsl-setup package (https://github.com/ubuntu/wsl-setup), file
 // /usr/share/wsl/terminal-profile.json, Copyright 2021 Canonical Ltd., GPL-3.
 // Only its color values are used, see THIRD_PARTY_NOTICES.
-var Ubuntu = Scheme{
+var ubuntu = Scheme{
 	Name: "Ubuntu",
 
 	ANSI: [16]color.Color{
@@ -586,15 +586,15 @@ var Ubuntu = Scheme{
 		ColorBackground:          color.RGBA{R: 0x30, G: 0x0A, B: 0x24, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
-		ColorSelectionBackground: color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
+		colorSelectionBackground: color.RGBA{R: 0xFF, G: 0xFF, B: 0xFF, A: 0xff},
 	},
 }
 
-// UbuntuClassic is the classic Ubuntu GNOME Terminal look, the Tango colors
+// ubuntuClassic is the classic Ubuntu GNOME Terminal look, the Tango colors
 // on the aubergine background, named "Ubuntu" in the iTerm2-Color-Schemes
 // collection (https://github.com/mbadolato/iTerm2-Color-Schemes, file
 // windowsterminal/Ubuntu.json), MIT License, see THIRD_PARTY_NOTICES.
-var UbuntuClassic = Scheme{
+var ubuntuClassic = Scheme{
 	Name: "Ubuntu Classic",
 
 	ANSI: [16]color.Color{
@@ -620,30 +620,30 @@ var UbuntuClassic = Scheme{
 		ColorBackground:          color.RGBA{R: 0x30, G: 0x0A, B: 0x24, A: 0xff},
 		ColorForeground:          color.RGBA{R: 0xEE, G: 0xEE, B: 0xEC, A: 0xff},
 		ColorCursor:              color.RGBA{R: 0xBB, G: 0xBB, B: 0xBB, A: 0xff},
-		ColorSelectionBackground: color.RGBA{R: 0xB5, G: 0xD5, B: 0xFF, A: 0xff},
+		colorSelectionBackground: color.RGBA{R: 0xB5, G: 0xD5, B: 0xFF, A: 0xff},
 	},
 }
 
 // Schemes are all the schemes, by their name
 var Schemes = map[string]*Scheme{
-	"Campbell":            &Campbell,
-	"Campbell Powershell": &CampbellPowershell,
-	"Vintage":             &Vintage,
-	"One Half Dark":       &OneHalfDark,
-	"One Half Light":      &OneHalfLight,
-	"Solarized Dark":      &SolarizedDark,
-	"Solarized Light":     &SolarizedLight,
-	"Tango Dark":          &TangoDark,
-	"Tango Light":         &TangoLight,
-	"Dark+":               &DarkPlus,
-	"VSCode Dark Modern":  &VSCodeDarkModern,
-	"VSCode Light Modern": &VSCodeLightModern,
-	"CGA":                 &CGA,
-	"IBM 5153":            &IBM5153,
-	"Dimidium":            &Dimidium,
-	"Ottosson":            &Ottosson,
-	"Ubuntu":              &Ubuntu,
-	"Ubuntu Classic":      &UbuntuClassic,
+	"Campbell":            &campbell,
+	"Campbell Powershell": &campbellPowershell,
+	"Vintage":             &vintage,
+	"One Half Dark":       &oneHalfDark,
+	"One Half Light":      &oneHalfLight,
+	"Solarized Dark":      &solarizedDark,
+	"Solarized Light":     &solarizedLight,
+	"Tango Dark":          &tangoDark,
+	"Tango Light":         &tangoLight,
+	"Dark+":               &darkPlus,
+	"VSCode Dark Modern":  &vsCodeDarkModern,
+	"VSCode Light Modern": &vsCodeLightModern,
+	"CGA":                 &cga,
+	"IBM 5153":            &ibm5153,
+	"Dimidium":            &dimidium,
+	"Ottosson":            &ottosson,
+	"Ubuntu":              &ubuntu,
+	"Ubuntu Classic":      &ubuntuClassic,
 }
 
 // DefaultScheme is the scheme a new theme starts with

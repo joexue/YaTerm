@@ -231,7 +231,7 @@ func actionFor(key fyne.KeyName, mods fyne.KeyModifier) (action, bool) {
 
 // runShortcut runs the action of a key pressed in the pane, false when the
 // key is not a shortcut and goes to the terminal
-func (p *Pane) runShortcut(key fyne.KeyName, mods fyne.KeyModifier) bool {
+func (p *pane) runShortcut(key fyne.KeyName, mods fyne.KeyModifier) bool {
 	act, ok := actionFor(key, mods)
 	if !ok {
 		return false
@@ -243,7 +243,7 @@ func (p *Pane) runShortcut(key fyne.KeyName, mods fyne.KeyModifier) bool {
 // runAction runs an action from this pane. The tab actions work anywhere, the
 // pane actions only on a pane of the tab that is shown, a pane of a hidden tab
 // may still have the focus, e.g. after a switch to a markdown tab.
-func (p *Pane) runAction(act action) {
+func (p *pane) runAction(act action) {
 	switch act {
 	case actNewTab:
 		openNewTab()
@@ -256,7 +256,7 @@ func (p *Pane) runAction(act action) {
 		return
 	}
 
-	if !p.InFocusTab() {
+	if !p.inFocusTab() {
 		return
 	}
 
@@ -278,15 +278,15 @@ func (p *Pane) runAction(act action) {
 	case actDividerDown:
 		p.moveDivider(splitDown, dividerStepRows)
 	case actSplitRight:
-		p.Split(splitRight, 0.5)
+		p.splitPane(splitRight, 0.5)
 	case actSplitDown:
-		p.Split(splitDown, 0.5)
+		p.splitPane(splitDown, 0.5)
 	case actCopy, actCopy2:
 		p.copySelection()
 	case actPaste, actPaste2:
 		p.paste(fyne.CurrentApp().Clipboard())
 	case actSearch:
-		p.ShowSearch()
+		p.showSearch()
 	}
 }
 
@@ -340,15 +340,15 @@ func runWindowAction(act action) {
 
 // shownPane is the last focused pane of the shown tab, nil when the shown
 // tab has no panes, e.g. a markdown tab
-func shownPane() *Pane {
+func shownPane() *pane {
 	if tabControl == nil {
 		return nil
 	}
-	i := tabControl.SelectedIndex
-	if i < 0 || i >= len(tabControl.Items) {
+	i := tabControl.selectedIndex
+	if i < 0 || i >= len(tabControl.items) {
 		return nil
 	}
-	root, ok := tabControl.Items[i].Content.(*Pane)
+	root, ok := tabControl.items[i].Content.(*pane)
 	if !ok {
 		return nil
 	}
@@ -365,11 +365,11 @@ func shownPane() *Pane {
 // openNewTab makes a tab like the + of the tab bar does: a tmux window when
 // a tmux window is shown, else a tab with the default program
 func openNewTab() {
-	if tabControl == nil || tabControl.CreateTab == nil {
+	if tabControl == nil || tabControl.createTab == nil {
 		return
 	}
-	if it := tabControl.CreateTab(); it != nil {
-		tabControl.Append(it)
+	if it := tabControl.createTab(); it != nil {
+		tabControl.append(it)
 	}
 }
 
@@ -384,7 +384,7 @@ const (
 // splits in the direction (splitRight: a divider between panes side by side,
 // moved left or right; splitDown: up or down) by cells, negative to the left
 // or up. Each side keeps room for a few cells, as a split needs.
-func (p *Pane) moveDivider(direction, cells int) {
+func (p *pane) moveDivider(direction, cells int) {
 	q := p.parent
 	for q != nil && q.split != direction {
 		q = q.parent
@@ -398,7 +398,7 @@ func (p *Pane) moveDivider(direction, cells int) {
 	if direction == splitDown {
 		step, room = cell.Height, total.Height
 	}
-	room -= SplitDefaultThickness
+	room -= splitDefaultThickness
 	if room <= 0 {
 		return
 	}
@@ -413,27 +413,27 @@ func (p *Pane) moveDivider(direction, cells int) {
 
 // switchTab selects the tab by steps from the selected one, round the ends
 func switchTab(steps int) {
-	if tabControl == nil || len(tabControl.Items) < 2 {
+	if tabControl == nil || len(tabControl.items) < 2 {
 		return
 	}
-	n := len(tabControl.Items)
-	tabControl.Select(((tabControl.SelectedIndex+steps)%n + n) % n)
+	n := len(tabControl.items)
+	tabControl.selectTab(((tabControl.selectedIndex+steps)%n + n) % n)
 }
 
 // focusNeighbor moves the focus to the pane next to this one in the direction
 // (dx, dy), e.g. (1, 0) is to the right. Of the panes on that side that line
 // up with this one, the nearest gets it, of those the one most in line.
-func (p *Pane) focusNeighbor(dx, dy int) {
+func (p *pane) focusNeighbor(dx, dy int) {
 	d := fyne.CurrentApp().Driver()
-	at := func(q *Pane) (fyne.Position, fyne.Position) {
+	at := func(q *pane) (fyne.Position, fyne.Position) {
 		pos := d.AbsolutePositionForObject(q)
 		return pos, pos.Add(q.Size())
 	}
 	from, to := at(p)
 
-	var best *Pane
+	var best *pane
 	bestGap, bestOff := float32(0), float32(0)
-	for _, q := range p.root.Leaves() {
+	for _, q := range p.root.leaves() {
 		if q == p {
 			continue
 		}

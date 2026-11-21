@@ -17,10 +17,10 @@ import (
 )
 
 var (
-	_ fyne.Widget       = (*Screen)(nil)
-	_ fyne.Scrollable   = (*Screen)(nil)
-	_ desktop.Hoverable = (*Screen)(nil)
-	_ terminal.Screen   = (*Screen)(nil)
+	_ fyne.Widget       = (*screen)(nil)
+	_ fyne.Scrollable   = (*screen)(nil)
+	_ desktop.Hoverable = (*screen)(nil)
+	_ terminal.Screen   = (*screen)(nil)
 )
 
 // One mouse wheel notch is 25 units in Fyne (10 on macOS), scroll 3 lines a notch
@@ -95,9 +95,9 @@ func (l *screenLine) text(i int) *canvas.Text {
 	return l.texts[i]
 }
 
-// Screen draws a terminal: its cells, cursor, selection, search matches and
+// screen draws a terminal: its cells, cursor, selection, search matches and
 // scroll bar, and keeps the lines scrolled off above, see terminal.Screen
-type Screen struct {
+type screen struct {
 	widget.BaseWidget
 
 	cursor *canvas.Rectangle
@@ -154,19 +154,19 @@ type Screen struct {
 	size fyne.Size
 
 	// Set by the pane showing the screen, for a program that gets the mouse.
-	// OnWheel takes the wheel, true when it did, else the view scrolls.
-	// OnHover gets the moves of the mouse. Positions are in the screen.
-	OnWheel func(pos fyne.Position, dy float32) bool
-	OnHover func(pos fyne.Position)
+	// onWheel takes the wheel, true when it did, else the view scrolls.
+	// onHover gets the moves of the mouse. Positions are in the screen.
+	onWheel func(pos fyne.Position, dy float32) bool
+	onHover func(pos fyne.Position)
 }
 
-// NewScreen makes an empty screen with the cursor of the theme
-func NewScreen() *Screen {
-	s := &Screen{
+// newScreen makes an empty screen with the cursor of the theme
+func newScreen() *screen {
+	s := &screen{
 		cursor:     canvas.NewRectangle(theme.Color(yatheme.ColorCursor)),
 		cursorText: canvas.NewText("", color.Transparent),
 		cellSize:   measureCell(),
-		hist:       newHistory(HistoryLines),
+		hist:       newHistory(historyLines),
 	}
 
 	s.cursorText.Hide()
@@ -179,7 +179,7 @@ func NewScreen() *Screen {
 
 // Project puts the character r in the cell at row and col, in its colors and
 // style, see terminal.Screen
-func (s *Screen) Project(r rune, row, col int, fg, bg color.Color, style terminal.Style) {
+func (s *screen) Project(r rune, row, col int, fg, bg color.Color, style terminal.Style) {
 	textStyle := fyne.TextStyle{
 		Monospace: true,
 
@@ -235,7 +235,7 @@ func (s *Screen) Project(r rune, row, col int, fg, bg color.Color, style termina
 
 // SetWrapped marks a row as going on in the next one, called by the terminal
 // when it wraps at the right edge, and cleared when the line end is erased.
-func (s *Screen) SetWrapped(row int, wrapped bool) {
+func (s *screen) SetWrapped(row int, wrapped bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -245,8 +245,8 @@ func (s *Screen) SetWrapped(row int, wrapped bool) {
 }
 
 // Resize only sizes the widget, the rows and columns come from the terminal
-// through Reflow, which Pane calls before laying out the screen.
-func (s *Screen) Resize(size fyne.Size) {
+// through Reflow, which the pane calls before laying out the screen.
+func (s *screen) Resize(size fyne.Size) {
 	if size.Width <= 0 || size.Height <= 0 || size == s.size {
 		return
 	}
@@ -268,7 +268,7 @@ func (s *Screen) Resize(size fyne.Size) {
 // merges it back. The screen keeps the cursor line (or the last line with
 // content) at the bottom, lines above go to the history. Returns the new
 // cursor position.
-func (s *Screen) Reflow(row, col, curRow, curCol int) (int, int) {
+func (s *screen) Reflow(row, col, curRow, curCol int) (int, int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.find.stale = true
@@ -308,7 +308,7 @@ func (s *Screen) Reflow(row, col, curRow, curCol int) (int, int) {
 
 // reflow is Reflow of the screen in lines and the history, called with mu
 // held
-func (s *Screen) reflow(row, col, curRow, curCol int) (int, int) {
+func (s *screen) reflow(row, col, curRow, curCol int) (int, int) {
 	if row <= 0 || col <= 0 || len(s.lines) == 0 || s.col <= 0 {
 		// Nothing to keep yet
 		s.row, s.col = max(row, 0), max(col, 0)
@@ -427,7 +427,7 @@ func (s *Screen) reflow(row, col, curRow, curCol int) (int, int) {
 	s.hist.reset()
 	// Lines are wrapped again, the old line numbers mean nothing
 	s.sel = selection{}
-	for _, l := range out[max(0, top-HistoryLines):top] {
+	for _, l := range out[max(0, top-historyLines):top] {
 		s.hist.push(l)
 	}
 	s.histTotal = s.hist.len()
@@ -463,7 +463,7 @@ func lineBlank(cells []cell) bool {
 
 // syncRows makes one row object for each screen row. Called on the UI thread
 // with mu held, after Reflow changed the number of rows.
-func (s *Screen) syncRows() {
+func (s *screen) syncRows() {
 	if len(s.rows) == s.row && len(s.objects) == s.row+3 {
 		return
 	}
@@ -484,15 +484,10 @@ func (s *Screen) syncRows() {
 	canvas.Refresh(s)
 }
 
-// PositionForCursorLocation is the position of the cell at row and col
-func (s *Screen) PositionForCursorLocation(row, col int) fyne.Position {
-	return fyne.NewPos(float32(col)*s.cellSize.Width, float32(row)*s.cellSize.Height)
-}
-
 // Flush asks the UI thread to draw what changed. If a flush is already queued
 // it is not queued again, the queued one draws the latest state, so heavy
 // output costs one fyne.Do per frame instead of one per read.
-func (s *Screen) Flush(row, col int) {
+func (s *screen) Flush(row, col int) {
 	s.mu.Lock()
 	s.curRow, s.curCol = row, col
 	if s.flushing {
@@ -522,8 +517,8 @@ func (s *Screen) Flush(row, col int) {
 // underline cursor
 const cursorThickness = 2
 
-// SetCursorShape sets how the cursor is drawn
-func (s *Screen) SetCursorShape(shape yatheme.CursorShape) {
+// setCursorShape sets how the cursor is drawn
+func (s *screen) setCursorShape(shape yatheme.CursorShape) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -531,9 +526,9 @@ func (s *Screen) SetCursorShape(shape yatheme.CursorShape) {
 	s.updateCursor()
 }
 
-// SetFocused shows the cursor while the pane has the keyboard focus and hides
+// setFocused shows the cursor while the pane has the keyboard focus and hides
 // it when the focus goes elsewhere, e.g. to another pane or another window
-func (s *Screen) SetFocused(focused bool) {
+func (s *screen) setFocused(focused bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -543,7 +538,7 @@ func (s *Screen) SetFocused(focused bool) {
 
 // updateCursor places the cursor, it moves down with the view when scrolled
 // back and is hidden when it is below the view. Called with mu held.
-func (s *Screen) updateCursor() {
+func (s *screen) updateCursor() {
 	row := s.curRow + s.offset
 	if !s.focused || s.cursorHidden || row >= s.row {
 		s.cursor.Hide()
@@ -612,8 +607,8 @@ func (s *Screen) updateCursor() {
 
 // Scrolled shows the history lines when the mouse wheel scrolls up, and
 // the scroll bar with them
-func (s *Screen) Scrolled(ev *fyne.ScrollEvent) {
-	if s.OnWheel != nil && s.OnWheel(ev.Position, ev.Scrolled.DY) {
+func (s *screen) Scrolled(ev *fyne.ScrollEvent) {
+	if s.onWheel != nil && s.onWheel(ev.Position, ev.Scrolled.DY) {
 		return
 	}
 
@@ -630,40 +625,40 @@ func (s *Screen) Scrolled(ev *fyne.ScrollEvent) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.scrollTo(s.offset + n)
+	s.scrollToLocked(s.offset + n)
 }
 
-// ScrollLines scrolls the view n lines back into the history, forward when
+// scrollLines scrolls the view n lines back into the history, forward when
 // n < 0, e.g. while a selection is dragged past the top or bottom
-func (s *Screen) ScrollLines(n int) {
+func (s *screen) scrollLines(n int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.scrollTo(s.offset + n)
+	s.scrollToLocked(s.offset + n)
 }
 
-// ScrollTo moves the view offset lines back into the history, e.g. for the
+// scrollTo moves the view offset lines back into the history, e.g. for the
 // scroll bar
-func (s *Screen) ScrollTo(offset int) {
+func (s *screen) scrollTo(offset int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.scrollTo(offset)
+	s.scrollToLocked(offset)
 }
 
-// ScrollToBottom goes back to the live screen, e.g. when a key is typed
-func (s *Screen) ScrollToBottom() {
+// scrollToBottom goes back to the live screen, e.g. when a key is typed
+func (s *screen) scrollToBottom() {
 	s.scrollAcc = 0
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.scrollTo(0)
+	s.scrollToLocked(0)
 }
 
-// scrollTo moves the view offset lines back into the history. Called on the
+// scrollToLocked moves the view offset lines back into the history. Called on the
 // UI thread with mu held.
-func (s *Screen) scrollTo(offset int) {
+func (s *screen) scrollToLocked(offset int) {
 	offset = max(0, min(offset, s.hist.len()))
 	// The history is of the main screen, not shown over the alternate one
 	if s.alt {
@@ -681,19 +676,19 @@ func (s *Screen) scrollTo(offset int) {
 
 // MoveCursor does nothing, the cursor is drawn where the flush puts it, see
 // terminal.Screen
-func (s *Screen) MoveCursor(row, col int) {
+func (s *screen) MoveCursor(row, col int) {
 }
 
 // SetCursorVisible shows or hides the cursor, see terminal.Screen. It is
 // drawn so on the next flush.
-func (s *Screen) SetCursorVisible(visible bool) {
+func (s *screen) SetCursorVisible(visible bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.cursorHidden = !visible
 }
 
 // ClearHistory drops the lines above the screen, see terminal.Screen
-func (s *Screen) ClearHistory() {
+func (s *screen) ClearHistory() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.hist.reset()
@@ -704,7 +699,7 @@ func (s *Screen) ClearHistory() {
 }
 
 // SetAlternate switches to the alternate screen or back, see terminal.Screen
-func (s *Screen) SetAlternate(on bool, curRow, curCol int) (int, int) {
+func (s *screen) SetAlternate(on bool, curRow, curCol int) (int, int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -737,7 +732,7 @@ func (s *Screen) SetAlternate(on bool, curRow, curCol int) (int, int) {
 
 // ScrollUp rotates the buffer right away, the row objects are rotated on the
 // next render so rows that are already drawn are just moved up.
-func (s *Screen) ScrollUp() {
+func (s *screen) ScrollUp() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -780,7 +775,7 @@ func (s *Screen) ScrollUp() {
 // when n < 0. Lines leaving the region are dropped, not kept in the history,
 // as it is part of the screen like vim's text area above its status line.
 // Insert and delete lines are this too, from the cursor row to the bottom.
-func (s *Screen) ScrollRegion(top, bottom, n int) {
+func (s *screen) ScrollRegion(top, bottom, n int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.find.stale = true
@@ -820,7 +815,7 @@ func (s *Screen) ScrollRegion(top, bottom, n int) {
 
 // InsertCells shifts the cells from col right by n, the ones pushed past the
 // line end are dropped, the gap gets blank cells with background bg.
-func (s *Screen) InsertCells(row, col, n int, bg color.Color) {
+func (s *screen) InsertCells(row, col, n int, bg color.Color) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.find.stale = true
@@ -840,7 +835,7 @@ func (s *Screen) InsertCells(row, col, n int, bg color.Color) {
 
 // DeleteCells removes n cells from col, the rest of the line moves left and
 // blank cells with background bg fill the end.
-func (s *Screen) DeleteCells(row, col, n int, bg color.Color) {
+func (s *screen) DeleteCells(row, col, n int, bg color.Color) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.find.stale = true
@@ -865,7 +860,7 @@ func clearLine(l *line) {
 }
 
 // viewLine returns the line shown on row i of the view. Called with mu held.
-func (s *Screen) viewLine(i int) []cell {
+func (s *screen) viewLine(i int) []cell {
 	n := s.hist.len()
 	idx := n - s.offset + i
 	if idx < n {
@@ -876,7 +871,7 @@ func (s *Screen) viewLine(i int) []cell {
 
 // render rebuilds the objects of the rows changed since the last render.
 // Called on the UI thread with mu held.
-func (s *Screen) render() {
+func (s *screen) render() {
 	s.syncRows()
 	defer s.bar.update(s.offset, s.hist.len(), s.row)
 
@@ -911,7 +906,7 @@ func (s *Screen) render() {
 	}
 }
 
-func (s *Screen) renderLine(i int, cells []cell, abs int) {
+func (s *screen) renderLine(i int, cells []cell, abs int) {
 	l := s.rows[i]
 	cells = s.highlight(l, cells, abs)
 	// History lines may be shorter than the screen, never wider after Reflow
@@ -1032,7 +1027,7 @@ func (s *Screen) renderLine(i int, cells []cell, abs int) {
 	}
 }
 
-func (s *Screen) layoutRows() {
+func (s *screen) layoutRows() {
 	size := fyne.NewSize(float32(s.col)*s.cellSize.Width, s.cellSize.Height)
 	for i, l := range s.rows {
 		l.box.Move(fyne.NewPos(0, float32(i)*s.cellSize.Height))
@@ -1042,7 +1037,7 @@ func (s *Screen) layoutRows() {
 
 // CreateRenderer is a private method to Fyne which links this widget to its
 // renderer
-func (s *Screen) CreateRenderer() fyne.WidgetRenderer {
+func (s *screen) CreateRenderer() fyne.WidgetRenderer {
 	r := &screenRenderer{
 		screen: s,
 	}
@@ -1053,7 +1048,7 @@ func (s *Screen) CreateRenderer() fyne.WidgetRenderer {
 var _ fyne.WidgetRenderer = (*screenRenderer)(nil)
 
 type screenRenderer struct {
-	screen *Screen
+	screen *screen
 }
 
 func (r *screenRenderer) Destroy() {
@@ -1071,7 +1066,7 @@ func (r *screenRenderer) Layout(size fyne.Size) {
 }
 
 // MinSize is one cell and does not follow the content, otherwise the parent
-// Pane would be laid out again on output.
+// pane would be laid out again on output.
 func (r *screenRenderer) MinSize() fyne.Size {
 	return r.screen.cellSize
 }
@@ -1105,8 +1100,8 @@ func (r *screenRenderer) Refresh() {
  * ================================
  */
 
-// HistoryLines is the maximum number of lines kept after they scroll off the screen
-const HistoryLines = 2000
+// historyLines is the maximum number of lines kept after they scroll off the screen
+const historyLines = 2000
 
 // history is a ring buffer of the lines scrolled off the top of the screen
 type history struct {
@@ -1165,25 +1160,25 @@ func isASCII(r rune) bool {
  */
 
 // MouseIn is handled as a move, see desktop.Hoverable
-func (s *Screen) MouseIn(ev *desktop.MouseEvent) {
+func (s *screen) MouseIn(ev *desktop.MouseEvent) {
 	s.MouseMoved(ev)
 }
 
 // MouseMoved shows the scroll bar near the right edge and tells the pane
 // where the mouse is, see desktop.Hoverable
-func (s *Screen) MouseMoved(ev *desktop.MouseEvent) {
+func (s *screen) MouseMoved(ev *desktop.MouseEvent) {
 	if ev.Position.X >= s.Size().Width-scrollEdge {
 		s.bar.reveal()
 	}
-	if s.OnHover != nil {
-		s.OnHover(ev.Position)
+	if s.onHover != nil {
+		s.onHover(ev.Position)
 	}
 }
 
-// LiveCell returns the cell of the live screen under a position in the
+// liveCell returns the cell of the live screen under a position in the
 // screen, kept inside it, false when the view is scrolled back into the
 // history, as the program does not know those lines
-func (s *Screen) LiveCell(pos fyne.Position) (row, col int, ok bool) {
+func (s *screen) liveCell(pos fyne.Position) (row, col int, ok bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -1196,4 +1191,4 @@ func (s *Screen) LiveCell(pos fyne.Position) (row, col int, ok bool) {
 }
 
 // MouseOut does nothing, see desktop.Hoverable
-func (s *Screen) MouseOut() {}
+func (s *screen) MouseOut() {}
