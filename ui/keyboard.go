@@ -1,13 +1,13 @@
 package ui
 
 import (
+	"runtime"
 	"strconv"
+	"strings"
+	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
-	"runtime"
-	"strings"
-	"unicode/utf8"
 )
 
 // modifierOf returns the modifier a key is, or 0 when it is not a modifier key
@@ -209,6 +209,7 @@ func metaChar(name fyne.KeyName, shift bool) int {
 	return -1
 }
 
+// TypedRune sends a typed character to the program, see fyne.Focusable
 func (p *Pane) TypedRune(r rune) {
 	// The pane running tmux -CC takes commands for tmux, typing would send
 	// them, only q detaches
@@ -390,6 +391,7 @@ func (p *Pane) KeyDown(ke *fyne.KeyEvent) {
 	}
 }
 
+// KeyUp forgets a modifier key let go, see desktop.Keyable
 func (p *Pane) KeyUp(ke *fyne.KeyEvent) {
 	if modifierOf(ke.Name) != 0 {
 		delete(p.modKeys, ke.Name)
@@ -406,6 +408,8 @@ func (p *Pane) updateMods() {
 	}
 }
 
+// AcceptsTab keeps Tab for the program instead of moving the focus, see
+// fyne.Tabbable
 func (p *Pane) AcceptsTab() bool {
 	return true
 }

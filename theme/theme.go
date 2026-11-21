@@ -1,9 +1,12 @@
+// Package theme is the Fyne theme of YaTerm: the color schemes, the font,
+// the font size and the cursor shape.
 package theme
 
 import (
+	"image/color"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/theme"
-	"image/color"
 	"yaterm/assert"
 )
 
@@ -651,6 +654,9 @@ const DefaultCursorShape = CursorBlock
 
 var _ fyne.Theme = (*YatermTheme)(nil)
 
+// YatermTheme is the theme of YaTerm: Fyne's default theme with the colors
+// of a scheme, JetBrains Mono for monospace text, the terminal font size and
+// the cursor shape
 type YatermTheme struct {
 	fyne.Theme
 
@@ -667,6 +673,7 @@ func isDark(c color.Color) bool {
 	return 0.2126*float64(r)+0.7152*float64(g)+0.0722*float64(b) < 0.5*0xffff
 }
 
+// Color is the color of the scheme, else the one of the default theme
 func (t *YatermTheme) Color(name fyne.ThemeColorName, _ fyne.ThemeVariant) color.Color {
 	if c, ok := t.scheme.Colors[name]; ok {
 		return c
@@ -675,6 +682,7 @@ func (t *YatermTheme) Color(name fyne.ThemeColorName, _ fyne.ThemeVariant) color
 	return t.Theme.Color(name, t.variant)
 }
 
+// Font is JetBrains Mono for monospace text, else the default font
 func (t *YatermTheme) Font(s fyne.TextStyle) fyne.Resource {
 	if !s.Monospace {
 		return t.Theme.Font(s)
@@ -689,6 +697,7 @@ func (t *YatermTheme) Font(s fyne.TextStyle) fyne.Resource {
 	return assert.ResourceJetBrainsMonoRegularTtf
 }
 
+// Size is the font size for the terminal text, else the default size
 func (t *YatermTheme) Size(name fyne.ThemeSizeName) float32 {
 	switch name {
 	case SizeNameTerminalText:
@@ -751,6 +760,8 @@ func (t *YatermTheme) SetCursorShape(shape CursorShape) bool {
 	return false
 }
 
+// NewYatermTheme makes the theme with the default scheme, font size and
+// cursor shape
 func NewYatermTheme() *YatermTheme {
 	t := &YatermTheme{
 		Theme:       theme.DefaultTheme(),

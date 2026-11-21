@@ -21,7 +21,7 @@ func cleanTitle(s string) string {
 	}, s)
 }
 
-// setClipboard handles "52;<targets>;<base64>". Reading the clipboard with
+// SetClipboard handles "52;<targets>;<base64>". Reading the clipboard with
 // "?" is not allowed, any program in the terminal could read it then.
 func (t *Terminal) SetClipboard(arg string) {
 	_, data, ok := strings.Cut(arg, ";")

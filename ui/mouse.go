@@ -11,6 +11,7 @@ import (
 	"yaterm/terminal"
 )
 
+// Tapped focuses the pane, see fyne.Tappable
 func (p *Pane) Tapped(pe *fyne.PointEvent) {
 	p.Focus()
 }
@@ -115,6 +116,9 @@ func (p *Pane) screenPos(pos fyne.Position) fyne.Position {
 	return pos.Subtract(fyne.NewPos(panePadding, panePadding))
 }
 
+// MouseDown gives a press to the program that asked for the mouse, else
+// starts a selection, or pastes or opens the menu with the middle button,
+// see desktop.Mouseable
 func (p *Pane) MouseDown(ev *desktop.MouseEvent) {
 	if p.split != splitNone {
 		return
@@ -158,6 +162,8 @@ func (p *Pane) MouseDown(ev *desktop.MouseEvent) {
 	}
 }
 
+// MouseUp gives the release to the program that asked for the mouse, see
+// desktop.Mouseable
 func (p *Pane) MouseUp(ev *desktop.MouseEvent) {
 	p.pressed = false
 	p.mouseRelease(p.screenPos(ev.Position), ev.Modifier)

@@ -1,14 +1,15 @@
 package ui
 
 import (
+	"image/color"
+	"strings"
+	"time"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"image/color"
-	"strings"
-	"time"
 	"yaterm/terminal"
 	yatheme "yaterm/theme"
 )
@@ -42,7 +43,7 @@ const (
 )
 
 var (
-	paneId          int
+	paneID          int
 	paneBorderWidth = float32(1)
 	panePadding     = (paneBorderWidth * 3)
 )
@@ -52,12 +53,14 @@ var (
 	localColor = color.RGBA{R: 0x02, G: 0x77, B: 0xBC, A: 0xff}
 )
 
+// Pane is a node of a tab's split tree: a terminal with its screen, or a
+// split into a first and a second pane with a divider between them
 type Pane struct {
 	widget.BaseWidget
 
 	id    int
-	extId int
-	tabId int
+	extID int
+	tabID int
 
 	size   fyne.Size
 	border *canvas.Rectangle
@@ -118,10 +121,12 @@ type Pane struct {
 	OnTitle func(title string)
 }
 
-func NewPane(parent *Pane, term *terminal.Terminal, tabId int, run bool) *Pane {
+// NewPane makes a pane in parent (nil for the root of a tab) showing term, or
+// a new terminal when term is nil; run starts its program
+func NewPane(parent *Pane, term *terminal.Terminal, tabID int, run bool) *Pane {
 	var screen *Screen
 
-	paneId++
+	paneID++
 
 	if term == nil {
 		screen = NewScreen()
@@ -131,7 +136,7 @@ func NewPane(parent *Pane, term *terminal.Terminal, tabId int, run bool) *Pane {
 			screen.SetCursorShape(th.CursorShape())
 		}
 	} else {
-		screen = term.GetScreen().(*Screen)
+		screen = term.Screen().(*Screen)
 	}
 
 	b := canvas.NewRectangle(color.Transparent)
@@ -139,8 +144,8 @@ func NewPane(parent *Pane, term *terminal.Terminal, tabId int, run bool) *Pane {
 	b.StrokeColor = color.Transparent
 
 	p := &Pane{
-		id:       paneId,
-		tabId:    tabId,
+		id:       paneID,
+		tabID:    tabID,
 		border:   b,
 		split:    splitNone,
 		first:    nil,
@@ -170,7 +175,7 @@ func NewPane(parent *Pane, term *terminal.Terminal, tabId int, run bool) *Pane {
 	return p
 }
 
-// newSplitPane makes a pane split in two, e.g. for a tmux layout, the caller
+// NewSplitPane makes a pane split in two, e.g. for a tmux layout, the caller
 // sets its first and second pane
 func NewSplitPane(parent *Pane, direction int, window int, ratio float32) *Pane {
 	b := canvas.NewRectangle(color.Transparent)
@@ -178,9 +183,9 @@ func NewSplitPane(parent *Pane, direction int, window int, ratio float32) *Pane 
 	b.StrokeColor = color.Transparent
 
 	p := &Pane{
-		id:       paneId,
-		extId:    -1,
-		tabId:    window,
+		id:       paneID,
+		extID:    -1,
+		tabID:    window,
 		border:   b,
 		split:    direction,
 		ratio:    ratio,
@@ -196,10 +201,12 @@ func NewSplitPane(parent *Pane, direction int, window int, ratio float32) *Pane 
 	p.divider = NewDivider(p)
 	p.ExtendBaseWidget(p)
 
-	paneId++
+	paneID++
 	return p
 }
 
+// Take makes p what its child sub is: a terminal, or a split with sub's
+// panes, when the other child of p closed
 func (p *Pane) Take(sub *Pane) {
 	p.split = sub.split
 	p.first = sub.first
@@ -225,7 +232,7 @@ func (p *Pane) Take(sub *Pane) {
 	}
 }
 
-// Exit all terminals in it
+// TearDown exits all the terminals in the pane
 func (p *Pane) TearDown() {
 	if p.split == splitNone {
 		t := p.term
@@ -237,7 +244,8 @@ func (p *Pane) TearDown() {
 	}
 }
 
-// Called by TabControl
+// TryFocus focuses the pane of the tab that had the focus last, or its first
+// one, called by TabControl
 func (p *Pane) TryFocus() {
 	// A tree built from outside, e.g. a tmux layout, may have none yet
 	focusPane := p.root.lastFocus
@@ -258,6 +266,7 @@ func (p *Pane) TryFocus() {
 	}
 }
 
+// Focus gives the pane the keyboard focus
 func (p *Pane) Focus() {
 	c := fyne.CurrentApp().Driver().CanvasForObject(p)
 	if c == nil && win != nil {
@@ -268,9 +277,11 @@ func (p *Pane) Focus() {
 	}
 }
 
+// Close closes the pane: its program ends and the other pane of the split
+// takes its place, or the tab closes with its last pane
 func (p *Pane) Close() {
 	if s := ActiveTmux(); s != nil && p.isTmux {
-		s.KillPane(p.extId)
+		s.KillPane(p.extID)
 		return
 	}
 
@@ -314,11 +325,13 @@ func (p *Pane) firstLeaf() *Pane {
 	return p
 }
 
+// Split splits the pane in direction (splitRight or splitDown): its terminal
+// goes to the first pane, a new one to the second, which gets the focus
 func (p *Pane) Split(direction int, ratio float32) {
 	// tmux splits its pane, the layout change makes the new one here
 	if p.isTmux {
 		if s := ActiveTmux(); s != nil {
-			s.Split(p.extId, direction)
+			s.Split(p.extID, direction)
 		}
 		return
 	}
@@ -338,9 +351,9 @@ func (p *Pane) Split(direction int, ratio float32) {
 	}
 
 	p.split = direction
-	p.first = NewPane(p, p.term, p.tabId, false)
+	p.first = NewPane(p, p.term, p.tabID, false)
 	MoveTmuxControl(p, p.first)
-	p.second = NewPane(p, nil, p.tabId, true)
+	p.second = NewPane(p, nil, p.tabID, true)
 
 	p.term = nil
 	p.screen = nil
@@ -351,6 +364,8 @@ func (p *Pane) Split(direction int, ratio float32) {
 	p.second.Focus()
 }
 
+// SetRatio sets the share of the first pane, see DividerObject. A tmux pane
+// tells tmux the new sizes once the drag ended.
 func (p *Pane) SetRatio(ratio float32, changing bool) {
 	p.ratio = ratio
 	p.Refresh()
@@ -364,6 +379,7 @@ func (p *Pane) SetRatio(ratio float32, changing bool) {
 	}
 }
 
+// Resize sizes the pane, and its terminal to the rows and columns that fit
 func (p *Pane) Resize(size fyne.Size) {
 	if size.Width <= 0 || size.Height <= 0 || size == p.size {
 		return
@@ -390,6 +406,8 @@ func (p *Pane) Resize(size fyne.Size) {
 	p.BaseWidget.Resize(size)
 }
 
+// SplitDirection is how the pane is split, splitNone when it is a terminal,
+// see DividerObject
 func (p *Pane) SplitDirection() int {
 	return p.split
 }
@@ -426,7 +444,7 @@ func (p *Pane) ConnectTerm() {
 	p.screen.OnHover = p.mouseHover
 }
 
-// inShownTab tells if the pane is in the tab that is shown
+// InFocusTab tells if the pane is in the tab that is shown
 func (p *Pane) InFocusTab() bool {
 	if tabControl == nil {
 		return true // e.g. a pane on its own in a test
@@ -469,10 +487,13 @@ func (p *Pane) Leaves() []*Pane {
  *  Focusable
  * ================================
  */
+
+// FocusGained shows the pane focused: its cursor and border, the title of its
+// terminal, see fyne.Focusable
 func (p *Pane) FocusGained() {
 	p.root.lastFocus = p
 	if s := ActiveTmux(); s != nil && p.isTmux {
-		s.PaneFocused(p.extId)
+		s.PaneFocused(p.extID)
 	}
 	p.screen.SetFocused(true)
 	if p.term != nil {
@@ -490,6 +511,8 @@ func (p *Pane) FocusGained() {
 	}
 }
 
+// FocusLost shows the pane unfocused and forgets the modifier keys held, see
+// fyne.Focusable
 func (p *Pane) FocusLost() {
 	// The lost pane may be a parent pane which doesn't have screen
 	if p.screen != nil {
@@ -509,6 +532,9 @@ func (p *Pane) FocusLost() {
  *  Renderer
  * ================================
  */
+
+// CreateRenderer is a private method to Fyne which links this widget to its
+// renderer
 func (p *Pane) CreateRenderer() fyne.WidgetRenderer {
 	r := &paneRenderer{
 		pane: p,

@@ -1,7 +1,11 @@
+// Package ui is the window of YaTerm: its tabs, the panes they split into,
+// the screens that draw the terminals, the keyboard and mouse, the settings,
+// and the tabs and panes of tmux control mode.
 package ui
 
 import (
 	"fmt"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
@@ -14,24 +18,27 @@ var (
 
 	tabControl *Tabs
 
-	tabId, markdownTabId int
+	tabID, markdownTabID int
 )
 
+// ShowTitle puts title in the title of the window
 func ShowTitle(title string) {
 	win.SetTitle("YaTerm: " + title)
 }
 
+// CloseTab closes the tab of the root pane, a tmux tab by killing its window
 func CloseTab(pane *Pane) {
 	if s := ActiveTmux(); s != nil && pane.isTmux {
-		s.killWindow(pane.tabId)
+		s.killWindow(pane.tabID)
 		return
 	}
 
 	tabControl.CloseTabByObj(pane)
 }
 
+// NewMarkdownTab opens a tab showing text as Markdown
 func NewMarkdownTab(text string) {
-	markdownTabId++
+	markdownTabID++
 
 	defaultText := `
 # The selection is empty
@@ -49,16 +56,17 @@ You need to select text from terminal then show it as markdown style
 	// with its own scroll makes a new one that draws nothing, the tab would
 	// be empty when shown again
 
-	mtab := container.NewTabItemWithIcon(fmt.Sprintf("MD %d", markdownTabId), assert.MarkdownIconColorRes, container.NewScroll(rt))
+	mtab := container.NewTabItemWithIcon(fmt.Sprintf("MD %d", markdownTabID), assert.MarkdownIconColorRes, container.NewScroll(rt))
 	fyne.Do(func() {
 		tabControl.Append(mtab)
 	})
 }
 
+// NewTab makes a local tab: a pane running the default program
 func NewTab() *container.TabItem {
-	tabId++
-	pane := NewPane(nil, nil, tabId, true)
-	tab := container.NewTabItemWithIcon(fmt.Sprintf("Tab %d", tabId), assert.LocalIconRes, pane)
+	tabID++
+	pane := NewPane(nil, nil, tabID, true)
+	tab := container.NewTabItemWithIcon(fmt.Sprintf("Tab %d", tabID), assert.LocalIconRes, pane)
 
 	// The title the program sets (OSC 0/2) replaces "Tab n"
 	pane.OnTitle = func(title string) {
@@ -68,6 +76,7 @@ func NewTab() *container.TabItem {
 	return tab
 }
 
+// NewTabControl makes the tab bar of window w, with a first tab
 func NewTabControl(a fyne.App, w fyne.Window) fyne.CanvasObject {
 	win = w
 	app = a

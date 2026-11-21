@@ -1,3 +1,5 @@
+// Package pty runs a program on a pseudo terminal: a Unix pty
+// (creack/pty), or ConPTY on Windows.
 package pty
 
 import (

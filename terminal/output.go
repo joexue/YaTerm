@@ -18,9 +18,9 @@ const (
 	stateAPCTermination
 )
 
-const (
-	StringTerminator = 0x9c
-)
+// StringTerminator is the 8 bit ST (C1), it ends an OSC, a DCS or an APC
+// string, as "ESC \" does
+const StringTerminator = 0x9c
 
 // processRune runs one character of the output through the state machine
 func (t *Terminal) processRune(r rune) {
@@ -102,6 +102,8 @@ func (t *Terminal) processRune(r rune) {
 	}
 }
 
+// ProcessOutput runs the first num bytes of the output of the program through
+// the parser onto the screen. A character cut at the end waits for the rest.
 func (t *Terminal) ProcessOutput(bytes []byte, num int) {
 	t.stateMu.Lock()
 	defer t.stateMu.Unlock()

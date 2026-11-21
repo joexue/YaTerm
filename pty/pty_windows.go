@@ -79,6 +79,7 @@ func coord(col, row int) uintptr {
 	return uintptr(uint16(col)) | uintptr(uint16(row))<<16
 }
 
+// Pty is a ConPTY pseudo console and the program that runs in it
 type Pty struct {
 	sized sizeGate
 
@@ -95,10 +96,12 @@ type Pty struct {
 	closeOnce sync.Once
 }
 
+// New makes a pty, RunCmd starts its program once Resize gave it a size
 func New() *Pty {
 	return &Pty{sized: newSizeGate()}
 }
 
+// Resize sets the size of the terminal in rows and columns
 func (p *Pty) Resize(row, col int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -257,6 +260,7 @@ func (p *Pty) closePty() {
 	})
 }
 
+// Read reads the output of the program
 func (p *Pty) Read(buf []byte) (int, error) {
 	n, err := p.out.Read(buf)
 	if err == io.EOF {
@@ -265,6 +269,7 @@ func (p *Pty) Read(buf []byte) (int, error) {
 	return n, err
 }
 
+// Write sends the input to the program, what is typed or pasted
 func (p *Pty) Write(bytes []byte) (int, error) {
 	p.mu.Lock()
 	in := p.in
@@ -276,6 +281,7 @@ func (p *Pty) Write(bytes []byte) (int, error) {
 	return in.Write(bytes)
 }
 
+// Close ends the program, the pseudo console closes once it is gone
 func (p *Pty) Close() {
 	p.mu.Lock()
 	process := p.process

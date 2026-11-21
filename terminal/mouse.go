@@ -34,6 +34,7 @@ const (
 // MouseAction is what the mouse did
 type MouseAction int
 
+// The mouse actions
 const (
 	MousePress MouseAction = iota
 	MouseRelease

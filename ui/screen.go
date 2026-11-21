@@ -95,6 +95,8 @@ func (l *screenLine) text(i int) *canvas.Text {
 	return l.texts[i]
 }
 
+// Screen draws a terminal: its cells, cursor, selection, search matches and
+// scroll bar, and keeps the lines scrolled off above, see terminal.Screen
 type Screen struct {
 	widget.BaseWidget
 
@@ -158,6 +160,7 @@ type Screen struct {
 	OnHover func(pos fyne.Position)
 }
 
+// NewScreen makes an empty screen with the cursor of the theme
 func NewScreen() *Screen {
 	s := &Screen{
 		cursor:     canvas.NewRectangle(theme.Color(yatheme.ColorCursor)),
@@ -174,6 +177,8 @@ func NewScreen() *Screen {
 	return s
 }
 
+// Project puts the character r in the cell at row and col, in its colors and
+// style, see terminal.Screen
 func (s *Screen) Project(r rune, row, col int, fg, bg color.Color, style terminal.Style) {
 	textStyle := fyne.TextStyle{
 		Monospace: true,
@@ -479,6 +484,7 @@ func (s *Screen) syncRows() {
 	canvas.Refresh(s)
 }
 
+// PositionForCursorLocation is the position of the cell at row and col
 func (s *Screen) PositionForCursorLocation(row, col int) fyne.Position {
 	return fyne.NewPos(float32(col)*s.cellSize.Width, float32(row)*s.cellSize.Height)
 }
@@ -673,6 +679,8 @@ func (s *Screen) scrollTo(offset int) {
 	s.updateCursor()
 }
 
+// MoveCursor does nothing, the cursor is drawn where the flush puts it, see
+// terminal.Screen
 func (s *Screen) MoveCursor(row, col int) {
 }
 
@@ -1032,6 +1040,8 @@ func (s *Screen) layoutRows() {
 	}
 }
 
+// CreateRenderer is a private method to Fyne which links this widget to its
+// renderer
 func (s *Screen) CreateRenderer() fyne.WidgetRenderer {
 	r := &screenRenderer{
 		screen: s,
@@ -1154,10 +1164,13 @@ func isASCII(r rune) bool {
  * =========================================================
  */
 
+// MouseIn is handled as a move, see desktop.Hoverable
 func (s *Screen) MouseIn(ev *desktop.MouseEvent) {
 	s.MouseMoved(ev)
 }
 
+// MouseMoved shows the scroll bar near the right edge and tells the pane
+// where the mouse is, see desktop.Hoverable
 func (s *Screen) MouseMoved(ev *desktop.MouseEvent) {
 	if ev.Position.X >= s.Size().Width-scrollEdge {
 		s.bar.reveal()
@@ -1182,4 +1195,5 @@ func (s *Screen) LiveCell(pos fyne.Position) (row, col int, ok bool) {
 	return row, col, true
 }
 
+// MouseOut does nothing, see desktop.Hoverable
 func (s *Screen) MouseOut() {}

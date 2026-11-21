@@ -128,6 +128,7 @@ func (t *tabButton) MouseOut() {
 	t.bg.Refresh()
 }
 
+// Tabs is the tab bar of the window and the content of the selected tab
 type Tabs struct {
 	widget.BaseWidget
 	SelectedIndex int
@@ -149,6 +150,7 @@ type Tabs struct {
 	topContainer *fyne.Container
 }
 
+// NewTabs makes a tab bar with items
 func NewTabs(items ...*container.TabItem) *Tabs {
 	t := &Tabs{
 		Items:         items,
@@ -191,6 +193,7 @@ func NewTabs(items ...*container.TabItem) *Tabs {
 	return t
 }
 
+// Select shows the tab at index, OnSelected is told
 func (t *Tabs) Select(index int) {
 	if index < 0 || index >= len(t.Items) {
 		return
@@ -203,6 +206,7 @@ func (t *Tabs) Select(index int) {
 	}
 }
 
+// Append adds item as the last tab and selects it
 func (t *Tabs) Append(item *container.TabItem) {
 	t.Items = append(t.Items, item)
 	// Newly created tabs become the focused tab.
@@ -212,6 +216,8 @@ func (t *Tabs) Append(item *container.TabItem) {
 	t.tabScroll.ScrollToOffset(fyne.NewPos(t.tabBar.MinSize().Width, 0))
 }
 
+// CloseTab closes item as its close button does: CloseIntercept decides when
+// set, else it is removed
 func (t *Tabs) CloseTab(item *container.TabItem) {
 	if t.CloseIntercept != nil {
 		t.CloseIntercept(item)
@@ -220,6 +226,8 @@ func (t *Tabs) CloseTab(item *container.TabItem) {
 	t.Remove(item)
 }
 
+// Remove takes item out of the tabs, another one is selected if it was, and
+// OnClosed is told
 func (t *Tabs) Remove(item *container.TabItem) {
 	index := -1
 	for i, v := range t.Items {
@@ -252,10 +260,13 @@ func (t *Tabs) Remove(item *container.TabItem) {
 	}
 }
 
+// CreateRenderer is a private method to Fyne which links this widget to its
+// renderer
 func (t *Tabs) CreateRenderer() fyne.WidgetRenderer {
 	return widget.NewSimpleRenderer(t.topContainer)
 }
 
+// Refresh builds the tab bar again from Items and shows the selected tab
 func (t *Tabs) Refresh() {
 	t.tabBar.Objects = nil
 	t.contentArea.Objects = nil
@@ -313,6 +324,7 @@ func (t *Tabs) Refresh() {
 	t.BaseWidget.Refresh()
 }
 
+// CloseTabByObj closes the tab whose content is obj
 func (t *Tabs) CloseTabByObj(obj fyne.CanvasObject) {
 	for _, item := range t.Items {
 		if item.Content == obj {
@@ -322,19 +334,23 @@ func (t *Tabs) CloseTabByObj(obj fyne.CanvasObject) {
 	}
 }
 
+// Focused is the selected tab
 func (t *Tabs) Focused() *container.TabItem {
 	return t.Items[t.SelectedIndex]
 }
 
-// Move focus back if user click the empty area
+// Tapped moves the focus back to the tab's pane when the user clicks the
+// empty area of the tab bar
 func (t *Tabs) Tapped(pe *fyne.PointEvent) {
 	t.Select(t.SelectedIndex)
 }
 
+// TappedSecondary moves the focus back to the tab's pane, as Tapped does
 func (t *Tabs) TappedSecondary(pe *fyne.PointEvent) {
 	t.Select(t.SelectedIndex)
 }
 
+// AcceptsTab keeps Tab from moving the focus away, see fyne.Tabbable
 func (t *Tabs) AcceptsTab() bool {
 	return true
 }

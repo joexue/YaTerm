@@ -1,12 +1,13 @@
 package ui
 
 import (
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/theme"
 	"image/color"
 	"math"
 	"strconv"
 	"strings"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/theme"
 	yatheme "yaterm/theme"
 )
 

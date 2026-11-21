@@ -1,5 +1,4 @@
 //go:build !windows
-// +build !windows
 
 package pty
 
@@ -15,6 +14,7 @@ import (
 	"github.com/creack/pty"
 )
 
+// Pty is a Unix pseudo terminal and the program that runs on it
 type Pty struct {
 	sized sizeGate
 
@@ -29,10 +29,12 @@ type Pty struct {
 	closeOnce sync.Once
 }
 
+// New makes a pty, RunCmd starts its program once Resize gave it a size
 func New() *Pty {
 	return &Pty{sized: newSizeGate(), exited: make(chan struct{})}
 }
 
+// Resize sets the size of the terminal in rows and columns
 func (p *Pty) Resize(row, col int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -115,6 +117,7 @@ func (p *Pty) RunCmd(cmd string) error {
 	return nil
 }
 
+// Read reads the output of the program
 func (p *Pty) Read(buf []byte) (int, error) {
 	p.mu.Lock()
 	f := p.file
@@ -125,6 +128,7 @@ func (p *Pty) Read(buf []byte) (int, error) {
 	return f.Read(buf)
 }
 
+// Write sends the input to the program, what is typed or pasted
 func (p *Pty) Write(bytes []byte) (int, error) {
 	p.mu.Lock()
 	f := p.file

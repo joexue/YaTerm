@@ -1,3 +1,6 @@
+// Package terminal is the terminal emulator: it parses the output of the
+// program (escape sequences, tmux control mode) onto a Screen, and sends it
+// the input and the replies.
 package terminal
 
 import (
@@ -5,11 +8,14 @@ import (
 	"image/color"
 	"strings"
 	"sync"
+
 	"yaterm/pty"
 )
 
 const bufLen = 32768
 
+// Screen is what the terminal draws on: the cells, the cursor, the scrolls
+// and the history above
 type Screen interface {
 	Project(rune, int, int, color.Color, color.Color, Style)
 	Flush(int, int)
@@ -45,6 +51,7 @@ type Screen interface {
 	ClearHistory()
 }
 
+// Pty is what the program runs on: a pseudo terminal, or e.g. a tmux pane
 type Pty interface {
 	Resize(int, int)
 	RunCmd(string) error
@@ -59,6 +66,8 @@ type Style struct {
 	Inverse, Hidden, Strikethrough           bool
 }
 
+// Terminal is the emulator of one terminal: the state of the parser, the
+// cursor, the modes, the colors, and the pty of its program
 type Terminal struct {
 	state int
 
@@ -152,6 +161,8 @@ func (t *Terminal) BracketedPaste() bool {
 	return t.bracketedPaste
 }
 
+// New makes a terminal drawing on screen, with a pty, RunCmd starts its
+// program
 func New(screen Screen) *Terminal {
 	t := &Terminal{
 		pty:    pty.New(),
@@ -171,6 +182,8 @@ func NewWithPty(screen Screen, p Pty) *Terminal {
 	}
 }
 
+// Resize fits the screen to row rows and col columns, re-wrapping its lines,
+// and gives the pty that size
 func (t *Terminal) Resize(row, col int) {
 	// A pane squeezed to nothing would reflow all text away, keep the old size
 	if row <= 0 || col <= 0 {
@@ -200,6 +213,7 @@ func (t *Terminal) Resize(row, col int) {
 	}
 }
 
+// Size is the size of the terminal, its rows and columns
 func (t *Terminal) Size() (int, int) {
 	t.stateMu.Lock()
 	defer t.stateMu.Unlock()
@@ -207,6 +221,8 @@ func (t *Terminal) Size() (int, int) {
 	return t.row, t.col
 }
 
+// RunCmd runs the program of the command line cmd, "" for the default one,
+// and its output through the parser until it ends, then calls OnExit
 func (t *Terminal) RunCmd(cmd string) {
 	if err := t.pty.RunCmd(cmd); err != nil {
 		// The pane stays open to show why, closing it would say nothing
@@ -241,6 +257,7 @@ func (t *Terminal) RunCmd(cmd string) {
 	}
 }
 
+// Exit closes the pty, which ends its program
 func (t *Terminal) Exit() {
 	if t.pty != nil {
 		t.pty.Close()
@@ -248,24 +265,28 @@ func (t *Terminal) Exit() {
 	}
 }
 
+// Write sends the input to the program
 func (t *Terminal) Write(bytes []byte) (int, error) {
 	t.writeMu.Lock()
 	defer t.writeMu.Unlock()
 	return t.pty.Write(bytes)
 }
 
+// Read reads the output of the program
 func (t *Terminal) Read(bytes []byte) (int, error) {
 	if t.pty != nil {
 		return t.pty.Read(bytes)
 	} else {
-		return 0, errors.New("Closed pty")
+		return 0, errors.New("closed pty")
 	}
 }
 
-func (t *Terminal) GetScreen() Screen {
+// Screen is the screen the terminal draws on
+func (t *Terminal) Screen() Screen {
 	return t.screen
 }
 
+// SetTitle keeps the title the program set (OSC 0 or 2) and tells the UI
 func (t *Terminal) SetTitle(title string) {
 	t.title = title
 	if f := t.OnTitleChange; f != nil {
@@ -273,10 +294,13 @@ func (t *Terminal) SetTitle(title string) {
 	}
 }
 
+// SetCwd keeps the working directory the program told (OSC 7)
 func (t *Terminal) SetCwd(cwd string) {
 	t.cwd = cwd
 }
 
+// SetColors sets the 16 ANSI colors of schema, and the text, background and
+// cursor colors (sysColor) the program may ask for with OSC 10, 11 and 12
 func (t *Terminal) SetColors(schema [16]color.Color, sysColor [3]color.Color) {
 	t.colorSchema = schema
 	t.sysColor = sysColor

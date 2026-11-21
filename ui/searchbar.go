@@ -33,6 +33,8 @@ type SearchBar struct {
 	upward, matchCase, regex bool
 }
 
+// NewSearchBar makes the search bar of screen, onClose is called when it
+// closes
 func NewSearchBar(screen *Screen, onClose func()) *SearchBar {
 	b := &SearchBar{screen: screen, onClose: onClose, upward: true}
 
@@ -91,7 +93,7 @@ func (b *SearchBar) updateButtons() {
 	set(b.regBtn, b.regex)
 }
 
-// search runs the search for the text in the entry, an empty text or an
+// Search runs the search for the text in the entry, an empty text or an
 // invalid regular expression clears the matches
 func (b *SearchBar) Search() {
 	text := b.Entry.Text
@@ -120,7 +122,7 @@ func (b *SearchBar) next(up bool) {
 	b.screen.FindNext(up)
 }
 
-// focus puts the keyboard focus into the entry
+// Focus puts the keyboard focus into the entry
 func (b *SearchBar) Focus() {
 	// A bar just made has no canvas until the next frame draws it, the
 	// window's canvas finds it in the tree already
@@ -140,6 +142,8 @@ func (b *SearchBar) Focus() {
 // the pane under it and start a selection there
 func (b *SearchBar) Tapped(*fyne.PointEvent) {}
 
+// CreateRenderer is a private method to Fyne which links this widget to its
+// renderer
 func (b *SearchBar) CreateRenderer() fyne.WidgetRenderer {
 	entryBox := container.New(layout.NewGridWrapLayout(fyne.NewSize(searchEntryWidth, b.Entry.MinSize().Height)), b.Entry)
 	row := container.NewHBox(entryBox, layout.NewSpacer(), b.up, b.down, b.caseBtn, b.regBtn, b.closeBtn)
