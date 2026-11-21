@@ -6,12 +6,12 @@ import (
 )
 
 /*
- * ================================
+ * ===========================================================================
  *  Mouse reporting: a program (e.g. vim, htop, tmux) asks for the mouse with
  *  a DEC private mode, then the clicks, the wheel and the moves go to it as
  *  escape sequences, see
  *  https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking
- * ================================
+ * ===========================================================================
  */
 
 // What a program asks to get, by the mode it set

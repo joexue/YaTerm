@@ -13,12 +13,12 @@ import (
 )
 
 /*
- * ================================
+ * ==========================================================================
  *  Scroll bar of the history. It lies over the right edge of the screen and
  *  takes no columns, so it is hidden most of the time: it shows when the
  *  wheel scrolls or the mouse comes to the right edge, and hides again a
  *  moment after, unless the mouse is on it or drags it.
- * ================================
+ * ==========================================================================
  */
 
 const (

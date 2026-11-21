@@ -2,9 +2,8 @@ package terminal
 
 import (
 	"errors"
-	"strings"
-	//"fmt"
 	"image/color"
+	"strings"
 	"sync"
 	"yaterm/pty"
 )

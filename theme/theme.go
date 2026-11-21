@@ -752,7 +752,11 @@ func (t *YatermTheme) SetCursorShape(shape CursorShape) bool {
 }
 
 func NewYatermTheme() *YatermTheme {
-	t := &YatermTheme{Theme: theme.DefaultTheme(), fontSize: DefaultFontSize, cursorShape: DefaultCursorShape}
+	t := &YatermTheme{
+		Theme:       theme.DefaultTheme(),
+		fontSize:    DefaultFontSize,
+		cursorShape: DefaultCursorShape,
+	}
 	t.SetScheme(DefaultScheme)
 	return t
 }

@@ -1149,9 +1149,9 @@ func isASCII(r rune) bool {
 }
 
 /*
- * ================================
+ * =========================================================
  *  Hover: the mouse at the right edge shows the scroll bar
- * ================================
+ * =========================================================
  */
 
 func (s *Screen) MouseIn(ev *desktop.MouseEvent) {

@@ -16,11 +16,10 @@ import (
 )
 
 /*
- * ================================
- *  Quick Commands: saved commands typed into the terminal from the menu, for the
- *  long commands people use often and would copy and paste otherwise, but
- *  the clipboard changes in between
- * ================================
+ * ===========================================================================
+ *  Quick Commands: saved commands typed into the terminal from the menu, for
+ *  the long commands people use often and would copy and paste otherwise.
+ * ===========================================================================
  */
 
 // quickNameWidth is the width of the name column in the command editor

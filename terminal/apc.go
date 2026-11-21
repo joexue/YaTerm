@@ -1,5 +1,8 @@
 package terminal
 
+// An APC longer than this is not kept, it is read to its end
+const apcMaxLen = 4096
+
 func (t *Terminal) handleApc() {
 }
 
@@ -30,6 +33,3 @@ func (t *Terminal) processApc(r rune) {
 		}
 	}
 }
-
-// An APC longer than this is not kept, it is read to its end
-const apcMaxLen = 4096
