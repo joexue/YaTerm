@@ -2,6 +2,7 @@ package ui
 
 import (
 	"image/color"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -66,7 +67,17 @@ type tabButton struct {
 	onTapped func()
 	onClose  func()
 
+	// A drag moves the tab along the bar, see tabs.dragTab
+	onDragged func(*tabButton, *fyne.DragEvent)
+	onDragEnd func()
+
+	// While a tab is dragged its own button shows where it will drop
+	// (dropSlot), and a copy of it (floating) follows the mouse
+	dropSlot bool
+	floating bool
+
 	bg      *canvas.Rectangle
+	slot    *canvas.Rectangle // covers the button while it is the drop slot
 	hovered bool
 }
 
@@ -80,7 +91,7 @@ func newTabButton(text string, icon fyne.Resource, selected bool, onTapped, onCl
 // preview a tab shows the scheme looked at
 func (t *tabButton) backgroundColor() color.Color {
 	th, v := t.Theme(), fyne.CurrentApp().Settings().ThemeVariant()
-	if t.selected {
+	if t.selected || t.floating {
 		return th.Color(theme.ColorNameBackground, v)
 	}
 	if t.hovered {
@@ -105,12 +116,63 @@ func (t *tabButton) CreateRenderer() fyne.WidgetRenderer {
 	t.bg.TopLeftCornerRadius = radius
 	t.bg.TopRightCornerRadius = radius
 
-	return widget.NewSimpleRenderer(container.NewStack(t.bg, container.NewPadded(inner)))
+	// The drop slot is an empty box in the accent color, so the tab is seen
+	// once, floating. Opaque, as it hides the label: the accent mixed into
+	// the tab bar's color.
+	th, v := t.Theme(), fyne.CurrentApp().Settings().ThemeVariant()
+	t.slot = canvas.NewRectangle(mix(th.Color(theme.ColorNameMenuBackground, v), th.Color(theme.ColorNamePrimary, v), 0.35))
+	t.slot.TopLeftCornerRadius = radius
+	t.slot.TopRightCornerRadius = radius
+	t.slot.Hidden = !t.dropSlot
+
+	stack := container.NewStack(t.bg, container.NewPadded(inner), t.slot)
+	if t.floating {
+		// The accent outline lifts the dragged copy off the tab bar
+		outline := canvas.NewRectangle(color.Transparent)
+		outline.StrokeColor = th.Color(theme.ColorNamePrimary, v)
+		outline.StrokeWidth = 2
+		outline.TopLeftCornerRadius = radius
+		outline.TopRightCornerRadius = radius
+		stack.Add(outline)
+	}
+	return widget.NewSimpleRenderer(stack)
+}
+
+// setDropSlot shows the button as the place the dragged tab drops to, or as
+// a tab again
+func (t *tabButton) setDropSlot(on bool) {
+	t.dropSlot = on
+	if t.slot != nil {
+		t.slot.Hidden = !on
+		t.slot.Refresh()
+	}
+}
+
+// mix is the color f of the way from a to b
+func mix(a, b color.Color, f float32) color.Color {
+	ar, ag, ab, _ := a.RGBA()
+	br, bg, bb, _ := b.RGBA()
+	m := func(x, y uint32) uint8 { return uint8((float32(x)*(1-f) + float32(y)*f) / 0x101) }
+	return color.NRGBA{R: m(ar, br), G: m(ag, bg), B: m(ab, bb), A: 0xff}
 }
 
 func (t *tabButton) Tapped(*fyne.PointEvent) {
 	if t.onTapped != nil {
 		t.onTapped()
+	}
+}
+
+// Dragged moves the tab along the bar, see fyne.Draggable
+func (t *tabButton) Dragged(e *fyne.DragEvent) {
+	if t.onDragged != nil {
+		t.onDragged(t, e)
+	}
+}
+
+// DragEnd puts the tab where it was dropped, see fyne.Draggable
+func (t *tabButton) DragEnd() {
+	if t.onDragEnd != nil {
+		t.onDragEnd()
 	}
 }
 
@@ -140,6 +202,14 @@ type tabs struct {
 	onClosed       func(*container.TabItem)
 	onSelected     func(*container.TabItem)
 	onSettings     func()
+
+	// While a tab is dragged: the layer above the tab bar with its floating
+	// copy, where in the button the mouse holds it, and the slides of the
+	// buttons making room
+	dragLayer *fyne.Container
+	floating  *tabButton
+	grab      float32
+	slides    map[fyne.CanvasObject]*fyne.Animation
 
 	// Internal UI elements
 	tabBar       *fyne.Container
@@ -172,7 +242,8 @@ func newTabs(items ...*container.TabItem) *tabs {
 	// width: a Scroll container reports a small, fixed MinSize regardless of
 	// how many tabs it holds, so adding tabs never forces the window to
 	// enlarge - once the row overflows, the extra tabs just scroll into view.
-	t.tabScroll = container.NewHScroll(t.tabBar)
+	t.dragLayer = container.NewWithoutLayout()
+	t.tabScroll = container.NewHScroll(container.NewStack(t.tabBar, t.dragLayer))
 
 	// The tab bar sits on its own background so it reads as a distinct
 	// strip from the content area beneath it. The "+" and settings buttons
@@ -297,6 +368,8 @@ func (t *tabs) Refresh() {
 			icon = nil
 		}
 		tab := newTabButton(itm.Text, icon, selected, func() { t.selectTab(idx) }, func() { t.closeTab(itm) })
+		tab.onDragged = t.dragTab
+		tab.onDragEnd = t.endTabDrag
 		t.tabBar.Add(tab)
 
 		if selected {
@@ -322,6 +395,134 @@ func (t *tabs) Refresh() {
 	}
 	t.topContainer.Refresh()
 	t.BaseWidget.Refresh()
+}
+
+// dragTab moves the dragged tab past a neighbor once the mouse passes the
+// middle of that neighbor, its item moves along. The buttons are moved, not
+// made again, as that would end the drag; endTabDrag makes them again.
+func (t *tabs) dragTab(b *tabButton, e *fyne.DragEvent) {
+	// Fyne gives the position from where the button is now, also after it
+	// moved during the drag, so this is the mouse in the tab bar
+	x := b.Position().X + e.Position.X
+
+	// The tab buttons come first in the bar, the "+" after them
+	n := len(t.items)
+	i := -1
+	for k, o := range t.tabBar.Objects[:n] {
+		if o == b {
+			i = k
+			break
+		}
+	}
+	if i < 0 {
+		return
+	}
+
+	if t.floating == nil {
+		t.startTabDrag(b, e)
+	}
+
+	// The middles are where the layout puts the buttons, not where they are
+	// while sliding: a button sliding past the mouse would swap back
+	for {
+		at := t.tabSlots()
+		middle := func(k int) float32 {
+			return at[k] + t.tabBar.Objects[k].MinSize().Width/2
+		}
+		j := i
+		if i+1 < n && x > middle(i+1) {
+			j = i + 1
+		} else if i > 0 && x < middle(i-1) {
+			j = i - 1
+		}
+		if j == i {
+			break
+		}
+		t.swapTabs(i, j)
+		i = j
+	}
+
+	// The copy follows the mouse, kept over the tabs
+	at := t.tabSlots()
+	last := n - 1
+	maxX := at[last] + t.tabBar.Objects[last].MinSize().Width - t.floating.Size().Width
+	t.floating.Move(fyne.NewPos(max(0, min(x-t.grab, maxX)), b.Position().Y))
+}
+
+// startTabDrag starts the drag of b: its floating copy goes on the drag layer,
+// b shows where the tab drops
+func (t *tabs) startTabDrag(b *tabButton, e *fyne.DragEvent) {
+	// The drag starts after the mouse moved a bit, this is where it went down
+	t.grab = e.Position.X - e.Dragged.DX
+
+	t.floating = newTabButton(b.text, b.icon, b.selected, nil, nil)
+	t.floating.floating = true
+	t.floating.Resize(b.Size())
+	t.floating.Move(b.Position())
+	t.dragLayer.Objects = []fyne.CanvasObject{t.floating}
+	t.dragLayer.Refresh()
+
+	b.setDropSlot(true)
+	t.slides = map[fyne.CanvasObject]*fyne.Animation{}
+}
+
+// tabSlots is where the layout of the tab bar puts each tab button: their
+// widths with the padding between them, as the HBox layout does
+func (t *tabs) tabSlots() []float32 {
+	n := len(t.items)
+	at := make([]float32, n)
+	x := float32(0)
+	for k, o := range t.tabBar.Objects[:n] {
+		at[k] = x
+		x += o.MinSize().Width + theme.Padding()
+	}
+	return at
+}
+
+// swapTabs swaps the tabs at i and j, their buttons and items, the selected
+// tab stays selected
+func (t *tabs) swapTabs(i, j int) {
+	objs := t.tabBar.Objects
+	objs[i], objs[j] = objs[j], objs[i]
+	t.items[i], t.items[j] = t.items[j], t.items[i]
+
+	switch t.selectedIndex {
+	case i:
+		t.selectedIndex = j
+	case j:
+		t.selectedIndex = i
+	}
+
+	// Both buttons slide from where they are to their new places, the
+	// layout would put them there at once
+	at := t.tabSlots()
+	for _, k := range []int{i, j} {
+		o := objs[k]
+		if a := t.slides[o]; a != nil {
+			a.Stop()
+		}
+		to := fyne.NewPos(at[k], o.Position().Y)
+		a := canvas.NewPositionAnimation(o.Position(), to, tabSlideTime, o.Move)
+		a.Curve = fyne.AnimationEaseOut
+		t.slides[o] = a
+		a.Start()
+	}
+}
+
+// tabSlideTime is how long a tab takes to slide to its new place in a drag
+const tabSlideTime = 150 * time.Millisecond
+
+// endTabDrag makes the buttons again for the new order of the tabs, their
+// taps select by index
+func (t *tabs) endTabDrag() {
+	for _, a := range t.slides {
+		a.Stop()
+	}
+	t.slides = nil
+	t.floating = nil
+	t.dragLayer.Objects = nil
+	t.dragLayer.Refresh()
+	t.Refresh()
 }
 
 // closeTabByObj closes the tab whose content is obj
