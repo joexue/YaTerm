@@ -1,3 +1,5 @@
+// Package assert embeds the files YaTerm ships inside its binary: the
+// JetBrains Mono fonts and the icons.
 package assert
 
 import (
