@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"yaterm/assert"
 	"yaterm/log"
+	"yaterm/note"
 	"yaterm/terminal"
 )
 
@@ -88,7 +89,12 @@ func (p *pane) showMenu(pos fyne.Position) {
 
 		logItem := p.logMenuItem()
 
-		menuItems := []*fyne.MenuItem{splitRightItem, splitDownItem, separatorItem, showMarkDownItem, separatorItem, copyItem, pasteItem, separatorItem, searchItem, logItem, quickCommandsItem, separatorItem, closePaneItem, closeTabItem}
+		newNoteItem := fyne.NewMenuItemWithIcon("New Note", assert.NoteIconRes, func() {
+			newNoteTab()
+		})
+		sendToNoteItem := p.sendToNoteMenuItem()
+
+		menuItems := []*fyne.MenuItem{splitRightItem, splitDownItem, separatorItem, showMarkDownItem, newNoteItem, sendToNoteItem, separatorItem, copyItem, pasteItem, separatorItem, searchItem, logItem, quickCommandsItem, separatorItem, closePaneItem, closeTabItem}
 		popUpMenu := widget.NewPopUpMenu(fyne.NewMenu("", menuItems...), c)
 		popUpMenu.ShowAtRelativePosition(pos, p)
 	}
@@ -436,4 +442,28 @@ func (p *pane) logMenuItem() *fyne.MenuItem {
 			term.StartLog(f)
 		})
 	})
+}
+
+// sendToNoteMenuItem is "Send to Note", its submenu the open notes: the
+// selected text is added at the end of the note picked. Disabled with no
+// selection or no note.
+func (p *pane) sendToNoteMenuItem() *fyne.MenuItem {
+	item := fyne.NewMenuItem("Send to Note", nil)
+	text := ""
+	if p.screen != nil {
+		text = p.screen.selectedText()
+	}
+	var items []*fyne.MenuItem
+	for _, tab := range notes() {
+		n := tab.Content.(*note.Note)
+		items = append(items, fyne.NewMenuItemWithIcon(tab.Text, assert.NoteIconRes, func() {
+			n.Append(text)
+		}))
+	}
+	if text == "" || len(items) == 0 {
+		item.Disabled = true
+		return item
+	}
+	item.ChildMenu = fyne.NewMenu("", items...)
+	return item
 }

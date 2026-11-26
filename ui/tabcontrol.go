@@ -8,8 +8,10 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 	"yaterm/assert"
+	"yaterm/note"
 )
 
 var (
@@ -17,7 +19,7 @@ var (
 
 	tabControl *tabs
 
-	tabID, markdownTabID int
+	tabID, markdownTabID, noteTabID int
 )
 
 // showTitle puts title in the title of the window
@@ -59,6 +61,48 @@ You need to select text from terminal then show it as markdown style
 	fyne.Do(func() {
 		tabControl.append(mtab)
 	})
+}
+
+// newNoteTab opens a tab with an empty note, "Note n" until it is opened from
+// or saved to a file, then the file's name
+func newNoteTab() *container.TabItem {
+	noteTabID++
+	n := note.New(win)
+	tab := container.NewTabItemWithIcon(fmt.Sprintf("Note %d", noteTabID), assert.NoteIconRes, n)
+	n.OnTitle = func(title string) {
+		tab.Text = title
+		tabControl.Refresh()
+	}
+	n.OnShortcut = noteShortcut
+	tabControl.append(tab)
+	return tab
+}
+
+// noteShortcut runs the tab shortcuts (new, next and previous tab) typed in a
+// note, the note has the focus and would get them. The others are the note's,
+// e.g. Copy, the pane shortcuts do nothing on a note tab.
+func noteShortcut(sc fyne.Shortcut) bool {
+	cs, ok := sc.(*desktop.CustomShortcut)
+	if !ok {
+		return false
+	}
+	act, ok := actionFor(cs.KeyName, cs.Modifier)
+	if !ok || (act != actNewTab && act != actNextTab && act != actPrevTab) {
+		return false
+	}
+	runWindowAction(act)
+	return true
+}
+
+// notes are the tabs of the notes, in their order
+func notes() []*container.TabItem {
+	var tabs []*container.TabItem
+	for _, it := range tabControl.items {
+		if _, ok := it.Content.(*note.Note); ok {
+			tabs = append(tabs, it)
+		}
+	}
+	return tabs
 }
 
 // newTab makes a local tab: a pane running the default program
@@ -114,6 +158,10 @@ func NewTabControl(w fyne.Window) fyne.CanvasObject {
 				s.tabFocus(tab)
 			}
 			tab.Content.(*pane).tryFocus()
+
+		case *note.Note:
+			// The note gets the keys, to type in it
+			w.Canvas().Focus(tab.Content.(*note.Note).Editor())
 
 		default:
 			// A pane of the tab before would keep the focus while hidden and
