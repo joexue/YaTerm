@@ -79,6 +79,7 @@ func (t *Terminal) outputChar(r rune) {
 		t.wrapPending = false
 		// The line goes on in the next one, so a resize can join them again
 		t.screen.SetWrapped(t.cursorY, true)
+		t.logLine(t.cursorY, false)
 		t.cursorX = 0
 		t.lineFeed()
 	}
@@ -240,6 +241,7 @@ func (t *Terminal) handleAction(r rune) {
 	case asciiLineFeed, asciiVertTab, asciiFormFeed:
 		// Line feed keeps the column, the tty or ConPTY sends "\r\n" for a new line
 		t.wrapPending = false
+		t.logLine(t.cursorY, true)
 		t.lineFeed()
 		return
 

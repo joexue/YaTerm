@@ -6,6 +6,7 @@ package terminal
 import (
 	"errors"
 	"image/color"
+	"io"
 	"strings"
 	"sync"
 
@@ -49,6 +50,10 @@ type Screen interface {
 
 	// ClearHistory drops the lines kept above the screen ("CSI 3 J")
 	ClearHistory()
+
+	// LineText is the text of a row of the screen, as wide as the screen,
+	// blank cells as spaces, a wide character once. The log takes it.
+	LineText(row int) string
 }
 
 // Pty is what the program runs on: a pseudo terminal, or e.g. a tmux pane
@@ -126,6 +131,10 @@ type Terminal struct {
 	OnTmuxControl func() TmuxHandler
 
 	tmux TmuxHandler // the control mode in use, nil when none
+
+	// logOut gets the lines of the screen while it is logged, nil when it
+	// is not, see StartLog
+	logOut io.WriteCloser
 
 	// alternate tells the alternate screen is shown, see setAlternate
 	alternate bool
@@ -236,6 +245,7 @@ func (t *Terminal) RunCmd(cmd string) {
 	if t.pty != nil {
 		t.pty.Close()
 	}
+	t.StopLog()
 
 	// The program ended inside the tmux control mode, e.g. its pane closed
 	t.stateMu.Lock()
@@ -254,6 +264,75 @@ func (t *Terminal) Exit() {
 	if t.pty != nil {
 		t.pty.Close()
 		t.pty = nil
+	}
+	t.StopLog()
+}
+
+// StartLog writes the text of the screen to w from now on, until StopLog,
+// which closes w. A line goes to the log when the cursor leaves it: at a new
+// line with its final text, so the redraws, colors and other escape sequences
+// of the program are not in it; a line wrapping at the right edge goes on in
+// the next one. Programs on the alternate screen (vim, less) are left out,
+// the log is the session under them. A log already going is stopped first.
+func (t *Terminal) StartLog(w io.WriteCloser) {
+	t.stateMu.Lock()
+	defer t.stateMu.Unlock()
+
+	t.stopLogLocked()
+	t.logOut = w
+}
+
+// StopLog ends the log and closes its file, nothing when there is none. The
+// line of the cursor, e.g. the prompt, is written first, the cursor did not
+// leave it.
+func (t *Terminal) StopLog() {
+	t.stateMu.Lock()
+	defer t.stateMu.Unlock()
+
+	if t.logOut != nil && !t.alternate {
+		if text := strings.TrimRight(t.screen.LineText(t.cursorY), " "); text != "" {
+			t.writeLog(text + "\n")
+		}
+	}
+	t.stopLogLocked()
+}
+
+// Logging tells the output of the program goes to a log
+func (t *Terminal) Logging() bool {
+	t.stateMu.Lock()
+	defer t.stateMu.Unlock()
+
+	return t.logOut != nil
+}
+
+// logLine writes the line row to the log as the cursor leaves it: with a new
+// line and without its blank end, or as it is when it wraps on into the next
+// row (newline false). Called with stateMu held.
+func (t *Terminal) logLine(row int, newline bool) {
+	if t.logOut == nil || t.alternate {
+		return
+	}
+	text := t.screen.LineText(row)
+	if newline {
+		text = strings.TrimRight(text, " ") + "\n"
+	}
+	t.writeLog(text)
+}
+
+// writeLog writes s to the log. A log that can not be written to, e.g. a full
+// disk, stops, the user is told on the screen. Called with stateMu held.
+func (t *Terminal) writeLog(s string) {
+	if _, err := io.WriteString(t.logOut, s); err != nil {
+		t.stopLogLocked()
+		t.Print("\nYaTerm: the log stopped: " + err.Error() + "\n")
+	}
+}
+
+// stopLogLocked closes the log, called with stateMu held
+func (t *Terminal) stopLogLocked() {
+	if t.logOut != nil {
+		_ = t.logOut.Close()
+		t.logOut = nil
 	}
 }
 

@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"yaterm/assert"
+	"yaterm/log"
 	"yaterm/terminal"
 )
 
@@ -84,7 +85,10 @@ func (p *pane) showMenu(pos fyne.Position) {
 		if p.tmuxControl != nil {
 			quickCommandsItem.Disabled = true
 		}
-		menuItems := []*fyne.MenuItem{splitRightItem, splitDownItem, separatorItem, showMarkDownItem, separatorItem, copyItem, pasteItem, separatorItem, searchItem, quickCommandsItem, separatorItem, closePaneItem, closeTabItem}
+
+		logItem := p.logMenuItem()
+
+		menuItems := []*fyne.MenuItem{splitRightItem, splitDownItem, separatorItem, showMarkDownItem, separatorItem, copyItem, pasteItem, separatorItem, searchItem, logItem, quickCommandsItem, separatorItem, closePaneItem, closeTabItem}
 		popUpMenu := widget.NewPopUpMenu(fyne.NewMenu("", menuItems...), c)
 		popUpMenu.ShowAtRelativePosition(pos, p)
 	}
@@ -412,4 +416,24 @@ func (p *pane) mouseHover(pos fyne.Position) {
 		return
 	}
 	p.sendMouse(terminal.MouseMotion, terminal.MouseNone, pos, p.mods)
+}
+
+// logMenuItem is "Start Logging", or "Stop Logging" while the text of the
+// pane's terminal goes to a log, see package log. The log is of the terminal:
+// it follows it when the pane splits.
+func (p *pane) logMenuItem() *fyne.MenuItem {
+	term := p.term
+	if term == nil {
+		item := fyne.NewMenuItemWithIcon("Start Logging", theme.DocumentSaveIcon(), nil)
+		item.Disabled = true
+		return item
+	}
+	if term.Logging() {
+		return fyne.NewMenuItemWithIcon("Stop Logging", theme.MediaStopIcon(), term.StopLog)
+	}
+	return fyne.NewMenuItemWithIcon("Start Logging", theme.DocumentSaveIcon(), func() {
+		log.Choose(win, func(f fyne.URIWriteCloser) {
+			term.StartLog(f)
+		})
+	})
 }

@@ -10,11 +10,13 @@ func (t *Terminal) handleEscAction(r rune) {
 	// Moves the cursor down one line in the same column. If the cursor is at the bottom margin, the page scrolls up
 	case 'D':
 		t.wrapPending = false
+		t.logLine(t.cursorY, true)
 		t.lineFeed()
 
 	// Moves the cursor to the left margin on the next line. If the cursor is at the bottom margin, scroll the page up
 	case 'E':
 		t.wrapPending = false
+		t.logLine(t.cursorY, true)
 		t.cursorX = 0
 		t.lineFeed()
 

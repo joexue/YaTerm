@@ -3,6 +3,7 @@ package ui
 import (
 	"image/color"
 	"slices"
+	"strings"
 	"sync"
 	"unicode/utf8"
 
@@ -685,6 +686,28 @@ func (s *screen) SetCursorVisible(visible bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.cursorHidden = !visible
+}
+
+// LineText is the text of a row, as wide as the screen, see terminal.Screen
+func (s *screen) LineText(row int) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if row < 0 || row >= len(s.lines) {
+		return ""
+	}
+	var b strings.Builder
+	for _, c := range s.lines[row].cells {
+		r := c.r
+		if r == terminal.WideTail || r == terminal.WidePad {
+			continue // not text of its own
+		}
+		if r == 0 {
+			r = ' '
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 // ClearHistory drops the lines above the screen, see terminal.Screen
