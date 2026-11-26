@@ -99,6 +99,15 @@ var LocalIconRes = &fyne.StaticResource{
 	StaticContent: localIcon,
 }
 
+//go:embed icons/note.svg
+var noteIcon []byte
+
+// NoteIconRes is the icon of the note tabs
+var NoteIconRes = &fyne.StaticResource{
+	StaticName:    "note.svg",
+	StaticContent: noteIcon,
+}
+
 //go:embed icons/command.svg
 var commandIcon []byte
 
