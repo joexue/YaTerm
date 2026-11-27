@@ -9,30 +9,30 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	yatheme "yaterm/theme"
 )
 
-// New makes the page showing text as Markdown. The rich text is light by a
-// theme override, but Fyne gives two parts the app's colors: text nested in
-// a list (its parent is not set, Fyne then looks at the app's theme) and code
-// blocks (drawn with the app's theme). Lists are made lines of their own and
-// code blocks are drawn here, in the light colors.
+// New makes the page showing text as Markdown, its lines wrapped at the width
+// of the window. The rich text is light by a theme override, but Fyne gives
+// two parts the app's colors: text nested in a list (its parent is not set,
+// Fyne then looks at the app's theme) and code blocks (drawn with the app's
+// theme). So lists and code blocks are made lines of the text itself.
 func New(text string) fyne.CanvasObject {
 	rt := widget.NewRichTextFromMarkdown(text)
 	rt.Segments = flatten(rt.Segments)
+	rt.Wrapping = fyne.TextWrapWord
 
 	page := canvas.NewRectangle(yatheme.Light().Color(theme.ColorNameBackground, theme.VariantLight))
 	// A scroll container, not rt.Scroll: Fyne drops the renderer of a widget
 	// not drawn for a minute (e.g. in a tab in the background), and RichText
 	// with its own scroll makes a new one that draws nothing, the tab would
 	// be empty when shown again
-	return container.NewThemeOverride(container.NewStack(page, container.NewScroll(rt)), yatheme.Light())
+	return container.NewThemeOverride(container.NewStack(page, container.NewVScroll(rt)), yatheme.Light())
 }
 
-// flatten makes lists lines of the text and code blocks the ones of this page
+// flatten makes lists and code blocks lines of the text
 func flatten(segs []widget.RichTextSegment) []widget.RichTextSegment {
 	var out []widget.RichTextSegment
 	for _, s := range segs {
@@ -40,7 +40,7 @@ func flatten(segs []widget.RichTextSegment) []widget.RichTextSegment {
 		case *widget.ListSegment:
 			out = append(out, listLines(s, 0)...)
 		case *widget.CodeBlockSegment:
-			out = append(out, &codeBlock{text: s.Text})
+			out = append(out, codeLines(s.Text)...)
 		default:
 			out = append(out, s)
 		}
@@ -77,7 +77,7 @@ func listLines(l *widget.ListSegment, level int) []widget.RichTextSegment {
 			case *widget.ListSegment:
 				below = append(below, listLines(p, level+1)...)
 			case *widget.CodeBlockSegment:
-				below = append(below, &codeBlock{text: p.Text})
+				below = append(below, codeLines(p.Text)...)
 			case *widget.TextSegment:
 				p.Style.Inline = true
 				line = append(line, p)
@@ -94,45 +94,19 @@ func listLines(l *widget.ListSegment, level int) []widget.RichTextSegment {
 	return out
 }
 
-// codeBlock is a code block in the light colors: monospace lines on a light
-// box, scrolled sideways when wider than the page. Its text is not selected.
-type codeBlock struct {
-	text string
-}
-
-// Inline is false, a code block is a block of its own
-func (c *codeBlock) Inline() bool { return false }
-
-// Textual is the code
-func (c *codeBlock) Textual() string { return c.text }
-
-// Visual is the box with the lines of the code
-func (c *codeBlock) Visual() fyne.CanvasObject {
-	th, v := yatheme.Light(), theme.VariantLight
-
-	bg := canvas.NewRectangle(th.Color(theme.ColorNameInputBackground, v))
-	bg.StrokeColor = th.Color(theme.ColorNameInputBorder, v)
-	bg.StrokeWidth = 1
-	bg.CornerRadius = th.Size(theme.SizeNameInputRadius)
-
-	lines := container.New(layout.NewCustomPaddedVBoxLayout(0))
-	for _, l := range strings.Split(strings.TrimRight(c.text, "\n"), "\n") {
-		t := canvas.NewText(strings.ReplaceAll(l, "\t", "    "), th.Color(theme.ColorNameForeground, v))
-		t.TextStyle = fyne.TextStyle{Monospace: true}
-		t.TextSize = th.Size(theme.SizeNameText)
-		lines.Add(t)
+// codeLines is a line of the text for each line of a code block, in the style
+// of inline code (monospace on the background of code), so it wraps as the
+// text does. Tabs are four spaces, an empty line one space to be a line.
+func codeLines(code string) []widget.RichTextSegment {
+	var out []widget.RichTextSegment
+	for _, l := range strings.Split(strings.TrimRight(code, "\n"), "\n") {
+		l = strings.ReplaceAll(l, "\t", "    ")
+		if l == "" {
+			l = " "
+		}
+		style := widget.RichTextStyleCodeInline
+		style.Inline = false
+		out = append(out, &widget.TextSegment{Text: l, Style: style})
 	}
-	return container.NewStack(bg, container.NewPadded(container.NewHScroll(lines)))
+	return out
 }
-
-// Update does nothing, the code does not change
-func (c *codeBlock) Update(fyne.CanvasObject) {}
-
-// Select does nothing, see codeBlock
-func (c *codeBlock) Select(_, _ fyne.Position) {}
-
-// SelectedText is empty, see codeBlock
-func (c *codeBlock) SelectedText() string { return "" }
-
-// Unselect does nothing, see codeBlock
-func (c *codeBlock) Unselect() {}

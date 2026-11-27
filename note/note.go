@@ -46,8 +46,8 @@ import (
 // saved to (spec 4)
 const prefDir = "noteDir"
 
-// Note is the text of a note, in the terminal's monospace font, not wrapped
-// so text from a terminal keeps its columns. Its menu opens and saves it.
+// Note is the text of a note, in the terminal's monospace font, its lines
+// wrapped at the width of the window. Its menu opens and saves it.
 type Note struct {
 	widget.BaseWidget
 	text *noteText
@@ -74,7 +74,7 @@ func New(win fyne.Window) *Note {
 	n := &Note{win: win}
 	n.text = &noteText{note: n}
 	n.text.MultiLine = true
-	n.text.Wrapping = fyne.TextWrapOff
+	n.text.Wrapping = fyne.TextWrapWord
 	n.text.TextStyle = fyne.TextStyle{Monospace: true}
 	n.text.ExtendBaseWidget(n.text)
 	n.ExtendBaseWidget(n)
