@@ -170,7 +170,7 @@ func (n *Note) typedShortcut(sc fyne.Shortcut) {
 }
 
 // showMenu shows the menu: the editing of the text, then Open, Save and Save
-// As (spec 1)
+// As (spec 1), Save As once the note has a file
 func (n *Note) showMenu(e *fyne.PointEvent) {
 	c := fyne.CurrentApp().Driver().CanvasForObject(n)
 	if c == nil {
@@ -186,16 +186,25 @@ func (n *Note) showMenu(e *fyne.PointEvent) {
 	cut.Disabled = n.text.SelectedText() == ""
 	cp.Disabled = cut.Disabled
 
-	menu := fyne.NewMenu("",
+	items := []*fyne.MenuItem{
 		cut,
 		cp,
 		fyne.NewMenuItemWithIcon("Paste", theme.ContentPasteIcon(), short(&fyne.ShortcutPaste{Clipboard: clip})),
 		fyne.NewMenuItem("Select All", short(&fyne.ShortcutSelectAll{})),
 		fyne.NewMenuItemSeparator(),
 		fyne.NewMenuItemWithIcon("Open...", theme.FolderOpenIcon(), n.open),
-		fyne.NewMenuItemWithIcon("Save", theme.DocumentSaveIcon(), n.save),
-		fyne.NewMenuItemWithIcon("Save As...", theme.DocumentSaveIcon(), n.saveAs),
-	)
+	}
+	// A note with no file is saved as a new one, Save asks for the name then
+	// and Save As would do the same
+	if n.file == nil {
+		items = append(items, fyne.NewMenuItemWithIcon("Save...", theme.DocumentSaveIcon(), n.save))
+	} else {
+		items = append(items,
+			fyne.NewMenuItemWithIcon("Save", theme.DocumentSaveIcon(), n.save),
+			fyne.NewMenuItemWithIcon("Save As...", theme.DocumentSaveIcon(), n.saveAs),
+		)
+	}
+	menu := fyne.NewMenu("", items...)
 	widget.ShowPopUpMenuAtPosition(menu, c, e.AbsolutePosition)
 }
 

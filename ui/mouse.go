@@ -76,6 +76,10 @@ func (p *pane) showMenu(pos fyne.Position) {
 			newMarkdownTab(p.screen.selectedText())
 		})
 
+		if len(p.screen.selectedText()) == 0 {
+			showMarkDownItem.Disabled = true
+		}
+
 		searchItem := fyne.NewMenuItemWithIcon("Search", theme.Icon(theme.IconNameSearch), func() {
 			p.showSearch()
 		})
@@ -94,7 +98,7 @@ func (p *pane) showMenu(pos fyne.Position) {
 		})
 		addToNoteItem := p.addToNoteMenuItem()
 
-		menuItems := []*fyne.MenuItem{splitRightItem, splitDownItem, separatorItem, showMarkDownItem, newNoteItem, addToNoteItem, separatorItem, copyItem, pasteItem, separatorItem, searchItem, logItem, quickCommandsItem, separatorItem, closePaneItem, closeTabItem}
+		menuItems := []*fyne.MenuItem{splitRightItem, splitDownItem, separatorItem, newNoteItem, addToNoteItem, showMarkDownItem, separatorItem, copyItem, pasteItem, separatorItem, searchItem, logItem, quickCommandsItem, separatorItem, closePaneItem, closeTabItem}
 		popUpMenu := widget.NewPopUpMenu(fyne.NewMenu("", menuItems...), c)
 		popUpMenu.ShowAtRelativePosition(pos, p)
 	}
