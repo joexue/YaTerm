@@ -57,6 +57,10 @@ type Note struct {
 	// else the text gets it, e.g. Copy.
 	OnShortcut func(sc fyne.Shortcut) bool
 
+	// OnClose closes the note, its tab, for Close in the menu, which is left
+	// out when it is nil
+	OnClose func()
+
 	win  fyne.Window
 	file fyne.URI // nil until opened or saved
 }
@@ -170,7 +174,7 @@ func (n *Note) typedShortcut(sc fyne.Shortcut) {
 }
 
 // showMenu shows the menu: the editing of the text, then Open, Save and Save
-// As (spec 1), Save As once the note has a file
+// As (spec 1), Save As once the note has a file, and Close
 func (n *Note) showMenu(e *fyne.PointEvent) {
 	c := fyne.CurrentApp().Driver().CanvasForObject(n)
 	if c == nil {
@@ -202,6 +206,12 @@ func (n *Note) showMenu(e *fyne.PointEvent) {
 		items = append(items,
 			fyne.NewMenuItemWithIcon("Save", theme.DocumentSaveIcon(), n.save),
 			fyne.NewMenuItemWithIcon("Save As...", theme.DocumentSaveIcon(), n.saveAs),
+		)
+	}
+	if n.OnClose != nil {
+		items = append(items,
+			fyne.NewMenuItemSeparator(),
+			fyne.NewMenuItemWithIcon("Close", theme.Icon(theme.IconNameWindowClose), n.OnClose),
 		)
 	}
 	menu := fyne.NewMenu("", items...)

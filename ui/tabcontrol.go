@@ -74,6 +74,8 @@ func newNoteTab() *container.TabItem {
 		tabControl.Refresh()
 	}
 	n.OnShortcut = noteShortcut
+	// As the close button of its tab does
+	n.OnClose = func() { tabControl.closeTab(tab) }
 	tabControl.append(tab)
 	return tab
 }
