@@ -9,8 +9,8 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
-	"fyne.io/fyne/v2/widget"
 	"yaterm/assert"
+	"yaterm/markdown"
 	"yaterm/note"
 )
 
@@ -41,26 +41,9 @@ func closeTab(root *pane) {
 func newMarkdownTab(text string) {
 	markdownTabID++
 
-	defaultText := `
-# The selection is empty
-You need to select text from terminal then show it as markdown style
-`
-	content := text
-	if len(text) == 0 {
-		content = defaultText
-	}
-
 	// The long time hang caused by io i.e. remote image
-	rt := widget.NewRichTextFromMarkdown(content)
-	// A scroll container, not rt.Scroll: Fyne drops the renderer of a widget
-	// not drawn for a minute (e.g. in a tab in the background), and RichText
-	// with its own scroll makes a new one that draws nothing, the tab would
-	// be empty when shown again
-
-	mtab := container.NewTabItemWithIcon(fmt.Sprintf("MD %d", markdownTabID), assert.MarkdownIconRes, container.NewScroll(rt))
-	fyne.Do(func() {
-		tabControl.append(mtab)
-	})
+	mtab := container.NewTabItemWithIcon(fmt.Sprintf("MD %d", markdownTabID), assert.MarkdownIconRes, markdown.New(text))
+	tabControl.append(mtab)
 }
 
 // newNoteTab opens a tab with an empty note, "Note n" until it is opened from

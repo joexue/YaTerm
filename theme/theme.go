@@ -771,3 +771,20 @@ func NewYatermTheme() *YatermTheme {
 	t.SetScheme(DefaultScheme)
 	return t
 }
+
+// Light is Fyne's default theme always in its light variant, whatever the
+// app's theme is: for what is light in any theme, the Markdown tabs and the
+// menu of a note
+func Light() fyne.Theme {
+	return lightTheme{theme.DefaultTheme()}
+}
+
+// lightTheme is a theme in its light variant, see Light
+type lightTheme struct {
+	fyne.Theme
+}
+
+// Color is the light variant's
+func (l lightTheme) Color(n fyne.ThemeColorName, _ fyne.ThemeVariant) color.Color {
+	return l.Theme.Color(n, theme.VariantLight)
+}

@@ -39,6 +39,7 @@ import (
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	yatheme "yaterm/theme"
 )
 
 // prefDir is the preference of the folder a note was last opened from or
@@ -265,7 +266,7 @@ func (n *Note) showMenu(e *fyne.PointEvent) {
 	// The menu is light like the paper, in any theme of the app. Its icons
 	// are made light by lightIcon, the theme does not reach them.
 	pop := widget.NewPopUpMenu(menu, c)
-	container.NewThemeOverride(pop, lightTheme{theme.DefaultTheme()})
+	container.NewThemeOverride(pop, yatheme.Light())
 	pop.ShowAtPosition(e.AbsolutePosition)
 }
 
@@ -276,19 +277,9 @@ var svgFill = regexp.MustCompile(`fill="#[0-9a-fA-F]{6}"`)
 // text color of the light theme, as it is, not themed again: the menu gives
 // its icons the app's colors, the light theme set on it does not reach them
 func lightIcon(res fyne.Resource) fyne.Resource {
-	r, g, b, _ := lightTheme{theme.DefaultTheme()}.Color(theme.ColorNameForeground, theme.VariantLight).RGBA()
+	r, g, b, _ := yatheme.Light().Color(theme.ColorNameForeground, theme.VariantLight).RGBA()
 	fill := fmt.Sprintf(`fill="#%02x%02x%02x"`, r>>8, g>>8, b>>8)
 	return fyne.NewStaticResource("light_"+res.Name(), svgFill.ReplaceAll(res.Content(), []byte(fill)))
-}
-
-// lightTheme is a theme always in its light variant, whatever the app's is
-type lightTheme struct {
-	fyne.Theme
-}
-
-// Color is the light variant's
-func (l lightTheme) Color(n fyne.ThemeColorName, _ fyne.ThemeVariant) color.Color {
-	return l.Theme.Color(n, theme.VariantLight)
 }
 
 // open replaces the text with the one of a file the user picks, the note
