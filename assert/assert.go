@@ -63,22 +63,22 @@ var VSplitIconRes = &fyne.StaticResource{
 	StaticContent: vsplitIcon,
 }
 
-//go:embed icons/markdown_color.svg
-var markdownIconColor []byte
-
-// MarkdownIconColorRes is the colored Markdown icon, on the Markdown tabs
-var MarkdownIconColorRes = &fyne.StaticResource{
-	StaticName:    "markdown_color.svg",
-	StaticContent: markdownIconColor,
-}
-
 //go:embed icons/markdown.svg
 var markdownIcon []byte
 
-// MarkdownIconRes is the Markdown icon of "Show as Markdown" in the pane menu
+// MarkdownIconRes is the colored Markdown icon, on the Markdown tabs
 var MarkdownIconRes = &fyne.StaticResource{
 	StaticName:    "markdown.svg",
 	StaticContent: markdownIcon,
+}
+
+//go:embed icons/show-markdown.svg
+var showMarkdownIcon []byte
+
+// ShowMarkdownIconRes is the icon of "Show as Markdown" in the pane menu
+var ShowMarkdownIconRes = &fyne.StaticResource{
+	StaticName:    "show-markdown.svg",
+	StaticContent: showMarkdownIcon,
 }
 
 //go:embed icons/tmux.svg

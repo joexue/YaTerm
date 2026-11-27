@@ -72,7 +72,7 @@ func (p *pane) showMenu(pos fyne.Position) {
 			closeTab(p.root)
 		})
 
-		showMarkDownItem := fyne.NewMenuItemWithIcon("Show as Markdown", theme.NewThemedResource(assert.MarkdownIconRes), func() {
+		showMarkDownItem := fyne.NewMenuItemWithIcon("Show as Markdown", theme.NewThemedResource(assert.ShowMarkdownIconRes), func() {
 			newMarkdownTab(p.screen.selectedText())
 		})
 
