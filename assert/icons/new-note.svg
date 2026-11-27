@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- New Note, in the style of Fyne's Material icons: a 24x24 grid, 2px
+     lines. A page with a folded corner, like insert_drive_file outlined,
+     with a plus in it, like note_add. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <!-- Page: the inner shape is drawn the other way round, so it is cut out -->
+  <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/>
+  <!-- Plus -->
+  <path d="M11 11h2v3h3v2h-3v3h-2v-3H8v-2h3z"/>
+</svg>

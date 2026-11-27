@@ -18,8 +18,8 @@ package note
 //    add a new tab, name it "Note x", x is index increased each time.
 // 2. When use open a file, then the "Note x" changed to the file's name. the
 //    text content of not widget will come from the file opened.
-// 3. When user slect data, user can right click the popup menu choose "Send to Note"
-//    then choose the submenu from "Send to Note", submenu includes the items
+// 3. When user slect data, user can right click the popup menu choose "Add to Note"
+//    then choose the submenu from "Add to Note", submenu includes the items
 //    openning note, such as "Note 1", "Note 2" ..., the slected text will append
 //    to the selected note content.
 

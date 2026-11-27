@@ -108,6 +108,24 @@ var NoteIconRes = &fyne.StaticResource{
 	StaticContent: noteIcon,
 }
 
+//go:embed icons/new-note.svg
+var newNoteIcon []byte
+
+// NewNoteIconRes is the icon of "New Note" in the pane menu
+var NewNoteIconRes = &fyne.StaticResource{
+	StaticName:    "new-note.svg",
+	StaticContent: newNoteIcon,
+}
+
+//go:embed icons/add-note.svg
+var addNoteIcon []byte
+
+// AddNoteIconRes is the icon of "Add to Note" in the pane menu
+var AddNoteIconRes = &fyne.StaticResource{
+	StaticName:    "add-note.svg",
+	StaticContent: addNoteIcon,
+}
+
 //go:embed icons/command.svg
 var commandIcon []byte
 

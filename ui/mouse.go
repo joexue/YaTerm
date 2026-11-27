@@ -89,12 +89,12 @@ func (p *pane) showMenu(pos fyne.Position) {
 
 		logItem := p.logMenuItem()
 
-		newNoteItem := fyne.NewMenuItemWithIcon("New Note", assert.NoteIconRes, func() {
+		newNoteItem := fyne.NewMenuItemWithIcon("New Note", theme.NewThemedResource(assert.NewNoteIconRes), func() {
 			newNoteTab()
 		})
-		sendToNoteItem := p.sendToNoteMenuItem()
+		addToNoteItem := p.addToNoteMenuItem()
 
-		menuItems := []*fyne.MenuItem{splitRightItem, splitDownItem, separatorItem, showMarkDownItem, newNoteItem, sendToNoteItem, separatorItem, copyItem, pasteItem, separatorItem, searchItem, logItem, quickCommandsItem, separatorItem, closePaneItem, closeTabItem}
+		menuItems := []*fyne.MenuItem{splitRightItem, splitDownItem, separatorItem, showMarkDownItem, newNoteItem, addToNoteItem, separatorItem, copyItem, pasteItem, separatorItem, searchItem, logItem, quickCommandsItem, separatorItem, closePaneItem, closeTabItem}
 		popUpMenu := widget.NewPopUpMenu(fyne.NewMenu("", menuItems...), c)
 		popUpMenu.ShowAtRelativePosition(pos, p)
 	}
@@ -430,25 +430,25 @@ func (p *pane) mouseHover(pos fyne.Position) {
 func (p *pane) logMenuItem() *fyne.MenuItem {
 	term := p.term
 	if term == nil {
-		item := fyne.NewMenuItemWithIcon("Start Logging", theme.DocumentSaveIcon(), nil)
+		item := fyne.NewMenuItemWithIcon("Start Logging", theme.Icon(theme.IconNameDocumentCreate), nil)
 		item.Disabled = true
 		return item
 	}
 	if term.Logging() {
 		return fyne.NewMenuItemWithIcon("Stop Logging", theme.MediaStopIcon(), term.StopLog)
 	}
-	return fyne.NewMenuItemWithIcon("Start Logging", theme.DocumentSaveIcon(), func() {
+	return fyne.NewMenuItemWithIcon("Start Logging", theme.Icon(theme.IconNameDocumentCreate), func() {
 		log.Choose(win, func(f fyne.URIWriteCloser) {
 			term.StartLog(f)
 		})
 	})
 }
 
-// sendToNoteMenuItem is "Send to Note", its submenu the open notes: the
+// addToNoteMenuItem is "Add to Note", its submenu the open notes: the
 // selected text is added at the end of the note picked. Disabled with no
 // selection or no note.
-func (p *pane) sendToNoteMenuItem() *fyne.MenuItem {
-	item := fyne.NewMenuItem("Send to Note", nil)
+func (p *pane) addToNoteMenuItem() *fyne.MenuItem {
+	item := fyne.NewMenuItemWithIcon("Add to Note", theme.NewThemedResource(assert.AddNoteIconRes), nil)
 	text := ""
 	if p.screen != nil {
 		text = p.screen.selectedText()

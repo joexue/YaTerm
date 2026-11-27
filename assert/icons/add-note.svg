@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Add to Note, in the style of Fyne's Material icons: a 24x24 grid, 2px
+     lines. A page with a folded corner, like insert_drive_file outlined,
+     with the three lines of text of note.svg, and an arrow going into it. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <!-- Page: the inner shape is drawn the other way round, so it is cut out -->
+  <path d="M16 2H8c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zM8 20V4h7v5h5v11H8z"/>
+  <!-- Lines of text, the last one shorter -->
+  <path d="M14.5 10.25h4v1.5h-4z"/>
+  <path d="M14.5 13.25h4v1.5h-4z"/>
+  <path d="M14.5 16.25h2.5v1.5h-2.5z"/>
+  <!-- Arrow from the left, its head in the page -->
+  <path d="M2 13h8v2H2z"/>
+  <path d="M10 11v6l3-3z"/>
+</svg>
