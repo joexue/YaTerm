@@ -28,6 +28,15 @@ Yet another terminal
 * ### Settings and themes
   <img width="400" height="315" alt="yaterm_theme" src="https://github.com/user-attachments/assets/b11608da-a5ea-49b1-9428-8dce5b4f137e" />
 
+* ### Logging
+  Logging the terminal output to file.
+  
+* ### Note
+  Add any thing to note and save to file.
+
+* ### Markdown edit
+  Edit the markdown and save to file.
+  
 * ### Multiple OS support
   Windows, MacOS, Linux, BSD family
 
