@@ -106,7 +106,7 @@ func (p *pane) showMenu(pos fyne.Position) {
 		})
 		addToItem := p.addToMenuItem()
 
-		menuItems := []*fyne.MenuItem{splitRightItem, splitDownItem, separatorItem, newNoteItem, addToItem, showMarkDownItem, separatorItem, copyItem, pasteItem, separatorItem, searchItem, logItem, quickCommandsItem, separatorItem, closePaneItem, closeTabItem}
+		menuItems := []*fyne.MenuItem{splitRightItem, splitDownItem, separatorItem, newNoteItem, showMarkDownItem, addToItem, separatorItem, copyItem, pasteItem, separatorItem, searchItem, logItem, quickCommandsItem, separatorItem, closePaneItem, closeTabItem}
 		popUpMenu := widget.NewPopUpMenu(fyne.NewMenu("", menuItems...), c)
 		popUpMenu.ShowAtRelativePosition(pos, p)
 	}
