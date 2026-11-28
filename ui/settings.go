@@ -17,6 +17,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"yaterm/note"
 	"yaterm/pty"
 	yatheme "yaterm/theme"
 )
@@ -29,6 +30,7 @@ const (
 	prefProgram     = "program"
 	prefRightClick  = "rightClick"
 	prefAutoCopy    = "autoCopy"
+	prefNoteCursor  = "noteCursor"
 )
 
 // The font sizes the setting offers
@@ -50,6 +52,35 @@ func LoadSettings(a fyne.App, th *yatheme.YatermTheme) {
 	program = p.String(prefProgram)
 	rightClickPastes = p.String(prefRightClick) == "paste"
 	autoCopy = p.BoolWithFallback(prefAutoCopy, true)
+	note.SetCursorWidth(noteCursorWidth(savedNoteCursor(p)))
+}
+
+// The widths of the cursor of a note as the settings show them
+const (
+	noteCursorThin   = "Thin"
+	noteCursorMedium = "Medium"
+	noteCursorThick  = "Thick"
+)
+
+// noteCursorWidth is the width of a name
+func noteCursorWidth(name string) float32 {
+	switch name {
+	case noteCursorThin:
+		return note.CursorThin
+	case noteCursorThick:
+		return note.CursorThick
+	}
+	return note.CursorMedium
+}
+
+// savedNoteCursor is the saved width of the cursor of a note, Medium when
+// none or an unknown one is saved
+func savedNoteCursor(p fyne.Preferences) string {
+	switch name := p.String(prefNoteCursor); name {
+	case noteCursorThin, noteCursorThick:
+		return name
+	}
+	return noteCursorMedium
 }
 
 // program is the command line new tabs and panes run, "" for the platform's
@@ -80,6 +111,7 @@ type settings struct {
 	program     string
 	rightPaste  bool
 	autoCopy    bool
+	noteCursor  string
 }
 
 // cursorShapeNames are the cursor shapes as the settings show them
@@ -107,6 +139,7 @@ func showSettings(w fyne.Window) {
 		program:     program,
 		rightPaste:  rightClickPastes,
 		autoCopy:    autoCopy,
+		noteCursor:  savedNoteCursor(fyne.CurrentApp().Preferences()),
 	}
 
 	var d dialog.Dialog
@@ -251,7 +284,8 @@ func conptyInfo() fyne.CanvasObject {
 	return container.NewVBox(form, hint)
 }
 
-// appearancePage has the color scheme with a preview and the font size
+// appearancePage has the terminal's settings (color scheme, font size, cursor
+// shape) with a preview, then the notes' (the width of their cursor)
 func appearancePage(s *settings) fyne.CanvasObject {
 	preview := newSchemePreview()
 	show := func() { preview.show(yatheme.Schemes[s.scheme], s.fontSize, s.cursorShape) }
@@ -278,7 +312,13 @@ func appearancePage(s *settings) fyne.CanvasObject {
 	for _, c := range yatheme.CursorShapes {
 		shapes = append(shapes, cursorShapeNames[c])
 	}
-	cursor := widget.NewRadioGroup(shapes, func(name string) {
+	noteCursors := []string{noteCursorThin, noteCursorMedium, noteCursorThick}
+
+	// The options of the two cursors line up, see padOptions
+	padded := padOptions(shapes, noteCursors)
+
+	cursor := widget.NewRadioGroup(padded(shapes), func(name string) {
+		name = strings.TrimRight(name, " ")
 		for c, n := range cursorShapeNames {
 			if n == name {
 				s.cursorShape = c
@@ -288,15 +328,113 @@ func appearancePage(s *settings) fyne.CanvasObject {
 	})
 	cursor.Horizontal = true
 	cursor.Required = true
-	cursor.SetSelected(cursorShapeNames[s.cursorShape])
+	cursor.SetSelected(padded([]string{cursorShapeNames[s.cursorShape]})[0])
 
-	form := widget.NewForm(
-		widget.NewFormItem("Color scheme", scheme),
-		widget.NewFormItem("Font size", container.NewBorder(nil, nil, nil, sizeLabel, size)),
-		widget.NewFormItem("Cursor shape", cursor),
+	noteCursor := widget.NewRadioGroup(padded(noteCursors), func(name string) {
+		s.noteCursor = strings.TrimRight(name, " ")
+	})
+	noteCursor.Horizontal = true
+	noteCursor.Required = true
+	noteCursor.SetSelected(padded([]string{s.noteCursor})[0])
+
+	// The terminal's settings with their preview, then the notes', apart but
+	// lined up as one form
+	forms := alignedForms(
+		[]*widget.FormItem{
+			widget.NewFormItem("Color scheme", scheme),
+			widget.NewFormItem("Font size", container.NewBorder(nil, nil, nil, sizeLabel, size)),
+			widget.NewFormItem("Cursor shape", cursor),
+		},
+		[]*widget.FormItem{
+			widget.NewFormItem("Note cursor", noteCursor),
+		},
 	)
+	gap := canvas.NewRectangle(color.Transparent)
+	gap.SetMinSize(fyne.NewSize(0, 2*theme.Padding()))
+	notes := container.NewVBox(gap, widget.NewSeparator(), forms[1])
 
-	return container.NewBorder(form, nil, nil, nil, preview.box)
+	return container.NewBorder(forms[0], notes, nil, nil, preview.box)
+}
+
+// padOptions pads the options of horizontal radio groups with spaces to the
+// width of the widest of them all: a group gives each option the width of
+// its widest one, so groups of the same number of options line up then. The
+// result pads options, a selected one is trimmed of the spaces again.
+func padOptions(groups ...[]string) func([]string) []string {
+	size := theme.TextSize()
+	width := func(s string) float32 { return fyne.MeasureText(s, size, fyne.TextStyle{}).Width }
+
+	widest := float32(0)
+	for _, g := range groups {
+		for _, o := range g {
+			widest = max(widest, width(o))
+		}
+	}
+	pad := map[string]string{}
+	for _, g := range groups {
+		for _, o := range g {
+			p := o
+			for width(p) < widest {
+				p += " "
+			}
+			pad[o] = p
+		}
+	}
+	return func(opts []string) []string {
+		out := make([]string, len(opts))
+		for i, o := range opts {
+			out[i] = pad[o]
+		}
+		return out
+	}
+}
+
+// alignedForms makes a form of each group of items, their labels as wide as
+// the widest of all, so their columns line up as the parts of one form. The
+// labels are drawn as widget.Form draws them, bold and to the right.
+func alignedForms(groups ...[]*widget.FormItem) []fyne.CanvasObject {
+	label := func(text string) *widget.RichText {
+		l := widget.NewRichTextWithText(text)
+		seg := l.Segments[0].(*widget.TextSegment)
+		seg.Style.Alignment = fyne.TextAlignTrailing
+		seg.Style.TextStyle.Bold = true
+		return l
+	}
+
+	width := float32(0)
+	for _, items := range groups {
+		for _, it := range items {
+			width = max(width, label(it.Text).MinSize().Width)
+		}
+	}
+
+	forms := make([]fyne.CanvasObject, len(groups))
+	for i, items := range groups {
+		form := container.New(layout.NewFormLayout())
+		for _, it := range items {
+			form.Add(container.New(minWidthLayout{width}, label(it.Text)))
+			form.Add(it.Widget)
+		}
+		forms[i] = form
+	}
+	return forms
+}
+
+// minWidthLayout gives its object at least a width
+type minWidthLayout struct {
+	width float32
+}
+
+// MinSize is the object's, at least the width wide
+func (m minWidthLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
+	s := objs[0].MinSize()
+	return fyne.NewSize(max(m.width, s.Width), s.Height)
+}
+
+// Layout gives the object all the room
+func (m minWidthLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+	objs[0].Move(fyne.NewPos(0, 0))
+	objs[0].Resize(size)
 }
 
 // schemePreview shows a scheme as the app would look: the tab bar, and below
@@ -588,6 +726,11 @@ func applySettings(s *settings, th *yatheme.YatermTheme) {
 	rightClickPastes = s.rightPaste
 	a.Preferences().SetBool(prefAutoCopy, s.autoCopy)
 	autoCopy = s.autoCopy
+	a.Preferences().SetString(prefNoteCursor, s.noteCursor)
+	note.SetCursorWidth(noteCursorWidth(s.noteCursor))
+	for _, tab := range notes() {
+		tab.Content.(*note.Note).Refresh()
+	}
 	if s.bindings != nil {
 		bindings = copyBindings(s.bindings)
 		saveBindings(a, bindings)

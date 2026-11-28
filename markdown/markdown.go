@@ -19,7 +19,7 @@ import (
 // two parts the app's colors: text nested in a list (its parent is not set,
 // Fyne then looks at the app's theme) and code blocks (drawn with the app's
 // theme). So lists and code blocks are made lines of the text itself.
-func New(text string) fyne.CanvasObject {
+func New(text string) *Page {
 	rt := widget.NewRichTextFromMarkdown(text)
 	rt.Segments = flatten(rt.Segments)
 	rt.Wrapping = fyne.TextWrapWord
@@ -29,7 +29,70 @@ func New(text string) fyne.CanvasObject {
 	// not drawn for a minute (e.g. in a tab in the background), and RichText
 	// with its own scroll makes a new one that draws nothing, the tab would
 	// be empty when shown again
-	return container.NewThemeOverride(container.NewStack(page, container.NewVScroll(rt)), yatheme.Light())
+	p := &Page{
+		source: text,
+		text:   rt,
+		view:   container.NewThemeOverride(container.NewStack(page, container.NewVScroll(rt)), yatheme.Light()),
+	}
+	p.ExtendBaseWidget(p)
+	return p
+}
+
+// Page is a Markdown page, with a menu of its own on a right click
+type Page struct {
+	widget.BaseWidget
+
+	// OnClose closes the page, its tab, for Close in the menu, which is left
+	// out when it is nil
+	OnClose func()
+
+	source string            // the Markdown shown
+	text   *widget.RichText  // the page's text
+	view   fyne.CanvasObject // the text on its white page
+}
+
+// CreateRenderer is a private method to Fyne which links this widget to its
+// renderer
+func (p *Page) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(p.view)
+}
+
+// TappedSecondary shows the menu, light like the page, see
+// fyne.SecondaryTappable
+func (p *Page) TappedSecondary(e *fyne.PointEvent) {
+	c := fyne.CurrentApp().Driver().CanvasForObject(p)
+	if c == nil {
+		return
+	}
+	copyIcon := yatheme.LightIcon(theme.ContentCopyIcon())
+	clip := fyne.CurrentApp().Clipboard()
+	items := []*fyne.MenuItem{
+		fyne.NewMenuItemWithIcon("Copy as Markdown", copyIcon, func() { clip.SetContent(p.source) }),
+		fyne.NewMenuItemWithIcon("Copy as Text", copyIcon, func() { clip.SetContent(p.plainText()) }),
+	}
+	if p.OnClose != nil {
+		items = append(items,
+			fyne.NewMenuItemSeparator(),
+			fyne.NewMenuItemWithIcon("Close", yatheme.LightIcon(theme.Icon(theme.IconNameWindowClose)), p.OnClose),
+		)
+	}
+	pop := widget.NewPopUpMenu(fyne.NewMenu("", items...), c)
+	container.NewThemeOverride(pop, yatheme.Light())
+	pop.ShowAtPosition(e.AbsolutePosition)
+}
+
+// plainText is the text of the page without the Markdown: the text of its
+// parts, a block (a heading, the end of a paragraph, a line of a list or of
+// code) ends a line. RichText.String has no line ends.
+func (p *Page) plainText() string {
+	var b strings.Builder
+	for _, s := range p.text.Segments {
+		b.WriteString(s.Textual())
+		if !s.Inline() {
+			b.WriteByte('\n')
+		}
+	}
+	return strings.TrimRight(b.String(), "\n") + "\n"
 }
 
 // flatten makes lists and code blocks lines of the text

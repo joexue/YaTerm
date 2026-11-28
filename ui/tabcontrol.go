@@ -42,7 +42,10 @@ func newMarkdownTab(text string) {
 	markdownTabID++
 
 	// The long time hang caused by io i.e. remote image
-	mtab := container.NewTabItemWithIcon(fmt.Sprintf("MD %d", markdownTabID), assert.MarkdownIconRes, markdown.New(text))
+	page := markdown.New(text)
+	mtab := container.NewTabItemWithIcon(fmt.Sprintf("MD %d", markdownTabID), assert.MarkdownIconRes, page)
+	// As the close button of its tab does
+	page.OnClose = func() { tabControl.closeTab(mtab) }
 	tabControl.append(mtab)
 }
 

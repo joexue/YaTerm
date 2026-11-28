@@ -24,11 +24,9 @@ package note
 //    to the selected note content.
 
 import (
-	"fmt"
 	"image/color"
 	"io"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -107,7 +105,9 @@ type noteRenderer struct {
 }
 
 // paper is the app's theme with the colors of a note: white with a hint of yellow
-// and dark text on it, the light text of a dark theme would not be read there
+// and dark text on it, the light text of a dark theme would not be read there.
+// Its cursor is wider, the thin one is hard to see on it. Its color is the
+// app's, Fyne's blinking cursor takes the color of the app's theme.
 type paper struct{}
 
 var (
@@ -139,8 +139,33 @@ func (paper) Icon(n fyne.ThemeIconName) fyne.Resource {
 	return fyne.CurrentApp().Settings().Theme().Icon(n)
 }
 
-// Size is the app's
+// The widths of the cursor of a note the settings offer, in Fyne's units:
+// Fyne's own, the default and a thick one
+const (
+	CursorThin   = 1
+	CursorMedium = 3
+	CursorThick  = 5
+)
+
+// cursorWidth is the width of the cursor of the notes, see SetCursorWidth
+var cursorWidth float32 = CursorMedium
+
+// SetCursorWidth sets the width of the cursor of the notes, an open note
+// shows it when refreshed
+func SetCursorWidth(w float32) {
+	cursorWidth = w
+}
+
+// Size is the width of the border for the cursor, the entry draws the cursor
+// as wide as its border, and no rounded corners, see noteRenderer.Layout,
+// else the app's
 func (paper) Size(n fyne.ThemeSizeName) float32 {
+	switch n {
+	case theme.SizeNameInputBorder:
+		return cursorWidth
+	case theme.SizeNameInputRadius:
+		return 0
+	}
 	return fyne.CurrentApp().Settings().Theme().Size(n)
 }
 
@@ -148,7 +173,10 @@ func (paper) Size(n fyne.ThemeSizeName) float32 {
 // as the entry places the border
 func (r *noteRenderer) Layout(size fyne.Size) {
 	r.view.Resize(size)
-	b := r.note.Theme().Size(theme.SizeNameInputBorder)
+	// Square, as the paper has no rounded corners: a rounded background of the
+	// text, set in by the border, would leave a gap at a corner between it and
+	// a ring as wide as the border
+	b := paper{}.Size(theme.SizeNameInputBorder) // as the entry draws it
 	r.cover.Resize(fyne.NewSize(size.Width-b-.5, size.Height-b-.5))
 	r.cover.Move(fyne.NewSquareOffsetPos(b / 2))
 	r.cover.StrokeWidth = b + 1 // over the antialiasing of the border too
@@ -161,9 +189,8 @@ func (r *noteRenderer) MinSize() fyne.Size {
 
 // Refresh gives the cover the color of the paper
 func (r *noteRenderer) Refresh() {
-	th, v := r.note.Theme(), fyne.CurrentApp().Settings().ThemeVariant()
+	v := fyne.CurrentApp().Settings().ThemeVariant()
 	r.cover.StrokeColor = paper{}.Color(theme.ColorNameInputBackground, v)
-	r.cover.CornerRadius = th.Size(theme.SizeNameInputRadius)
 	r.Layout(r.note.Size())
 	r.note.text.Refresh()
 	r.cover.Refresh()
@@ -232,33 +259,33 @@ func (n *Note) showMenu(e *fyne.PointEvent) {
 		return func() { n.text.Entry.TypedShortcut(sc) }
 	}
 
-	cut := fyne.NewMenuItemWithIcon("Cut", lightIcon(theme.ContentCutIcon()), short(&fyne.ShortcutCut{Clipboard: clip}))
-	cp := fyne.NewMenuItemWithIcon("Copy", lightIcon(theme.ContentCopyIcon()), short(&fyne.ShortcutCopy{Clipboard: clip}))
+	cut := fyne.NewMenuItemWithIcon("Cut", yatheme.LightIcon(theme.ContentCutIcon()), short(&fyne.ShortcutCut{Clipboard: clip}))
+	cp := fyne.NewMenuItemWithIcon("Copy", yatheme.LightIcon(theme.ContentCopyIcon()), short(&fyne.ShortcutCopy{Clipboard: clip}))
 	cut.Disabled = n.text.SelectedText() == ""
 	cp.Disabled = cut.Disabled
 
 	items := []*fyne.MenuItem{
 		cut,
 		cp,
-		fyne.NewMenuItemWithIcon("Paste", lightIcon(theme.ContentPasteIcon()), short(&fyne.ShortcutPaste{Clipboard: clip})),
+		fyne.NewMenuItemWithIcon("Paste", yatheme.LightIcon(theme.ContentPasteIcon()), short(&fyne.ShortcutPaste{Clipboard: clip})),
 		fyne.NewMenuItem("Select All", short(&fyne.ShortcutSelectAll{})),
 		fyne.NewMenuItemSeparator(),
-		fyne.NewMenuItemWithIcon("Open...", lightIcon(theme.FolderOpenIcon()), n.open),
+		fyne.NewMenuItemWithIcon("Open...", yatheme.LightIcon(theme.FolderOpenIcon()), n.open),
 	}
 	// A note with no file is saved as a new one, Save asks for the name then
 	// and Save As would do the same
 	if n.file == nil {
-		items = append(items, fyne.NewMenuItemWithIcon("Save...", lightIcon(theme.DocumentSaveIcon()), n.save))
+		items = append(items, fyne.NewMenuItemWithIcon("Save...", yatheme.LightIcon(theme.DocumentSaveIcon()), n.save))
 	} else {
 		items = append(items,
-			fyne.NewMenuItemWithIcon("Save", lightIcon(theme.DocumentSaveIcon()), n.save),
-			fyne.NewMenuItemWithIcon("Save As...", lightIcon(theme.DocumentSaveIcon()), n.saveAs),
+			fyne.NewMenuItemWithIcon("Save", yatheme.LightIcon(theme.DocumentSaveIcon()), n.save),
+			fyne.NewMenuItemWithIcon("Save As...", yatheme.LightIcon(theme.DocumentSaveIcon()), n.saveAs),
 		)
 	}
 	if n.OnClose != nil {
 		items = append(items,
 			fyne.NewMenuItemSeparator(),
-			fyne.NewMenuItemWithIcon("Close", lightIcon(theme.Icon(theme.IconNameWindowClose)), n.OnClose),
+			fyne.NewMenuItemWithIcon("Close", yatheme.LightIcon(theme.Icon(theme.IconNameWindowClose)), n.OnClose),
 		)
 	}
 	menu := fyne.NewMenu("", items...)
@@ -270,17 +297,6 @@ func (n *Note) showMenu(e *fyne.PointEvent) {
 	pop.ShowAtPosition(e.AbsolutePosition)
 }
 
-// svgFill is a fill color of an SVG, not "none"
-var svgFill = regexp.MustCompile(`fill="#[0-9a-fA-F]{6}"`)
-
-// lightIcon is an icon of the theme (one color, e.g. ContentPasteIcon) in the
-// text color of the light theme, as it is, not themed again: the menu gives
-// its icons the app's colors, the light theme set on it does not reach them
-func lightIcon(res fyne.Resource) fyne.Resource {
-	r, g, b, _ := yatheme.Light().Color(theme.ColorNameForeground, theme.VariantLight).RGBA()
-	fill := fmt.Sprintf(`fill="#%02x%02x%02x"`, r>>8, g>>8, b>>8)
-	return fyne.NewStaticResource("light_"+res.Name(), svgFill.ReplaceAll(res.Content(), []byte(fill)))
-}
 
 // open replaces the text with the one of a file the user picks, the note
 // belongs to that file then (call 2)

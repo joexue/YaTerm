@@ -3,7 +3,9 @@
 package theme
 
 import (
+	"fmt"
 	"image/color"
+	"regexp"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/theme"
@@ -787,4 +789,17 @@ type lightTheme struct {
 // Color is the light variant's
 func (l lightTheme) Color(n fyne.ThemeColorName, _ fyne.ThemeVariant) color.Color {
 	return l.Theme.Color(n, theme.VariantLight)
+}
+
+// svgFill is a fill color of an SVG, not "none"
+var svgFill = regexp.MustCompile(`fill="#[0-9a-fA-F]{6}"`)
+
+// LightIcon is an icon of the theme (one color, e.g. ContentPasteIcon) in the
+// text color of the light theme, as it is, not themed again. For the icons of
+// a light menu, e.g. of a note or a Markdown page: Fyne gives the icons of a
+// menu the app's colors, a light theme set on the menu does not reach them.
+func LightIcon(res fyne.Resource) fyne.Resource {
+	r, g, b, _ := Light().Color(theme.ColorNameForeground, theme.VariantLight).RGBA()
+	fill := fmt.Sprintf(`fill="#%02x%02x%02x"`, r>>8, g>>8, b>>8)
+	return fyne.NewStaticResource("light_"+res.Name(), svgFill.ReplaceAll(res.Content(), []byte(fill)))
 }
