@@ -93,8 +93,16 @@ func (p *pane) showMenu(pos fyne.Position) {
 
 		logItem := p.logMenuItem()
 
+		// A new note starts with the selected text, if any
+		selected := ""
+		if p.screen != nil {
+			selected = p.screen.selectedText()
+		}
 		newNoteItem := fyne.NewMenuItemWithIcon("New Note", theme.NewThemedResource(assert.NewNoteIconRes), func() {
-			newNoteTab()
+			tab := newNoteTab()
+			if selected != "" {
+				tab.Content.(*note.Note).SetText(selected)
+			}
 		})
 		addToNoteItem := p.addToNoteMenuItem()
 
