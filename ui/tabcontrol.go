@@ -88,11 +88,18 @@ func noteShortcut(sc fyne.Shortcut) bool {
 	return true
 }
 
-// notes are the tabs of the notes, in their order
-func notes() []*container.TabItem {
+// appender is what text can be added to: a note or a Markdown page
+type appender interface {
+	fyne.CanvasObject
+	Append(text string)
+}
+
+// textTabs are the tabs of the notes and the Markdown pages, in their order,
+// see Add to in the pane's menu
+func textTabs() []*container.TabItem {
 	var tabs []*container.TabItem
 	for _, it := range tabControl.items {
-		if _, ok := it.Content.(*note.Note); ok {
+		if _, ok := it.Content.(appender); ok {
 			tabs = append(tabs, it)
 		}
 	}

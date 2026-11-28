@@ -728,8 +728,9 @@ func applySettings(s *settings, th *yatheme.YatermTheme) {
 	autoCopy = s.autoCopy
 	a.Preferences().SetString(prefNoteCursor, s.noteCursor)
 	note.SetCursorWidth(noteCursorWidth(s.noteCursor))
-	for _, tab := range notes() {
-		tab.Content.(*note.Note).Refresh()
+	// The notes and the editors of the Markdown pages
+	for _, tab := range textTabs() {
+		tab.Content.Refresh()
 	}
 	if s.bindings != nil {
 		bindings = copyBindings(s.bindings)

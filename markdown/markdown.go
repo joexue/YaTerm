@@ -89,6 +89,22 @@ func (p *Page) CreateRenderer() fyne.WidgetRenderer {
 	return widget.NewSimpleRenderer(p.content)
 }
 
+// Append adds text at the end of the Markdown, on a line of its own, the
+// preview shows it at once
+func (p *Page) Append(text string) {
+	p.editor.Append(text)
+	if !p.editing {
+		p.preview()
+	}
+}
+
+// Refresh refreshes the editor too, also while previewed, e.g. for a new
+// width of the cursor of notes
+func (p *Page) Refresh() {
+	p.editor.Refresh()
+	p.BaseWidget.Refresh()
+}
+
 // Editor is the text to focus while editing, nil while previewed
 func (p *Page) Editor() fyne.Focusable {
 	if !p.editing {

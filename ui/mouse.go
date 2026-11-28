@@ -104,9 +104,9 @@ func (p *pane) showMenu(pos fyne.Position) {
 				tab.Content.(*note.Note).SetText(selected)
 			}
 		})
-		addToNoteItem := p.addToNoteMenuItem()
+		addToItem := p.addToMenuItem()
 
-		menuItems := []*fyne.MenuItem{splitRightItem, splitDownItem, separatorItem, newNoteItem, addToNoteItem, showMarkDownItem, separatorItem, copyItem, pasteItem, separatorItem, searchItem, logItem, quickCommandsItem, separatorItem, closePaneItem, closeTabItem}
+		menuItems := []*fyne.MenuItem{splitRightItem, splitDownItem, separatorItem, newNoteItem, addToItem, showMarkDownItem, separatorItem, copyItem, pasteItem, separatorItem, searchItem, logItem, quickCommandsItem, separatorItem, closePaneItem, closeTabItem}
 		popUpMenu := widget.NewPopUpMenu(fyne.NewMenu("", menuItems...), c)
 		popUpMenu.ShowAtRelativePosition(pos, p)
 	}
@@ -456,20 +456,20 @@ func (p *pane) logMenuItem() *fyne.MenuItem {
 	})
 }
 
-// addToNoteMenuItem is "Add to Note", its submenu the open notes: the
-// selected text is added at the end of the note picked. Disabled with no
-// selection or no note.
-func (p *pane) addToNoteMenuItem() *fyne.MenuItem {
-	item := fyne.NewMenuItemWithIcon("Add to Note", theme.NewThemedResource(assert.AddNoteIconRes), nil)
+// addToMenuItem is "Add to", its submenu the open notes and Markdown pages,
+// each with the icon of its tab: the selected text is added at the end of
+// the one picked. Disabled with no selection or nothing to add to.
+func (p *pane) addToMenuItem() *fyne.MenuItem {
+	item := fyne.NewMenuItemWithIcon("Add to", theme.NewThemedResource(assert.AddNoteIconRes), nil)
 	text := ""
 	if p.screen != nil {
 		text = p.screen.selectedText()
 	}
 	var items []*fyne.MenuItem
-	for _, tab := range notes() {
-		n := tab.Content.(*note.Note)
-		items = append(items, fyne.NewMenuItemWithIcon(tab.Text, assert.NoteIconRes, func() {
-			n.Append(text)
+	for _, tab := range textTabs() {
+		to := tab.Content.(appender)
+		items = append(items, fyne.NewMenuItemWithIcon(tab.Text, tab.Icon, func() {
+			to.Append(text)
 		}))
 	}
 	if text == "" || len(items) == 0 {
