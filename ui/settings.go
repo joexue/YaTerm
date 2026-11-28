@@ -31,6 +31,7 @@ const (
 	prefRightClick  = "rightClick"
 	prefAutoCopy    = "autoCopy"
 	prefNoteCursor  = "noteCursor"
+	prefPagesTheme  = "pagesFollowTheme"
 )
 
 // The font sizes the setting offers
@@ -53,6 +54,7 @@ func LoadSettings(a fyne.App, th *yatheme.YatermTheme) {
 	rightClickPastes = p.String(prefRightClick) == "paste"
 	autoCopy = p.BoolWithFallback(prefAutoCopy, true)
 	note.SetCursorWidth(noteCursorWidth(savedNoteCursor(p)))
+	yatheme.SetPagesFollowApp(p.Bool(prefPagesTheme))
 }
 
 // The widths of the cursor of a note as the settings show them
@@ -112,6 +114,7 @@ type settings struct {
 	rightPaste  bool
 	autoCopy    bool
 	noteCursor  string
+	pagesTheme  bool // the note and Markdown pages in the terminal's theme
 }
 
 // cursorShapeNames are the cursor shapes as the settings show them
@@ -140,6 +143,7 @@ func showSettings(w fyne.Window) {
 		rightPaste:  rightClickPastes,
 		autoCopy:    autoCopy,
 		noteCursor:  savedNoteCursor(fyne.CurrentApp().Preferences()),
+		pagesTheme:  yatheme.PagesFollowApp(),
 	}
 
 	var d dialog.Dialog
@@ -314,6 +318,12 @@ func appearancePage(s *settings) fyne.CanvasObject {
 	}
 	noteCursors := []string{noteCursorThin, noteCursorMedium, noteCursorThick}
 
+	// The note and Markdown pages are light, or take the terminal's theme
+	pagesTheme := widget.NewCheck("Notes and Markdown pages use the terminal's theme", func(on bool) {
+		s.pagesTheme = on
+	})
+	pagesTheme.SetChecked(s.pagesTheme)
+
 	// The options of the two cursors line up, see padOptions
 	padded := padOptions(shapes, noteCursors)
 
@@ -347,6 +357,7 @@ func appearancePage(s *settings) fyne.CanvasObject {
 		},
 		[]*widget.FormItem{
 			widget.NewFormItem("Note cursor", noteCursor),
+			widget.NewFormItem("Page theme", pagesTheme),
 		},
 	)
 	gap := canvas.NewRectangle(color.Transparent)
@@ -727,6 +738,8 @@ func applySettings(s *settings, th *yatheme.YatermTheme) {
 	a.Preferences().SetBool(prefAutoCopy, s.autoCopy)
 	autoCopy = s.autoCopy
 	a.Preferences().SetString(prefNoteCursor, s.noteCursor)
+	a.Preferences().SetBool(prefPagesTheme, s.pagesTheme)
+	yatheme.SetPagesFollowApp(s.pagesTheme)
 	note.SetCursorWidth(noteCursorWidth(s.noteCursor))
 	// The notes and the editors of the Markdown pages
 	for _, tab := range textTabs() {

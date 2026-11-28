@@ -5,6 +5,7 @@ package markdown
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 	"time"
 
@@ -30,11 +31,11 @@ func New(win fyne.Window, text string) *Page {
 	}
 	p.editor.FolderPref = prefDir
 	p.editor.MenuItems = func() []*fyne.MenuItem {
-		edit := fyne.NewMenuItemWithIcon("Edit", yatheme.LightIcon(theme.DocumentCreateIcon()), nil)
+		edit := fyne.NewMenuItemWithIcon("Edit", yatheme.PageIcon(theme.DocumentCreateIcon()), nil)
 		edit.Disabled = true
 		return []*fyne.MenuItem{
 			edit,
-			fyne.NewMenuItemWithIcon("Preview", yatheme.LightIcon(theme.VisibilityIcon()), p.preview),
+			fyne.NewMenuItemWithIcon("Preview", yatheme.PageIcon(theme.VisibilityIcon()), p.preview),
 		}
 	}
 	p.editor.OnTitle = func(title string) {
@@ -99,10 +100,20 @@ func (p *Page) Append(text string) {
 }
 
 // Refresh refreshes the editor too, also while previewed, e.g. for a new
-// width of the cursor of notes
+// width of the cursor of notes, and renders the preview again, e.g. for the
+// theme of the pages
 func (p *Page) Refresh() {
 	p.editor.Refresh()
+	if !p.editing && p.text != nil {
+		p.preview()
+	}
 	p.BaseWidget.Refresh()
+}
+
+// pageColor is the color of the page: white, or the terminal's background
+// when the pages follow the app's theme
+func pageColor() color.Color {
+	return yatheme.Page().Color(theme.ColorNameBackground, fyne.CurrentApp().Settings().ThemeVariant())
 }
 
 // Editor is the text to focus while editing, nil while previewed
@@ -124,12 +135,12 @@ func (p *Page) preview() {
 	rt.Wrapping = fyne.TextWrapWord
 	p.text = rt
 
-	page := canvas.NewRectangle(yatheme.Light().Color(theme.ColorNameBackground, theme.VariantLight))
+	bg := canvas.NewRectangle(pageColor())
 	// A scroll container, not rt.Scroll: Fyne drops the renderer of a widget
 	// not drawn for a minute (e.g. in a tab in the background), and RichText
 	// with its own scroll makes a new one that draws nothing, the tab would
 	// be empty when shown again
-	view := container.NewThemeOverride(container.NewStack(page, container.NewVScroll(rt)), yatheme.Light())
+	view := container.NewThemeOverride(container.NewStack(bg, container.NewVScroll(rt)), yatheme.Page())
 
 	p.show(view, false)
 }
@@ -156,10 +167,10 @@ func (p *Page) TappedSecondary(e *fyne.PointEvent) {
 	if c == nil || p.editing {
 		return
 	}
-	copyIcon := yatheme.LightIcon(theme.ContentCopyIcon())
+	copyIcon := yatheme.PageIcon(theme.ContentCopyIcon())
 	clip := fyne.CurrentApp().Clipboard()
 	items := []*fyne.MenuItem{
-		fyne.NewMenuItemWithIcon("Edit", yatheme.LightIcon(theme.DocumentCreateIcon()), p.edit),
+		fyne.NewMenuItemWithIcon("Edit", yatheme.PageIcon(theme.DocumentCreateIcon()), p.edit),
 		fyne.NewMenuItemSeparator(),
 		fyne.NewMenuItemWithIcon("Copy as Markdown", copyIcon, func() { clip.SetContent(p.editor.Text()) }),
 		fyne.NewMenuItemWithIcon("Copy as Text", copyIcon, func() { clip.SetContent(p.plainText()) }),
@@ -169,11 +180,11 @@ func (p *Page) TappedSecondary(e *fyne.PointEvent) {
 	if p.OnClose != nil {
 		items = append(items,
 			fyne.NewMenuItemSeparator(),
-			fyne.NewMenuItemWithIcon("Close", yatheme.LightIcon(theme.Icon(theme.IconNameWindowClose)), p.OnClose),
+			fyne.NewMenuItemWithIcon("Close", yatheme.PageIcon(theme.Icon(theme.IconNameWindowClose)), p.OnClose),
 		)
 	}
 	pop := widget.NewPopUpMenu(fyne.NewMenu("", items...), c)
-	container.NewThemeOverride(pop, yatheme.Light())
+	container.NewThemeOverride(pop, yatheme.Page())
 	pop.ShowAtPosition(e.AbsolutePosition)
 }
 

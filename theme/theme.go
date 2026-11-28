@@ -803,3 +803,60 @@ func LightIcon(res fyne.Resource) fyne.Resource {
 	fill := fmt.Sprintf(`fill="#%02x%02x%02x"`, r>>8, g>>8, b>>8)
 	return fyne.NewStaticResource("light_"+res.Name(), svgFill.ReplaceAll(res.Content(), []byte(fill)))
 }
+
+// pagesFollowApp tells the note and Markdown pages to take the app's theme,
+// not the light one, see SetPagesFollowApp
+var pagesFollowApp bool
+
+// SetPagesFollowApp sets whether the note and Markdown pages and their menus
+// take the app's theme (the terminal's) or the light one (the default)
+func SetPagesFollowApp(on bool) {
+	pagesFollowApp = on
+}
+
+// PagesFollowApp tells the pages take the app's theme, see SetPagesFollowApp
+func PagesFollowApp() bool {
+	return pagesFollowApp
+}
+
+// Page is the theme of the note and Markdown pages and their menus: the
+// colors of Light, or the app's when the pages follow it, the fonts and sizes
+// always the app's. It asks each time, a change shows on a refresh.
+func Page() fyne.Theme {
+	return pageTheme{}
+}
+
+// pageTheme is the theme of the pages, see Page
+type pageTheme struct{}
+
+// Color is Light's, or the app's when the pages follow it
+func (pageTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
+	if pagesFollowApp {
+		return fyne.CurrentApp().Settings().Theme().Color(n, v)
+	}
+	return Light().Color(n, v)
+}
+
+// Font is the app's
+func (pageTheme) Font(s fyne.TextStyle) fyne.Resource {
+	return fyne.CurrentApp().Settings().Theme().Font(s)
+}
+
+// Icon is the app's
+func (pageTheme) Icon(n fyne.ThemeIconName) fyne.Resource {
+	return fyne.CurrentApp().Settings().Theme().Icon(n)
+}
+
+// Size is the app's
+func (pageTheme) Size(n fyne.ThemeSizeName) float32 {
+	return fyne.CurrentApp().Settings().Theme().Size(n)
+}
+
+// PageIcon is an icon for the menu of a page: light (see LightIcon) for the
+// light menu, as it is when the pages follow the app's theme
+func PageIcon(res fyne.Resource) fyne.Resource {
+	if pagesFollowApp {
+		return res
+	}
+	return LightIcon(res)
+}

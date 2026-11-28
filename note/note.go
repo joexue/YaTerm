@@ -126,6 +126,10 @@ var (
 
 // Color is the paper's for the background and the text, else the app's
 func (paper) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
+	// In the terminal's theme when the pages follow it, see the settings
+	if yatheme.PagesFollowApp() {
+		return fyne.CurrentApp().Settings().Theme().Color(n, v)
+	}
 	switch n {
 	case theme.ColorNameInputBackground:
 		return paperYellow
@@ -267,18 +271,18 @@ func (n *Note) showMenu(e *fyne.PointEvent) {
 		return func() { n.text.Entry.TypedShortcut(sc) }
 	}
 
-	cut := fyne.NewMenuItemWithIcon("Cut", yatheme.LightIcon(theme.ContentCutIcon()), short(&fyne.ShortcutCut{Clipboard: clip}))
-	cp := fyne.NewMenuItemWithIcon("Copy", yatheme.LightIcon(theme.ContentCopyIcon()), short(&fyne.ShortcutCopy{Clipboard: clip}))
+	cut := fyne.NewMenuItemWithIcon("Cut", yatheme.PageIcon(theme.ContentCutIcon()), short(&fyne.ShortcutCut{Clipboard: clip}))
+	cp := fyne.NewMenuItemWithIcon("Copy", yatheme.PageIcon(theme.ContentCopyIcon()), short(&fyne.ShortcutCopy{Clipboard: clip}))
 	cut.Disabled = n.text.SelectedText() == ""
 	cp.Disabled = cut.Disabled
 
 	items := []*fyne.MenuItem{
 		cut,
 		cp,
-		fyne.NewMenuItemWithIcon("Paste", yatheme.LightIcon(theme.ContentPasteIcon()), short(&fyne.ShortcutPaste{Clipboard: clip})),
+		fyne.NewMenuItemWithIcon("Paste", yatheme.PageIcon(theme.ContentPasteIcon()), short(&fyne.ShortcutPaste{Clipboard: clip})),
 		fyne.NewMenuItem("Select All", short(&fyne.ShortcutSelectAll{})),
 		fyne.NewMenuItemSeparator(),
-		fyne.NewMenuItemWithIcon("Open...", yatheme.LightIcon(theme.FolderOpenIcon()), n.open),
+		fyne.NewMenuItemWithIcon("Open...", yatheme.PageIcon(theme.FolderOpenIcon()), n.open),
 	}
 	items = append(items, n.SaveMenuItems()...)
 	if n.MenuItems != nil {
@@ -288,15 +292,16 @@ func (n *Note) showMenu(e *fyne.PointEvent) {
 	if n.OnClose != nil {
 		items = append(items,
 			fyne.NewMenuItemSeparator(),
-			fyne.NewMenuItemWithIcon("Close", yatheme.LightIcon(theme.Icon(theme.IconNameWindowClose)), n.OnClose),
+			fyne.NewMenuItemWithIcon("Close", yatheme.PageIcon(theme.Icon(theme.IconNameWindowClose)), n.OnClose),
 		)
 	}
 	menu := fyne.NewMenu("", items...)
 
-	// The menu is light like the paper, in any theme of the app. Its icons
-	// are made light by LightIcon, the theme does not reach them.
+	// The menu is in the theme of the pages, light like the paper unless the
+	// pages follow the app's theme. Its icons are made for it by PageIcon,
+	// the theme does not reach them.
 	pop := widget.NewPopUpMenu(menu, c)
-	container.NewThemeOverride(pop, yatheme.Light())
+	container.NewThemeOverride(pop, yatheme.Page())
 	pop.ShowAtPosition(e.AbsolutePosition)
 }
 
@@ -305,7 +310,7 @@ func (n *Note) showMenu(e *fyne.PointEvent) {
 // file is saved as a new one, Save... asks for the name then and Save As
 // would do the same, so there is Save As only once it has a file
 func (n *Note) SaveMenuItems() []*fyne.MenuItem {
-	icon := yatheme.LightIcon(theme.DocumentSaveIcon())
+	icon := yatheme.PageIcon(theme.DocumentSaveIcon())
 	if n.file == nil {
 		return []*fyne.MenuItem{fyne.NewMenuItemWithIcon("Save...", icon, n.save)}
 	}
