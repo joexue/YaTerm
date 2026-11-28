@@ -1,44 +1,67 @@
 // Package markdown shows Markdown text on a white page, in the light theme
-// whatever the app's theme is, e.g. text selected in a terminal.
+// whatever the app's theme is, e.g. text selected in a terminal, and edits
+// it in a note.
 package markdown
 
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"yaterm/note"
 	yatheme "yaterm/theme"
 )
 
-// New makes the page showing text as Markdown, its lines wrapped at the width
-// of the window. The rich text is light by a theme override, but Fyne gives
-// two parts the app's colors: text nested in a list (its parent is not set,
-// Fyne then looks at the app's theme) and code blocks (drawn with the app's
-// theme). So lists and code blocks are made lines of the text itself.
-func New(text string) *Page {
-	rt := widget.NewRichTextFromMarkdown(text)
-	rt.Segments = flatten(rt.Segments)
-	rt.Wrapping = fyne.TextWrapWord
+// New makes the page of the Markdown text in win, its dialogs show there. It
+// shows the text rendered (the preview) and, by Edit in its menu, the
+// Markdown itself to edit, in a note, Preview shows it again.
+func New(win fyne.Window, text string) *Page {
+	p := &Page{content: container.NewStack()}
 
-	page := canvas.NewRectangle(yatheme.Light().Color(theme.ColorNameBackground, theme.VariantLight))
-	// A scroll container, not rt.Scroll: Fyne drops the renderer of a widget
-	// not drawn for a minute (e.g. in a tab in the background), and RichText
-	// with its own scroll makes a new one that draws nothing, the tab would
-	// be empty when shown again
-	p := &Page{
-		source: text,
-		text:   rt,
-		view:   container.NewThemeOverride(container.NewStack(page, container.NewVScroll(rt)), yatheme.Light()),
+	p.editor = note.New(win)
+	p.editor.SetText(text)
+	p.editor.DefaultName = func(now time.Time) string {
+		return now.Format("yaterm-markdown-2006-01-02-150405.md")
 	}
+	p.editor.FolderPref = prefDir
+	p.editor.MenuItems = func() []*fyne.MenuItem {
+		edit := fyne.NewMenuItemWithIcon("Edit", yatheme.LightIcon(theme.DocumentCreateIcon()), nil)
+		edit.Disabled = true
+		return []*fyne.MenuItem{
+			edit,
+			fyne.NewMenuItemWithIcon("Preview", yatheme.LightIcon(theme.VisibilityIcon()), p.preview),
+		}
+	}
+	p.editor.OnTitle = func(title string) {
+		if p.OnTitle != nil {
+			p.OnTitle(title)
+		}
+	}
+	p.editor.OnShortcut = func(sc fyne.Shortcut) bool {
+		return p.OnShortcut != nil && p.OnShortcut(sc)
+	}
+	p.editor.OnClose = func() {
+		if p.OnClose != nil {
+			p.OnClose()
+		}
+	}
+
 	p.ExtendBaseWidget(p)
+	p.preview()
 	return p
 }
 
-// Page is a Markdown page, with a menu of its own on a right click
+// prefDir is the preference of the folder a Markdown file was last opened
+// from or saved to
+const prefDir = "markdownDir"
+
+// Page is a Markdown page, its text rendered or edited, with a menu of its
+// own on a right click
 type Page struct {
 	widget.BaseWidget
 
@@ -46,30 +69,87 @@ type Page struct {
 	// out when it is nil
 	OnClose func()
 
-	source string            // the Markdown shown
-	text   *widget.RichText  // the page's text
-	view   fyne.CanvasObject // the text on its white page
+	// OnTitle gets the name of the file the Markdown was opened from or
+	// saved to, for its tab
+	OnTitle func(title string)
+
+	// OnShortcut gets the shortcuts typed in the editor first, see
+	// note.Note.OnShortcut
+	OnShortcut func(sc fyne.Shortcut) bool
+
+	editor  *note.Note       // the Markdown, the page's text
+	text    *widget.RichText // the rendered text, while previewed
+	editing bool
+	content *fyne.Container // the preview or the editor
 }
 
 // CreateRenderer is a private method to Fyne which links this widget to its
 // renderer
 func (p *Page) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(p.view)
+	return widget.NewSimpleRenderer(p.content)
 }
 
-// TappedSecondary shows the menu, light like the page, see
-// fyne.SecondaryTappable
+// Editor is the text to focus while editing, nil while previewed
+func (p *Page) Editor() fyne.Focusable {
+	if !p.editing {
+		return nil
+	}
+	return p.editor.Editor()
+}
+
+// preview shows the Markdown of the editor rendered, its lines wrapped at
+// the width of the window. The rich text is light by a theme override, but
+// Fyne gives two parts the app's colors: text nested in a list (its parent
+// is not set, Fyne then looks at the app's theme) and code blocks (drawn with
+// the app's theme). So lists and code blocks are made lines of the text.
+func (p *Page) preview() {
+	rt := widget.NewRichTextFromMarkdown(p.editor.Text())
+	rt.Segments = flatten(rt.Segments)
+	rt.Wrapping = fyne.TextWrapWord
+	p.text = rt
+
+	page := canvas.NewRectangle(yatheme.Light().Color(theme.ColorNameBackground, theme.VariantLight))
+	// A scroll container, not rt.Scroll: Fyne drops the renderer of a widget
+	// not drawn for a minute (e.g. in a tab in the background), and RichText
+	// with its own scroll makes a new one that draws nothing, the tab would
+	// be empty when shown again
+	view := container.NewThemeOverride(container.NewStack(page, container.NewVScroll(rt)), yatheme.Light())
+
+	p.show(view, false)
+}
+
+// edit shows the Markdown in the editor, focused
+func (p *Page) edit() {
+	p.show(p.editor, true)
+	if c := fyne.CurrentApp().Driver().CanvasForObject(p); c != nil {
+		c.Focus(p.editor.Editor())
+	}
+}
+
+// show puts o on the page
+func (p *Page) show(o fyne.CanvasObject, editing bool) {
+	p.editing = editing
+	p.content.Objects = []fyne.CanvasObject{o}
+	p.content.Refresh()
+}
+
+// TappedSecondary shows the menu of the preview, light like the page, see
+// fyne.SecondaryTappable. The editor has its own, the note's.
 func (p *Page) TappedSecondary(e *fyne.PointEvent) {
 	c := fyne.CurrentApp().Driver().CanvasForObject(p)
-	if c == nil {
+	if c == nil || p.editing {
 		return
 	}
 	copyIcon := yatheme.LightIcon(theme.ContentCopyIcon())
 	clip := fyne.CurrentApp().Clipboard()
 	items := []*fyne.MenuItem{
-		fyne.NewMenuItemWithIcon("Copy as Markdown", copyIcon, func() { clip.SetContent(p.source) }),
+		fyne.NewMenuItemWithIcon("Edit", yatheme.LightIcon(theme.DocumentCreateIcon()), p.edit),
+		fyne.NewMenuItemSeparator(),
+		fyne.NewMenuItemWithIcon("Copy as Markdown", copyIcon, func() { clip.SetContent(p.editor.Text()) }),
 		fyne.NewMenuItemWithIcon("Copy as Text", copyIcon, func() { clip.SetContent(p.plainText()) }),
+		fyne.NewMenuItemSeparator(),
 	}
+	items = append(items, p.editor.SaveMenuItems()...)
 	if p.OnClose != nil {
 		items = append(items,
 			fyne.NewMenuItemSeparator(),

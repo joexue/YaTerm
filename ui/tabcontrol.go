@@ -42,10 +42,16 @@ func newMarkdownTab(text string) {
 	markdownTabID++
 
 	// The long time hang caused by io i.e. remote image
-	page := markdown.New(text)
+	page := markdown.New(win, text)
 	mtab := container.NewTabItemWithIcon(fmt.Sprintf("MD %d", markdownTabID), assert.MarkdownIconRes, page)
 	// As the close button of its tab does
 	page.OnClose = func() { tabControl.closeTab(mtab) }
+	// The name of the file opened or saved, as a note's
+	page.OnTitle = func(title string) {
+		mtab.Text = title
+		tabControl.Refresh()
+	}
+	page.OnShortcut = noteShortcut
 	tabControl.append(mtab)
 }
 
@@ -150,6 +156,15 @@ func NewTabControl(w fyne.Window) fyne.CanvasObject {
 		case *note.Note:
 			// The note gets the keys, to type in it
 			w.Canvas().Focus(tab.Content.(*note.Note).Editor())
+
+		case *markdown.Page:
+			// The editor gets the keys while editing, the preview none, the
+			// window's shortcuts get them, see default
+			if e := tab.Content.(*markdown.Page).Editor(); e != nil {
+				w.Canvas().Focus(e)
+			} else {
+				w.Canvas().Unfocus()
+			}
 
 		default:
 			// A pane of the tab before would keep the focus while hidden and

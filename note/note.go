@@ -63,6 +63,14 @@ type Note struct {
 	// out when it is nil
 	OnClose func()
 
+	// For other kinds of text edited as a note, e.g. Markdown: the name a
+	// new file gets (DefaultName when nil), the preference of the folder to
+	// start in (the notes' when empty), and more items of the menu, before
+	// Close
+	DefaultName func(now time.Time) string
+	FolderPref  string
+	MenuItems   func() []*fyne.MenuItem
+
 	win  fyne.Window
 	file fyne.URI // nil until opened or saved
 }
@@ -272,15 +280,10 @@ func (n *Note) showMenu(e *fyne.PointEvent) {
 		fyne.NewMenuItemSeparator(),
 		fyne.NewMenuItemWithIcon("Open...", yatheme.LightIcon(theme.FolderOpenIcon()), n.open),
 	}
-	// A note with no file is saved as a new one, Save asks for the name then
-	// and Save As would do the same
-	if n.file == nil {
-		items = append(items, fyne.NewMenuItemWithIcon("Save...", yatheme.LightIcon(theme.DocumentSaveIcon()), n.save))
-	} else {
-		items = append(items,
-			fyne.NewMenuItemWithIcon("Save", yatheme.LightIcon(theme.DocumentSaveIcon()), n.save),
-			fyne.NewMenuItemWithIcon("Save As...", yatheme.LightIcon(theme.DocumentSaveIcon()), n.saveAs),
-		)
+	items = append(items, n.SaveMenuItems()...)
+	if n.MenuItems != nil {
+		items = append(items, fyne.NewMenuItemSeparator())
+		items = append(items, n.MenuItems()...)
 	}
 	if n.OnClose != nil {
 		items = append(items,
@@ -291,12 +294,36 @@ func (n *Note) showMenu(e *fyne.PointEvent) {
 	menu := fyne.NewMenu("", items...)
 
 	// The menu is light like the paper, in any theme of the app. Its icons
-	// are made light by lightIcon, the theme does not reach them.
+	// are made light by LightIcon, the theme does not reach them.
 	pop := widget.NewPopUpMenu(menu, c)
 	container.NewThemeOverride(pop, yatheme.Light())
 	pop.ShowAtPosition(e.AbsolutePosition)
 }
 
+
+// SaveMenuItems are the items of the menu that save the note: a note with no
+// file is saved as a new one, Save... asks for the name then and Save As
+// would do the same, so there is Save As only once it has a file
+func (n *Note) SaveMenuItems() []*fyne.MenuItem {
+	icon := yatheme.LightIcon(theme.DocumentSaveIcon())
+	if n.file == nil {
+		return []*fyne.MenuItem{fyne.NewMenuItemWithIcon("Save...", icon, n.save)}
+	}
+	return []*fyne.MenuItem{
+		fyne.NewMenuItemWithIcon("Save", icon, n.save),
+		fyne.NewMenuItemWithIcon("Save As...", icon, n.saveAs),
+	}
+}
+
+// Text is the text of the note
+func (n *Note) Text() string {
+	return n.text.Text
+}
+
+// SetText replaces the text of the note
+func (n *Note) SetText(text string) {
+	n.text.SetText(text)
+}
 
 // open replaces the text with the one of a file the user picks, the note
 // belongs to that file then (call 2)
@@ -354,6 +381,9 @@ func (n *Note) saveAs() {
 	}, n.win)
 
 	name := DefaultName(time.Now())
+	if n.DefaultName != nil {
+		name = n.DefaultName(time.Now())
+	}
 	if n.file != nil {
 		name = n.file.Name()
 	}
@@ -380,16 +410,24 @@ func (n *Note) write(w fyne.URIWriteCloser) bool {
 // in the next time (spec 4), its name the title of the note
 func (n *Note) setFile(u fyne.URI) {
 	n.file = u
-	fyne.CurrentApp().Preferences().SetString(prefDir, filepath.Dir(u.Path()))
+	fyne.CurrentApp().Preferences().SetString(n.folderPref(), filepath.Dir(u.Path()))
 	if n.OnTitle != nil {
 		n.OnTitle(u.Name())
 	}
 }
 
+// folderPref is the preference of the folder to start in, see FolderPref
+func (n *Note) folderPref() string {
+	if n.FolderPref != "" {
+		return n.FolderPref
+	}
+	return prefDir
+}
+
 // startIn opens a dialog in the folder of the note's file, else in the last
 // one used (spec 4), sized for a file list
 func (n *Note) startIn(d *dialog.FileDialog) {
-	dir := fyne.CurrentApp().Preferences().String(prefDir)
+	dir := fyne.CurrentApp().Preferences().String(n.folderPref())
 	if n.file != nil {
 		dir = filepath.Dir(n.file.Path())
 	}
